@@ -41,9 +41,10 @@ func main() {
 		// fmt.Printf("OK! We'll try to do %s\n", input)
 
 		stmt := spanner.NewStatement(input)
-		iter := client.Single().Query(ctx, stmt)
+		iter := client.Single().QueryWithStats(ctx, stmt)
 
 		defer iter.Stop()
+		table := tablewriter.NewWriter(os.Stdout)
 		for {
 			row, err := iter.Next()
 			if err == iterator.Done {
@@ -53,22 +54,26 @@ func main() {
 				log.Fatalf("failed to query: %v", err)
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
-			columns := make([]string, 0, row.Size())
+			columns := make([]string, row.Size())
 			for i := 0; i < row.Size(); i++ {
-				var column string
-				err := row.Column(0, &column)
+				var column spanner.GenericColumnValue
+				err := row.Column(i, &column)
 				if err != nil {
 					log.Fatalf("failed to parse column: %v", err)
 				}
-				columns[i] = column
+				columns[i] = fmt.Sprintf("%s", column.Value)
 			}
 			table.Append(columns)
-			table.setHeader(row.ColumnNames())
-			table.SetAlignment(tablewriter.ALIGN_LEFT)
-			table.Render()
+			table.SetHeader(row.ColumnNames())
 		}
-		fmt.Printf("%d rows in set (0.00 sec)\n")
+		table.SetAutoFormatHeaders(false)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.Render()
+
+		rowsReturned := iter.QueryStats["rows_returned"]
+		elapsedTime := iter.QueryStats["elapsed_time"]
+		fmt.Printf("%s rows in set (%s)\n", rowsReturned, elapsedTime)
+		// fmt.Printf("Empty set (0.00 sec)\n")
 		fmt.Printf("\n")
 	}
 }
