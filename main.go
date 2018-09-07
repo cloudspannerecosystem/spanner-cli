@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"cloud.google.com/go/spanner"
 	"github.com/olekukonko/tablewriter"
@@ -45,6 +46,7 @@ func main() {
 
 		defer iter.Stop()
 		table := tablewriter.NewWriter(os.Stdout)
+		rows := make([]*spanner.Row, 0, 0)
 		for {
 			row, err := iter.Next()
 			if err == iterator.Done {
@@ -53,6 +55,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("failed to query: %v", err)
 			}
+			rows = append(rows, row)
 
 			columns := make([]string, row.Size())
 			for i := 0; i < row.Size(); i++ {
@@ -66,14 +69,19 @@ func main() {
 			table.Append(columns)
 			table.SetHeader(row.ColumnNames())
 		}
-		table.SetAutoFormatHeaders(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.Render()
+		if len(rows) > 0 {
+			table.SetAutoFormatHeaders(false)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.Render()
+		}
 
-		rowsReturned := iter.QueryStats["rows_returned"]
-		elapsedTime := iter.QueryStats["elapsed_time"]
-		fmt.Printf("%s rows in set (%s)\n", rowsReturned, elapsedTime)
-		// fmt.Printf("Empty set (0.00 sec)\n")
+		rowsReturned, _ := strconv.Atoi(iter.QueryStats["rows_returned"].(string))
+		elapsedTime := iter.QueryStats["elapsed_time"].(string)
+		if rowsReturned == 0 {
+			fmt.Printf("Empty set (%s)\n", elapsedTime)
+		} else {
+			fmt.Printf("%d rows in set (%s)\n", rowsReturned, elapsedTime)
+		}
 		fmt.Printf("\n")
 	}
 }
