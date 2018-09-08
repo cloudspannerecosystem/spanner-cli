@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -28,8 +29,9 @@ func main() {
 	flag.Parse()
 
 	ctx := context.Background()
-	dbname := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
-	client, err := spanner.NewClient(ctx, dbname)
+	instancePath := fmt.Sprintf("projects/%s/instances/%s", projectId, instanceId)
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
+	client, err := spanner.NewClient(ctx, dbPath)
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
@@ -43,13 +45,17 @@ func main() {
 		scanner.Scan()
 		input := scanner.Text()
 
+		if input == "exit;" {
+			os.Exit(0)
+		}
+
 		if strings.HasPrefix(input, "create table") {
 			adminClient, err := adminapi.NewDatabaseAdminClient(ctx)
 			if err != nil {
 				log.Fatalf("failed to create database admin client: %v", err)
 			}
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-				Database:   dbname,
+				Database:   dbPath,
 				Statements: []string{input},
 			})
 			if err != nil {
@@ -61,6 +67,39 @@ func main() {
 				continue
 			}
 			fmt.Printf("Created table in database [%s]\n", databaseId)
+			continue
+		}
+
+		if strings.HasPrefix(input, "show databases") {
+			adminClient, err := adminapi.NewDatabaseAdminClient(ctx)
+			if err != nil {
+				log.Fatalf("failed to create database admin client: %v", err)
+			}
+			dbIter := adminClient.ListDatabases(ctx, &adminpb.ListDatabasesRequest{
+				Parent: instancePath,
+			})
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader([]string{"Database"})
+			dbnames := make([]string, 0, 0)
+			for {
+				database, err := dbIter.Next()
+				if err == iterator.Done {
+					break
+				}
+				if err != nil {
+					log.Printf("failed to list database: %v", err)
+					break
+				}
+				dbname, _ := getDatabaseFromPath(database.GetName())
+				dbnames = append(dbnames, dbname)
+				table.Append([]string{dbname})
+			}
+			if len(dbnames) > 0 {
+				table.SetAutoFormatHeaders(false)
+				table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+				table.SetAlignment(tablewriter.ALIGN_LEFT)
+				table.Render()
+			}
 			continue
 		}
 
@@ -94,6 +133,7 @@ func main() {
 		}
 		if len(rows) > 0 {
 			table.SetAutoFormatHeaders(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 			table.SetAlignment(tablewriter.ALIGN_LEFT)
 			table.Render()
 		}
@@ -106,5 +146,15 @@ func main() {
 			fmt.Printf("%d rows in set (%s)\n", rowsReturned, elapsedTime)
 		}
 		fmt.Printf("\n")
+	}
+}
+
+func getDatabaseFromPath(dbpath string) (string, error) {
+	re := regexp.MustCompile(`projects/[^/]+/instances/[^/]+/databases/(.+)`)
+	matched := re.FindStringSubmatch(dbpath)
+	if len(matched) == 2 {
+		return matched[1], nil
+	} else {
+		return "", fmt.Errorf("invalid db path: %s", dbpath)
 	}
 }
