@@ -8,10 +8,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"cloud.google.com/go/spanner"
+	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/iterator"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 func main() {
@@ -39,7 +42,27 @@ func main() {
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		input := scanner.Text()
-		// fmt.Printf("OK! We'll try to do %s\n", input)
+
+		if strings.HasPrefix(input, "create table") {
+			adminClient, err := adminapi.NewDatabaseAdminClient(ctx)
+			if err != nil {
+				log.Fatalf("failed to create database admin client: %v", err)
+			}
+			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
+				Database:   dbname,
+				Statements: []string{input},
+			})
+			if err != nil {
+				fmt.Printf("failed to update database ddl: %v", err)
+				continue
+			}
+			if err := op.Wait(ctx); err != nil {
+				fmt.Printf("failed to update database ddl: %v", err)
+				continue
+			}
+			fmt.Printf("Created table in database [%s]\n", databaseId)
+			continue
+		}
 
 		stmt := spanner.NewStatement(input)
 		iter := client.Single().QueryWithStats(ctx, stmt)
