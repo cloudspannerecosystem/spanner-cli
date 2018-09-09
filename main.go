@@ -103,6 +103,24 @@ func main() {
 			continue
 		}
 
+		if strings.HasPrefix(input, "show create table") {
+			adminClient, err := adminapi.NewDatabaseAdminClient(ctx)
+			if err != nil {
+				log.Fatalf("failed to create database admin client: %v", err)
+			}
+			ddlResponse, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{
+				Database: dbPath,
+			})
+			if err != nil {
+				log.Printf("failed to get database ddl: %v", err)
+				break
+			}
+			for _, statement := range ddlResponse.Statements {
+				fmt.Printf("%s\n", statement)
+			}
+			continue
+		}
+
 		stmt := spanner.NewStatement(input)
 		iter := client.Single().QueryWithStats(ctx, stmt)
 
