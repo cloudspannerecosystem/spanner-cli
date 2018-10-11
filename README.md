@@ -1,39 +1,16 @@
 spanner-cli
 ===
 
+WIP
+
 ```
-spanner-cli -i $INSTANCE
+spanner-cli -d <DATABASE>
 ```
 
 ```
--i: instance name
 -p: project name (optional)
--d: database name (optional)
+-i: instance name (optional)
+-d: database name
 --service-account: service account (optional)
 ```
 
-```
-SHOW DATABASES;
-USE test;
-
-SHOW TABLES:
-SHOW CREATE TABLE test;
-```
-
-TODO
----
-* create table xxx
-* show create table xxx (desc)
-* show tables
-* readline
-* DML
-* explain
-* prompt customize
-* progress mark
-
-Memo
----
-* show create table xxx => GetDatabaseDdl
-* create table / drop table / alter table / create index => UpdateDatabaseDdl
-* show tables => select * from information_schema?
-* show databases => ListDatabases
