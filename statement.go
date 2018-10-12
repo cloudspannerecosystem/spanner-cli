@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"cloud.google.com/go/spanner"
@@ -67,6 +66,7 @@ var (
 )
 
 var (
+	txnRetryError = errors.New("transaction retried, but it's not supported.")
 	rollbackError = errors.New("rollback")
 )
 
@@ -369,23 +369,30 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 
 	t1 := time.Now()
 
-	if !session.inTxn() {
-		begin := BeginStatement{}
-		_, err := begin.Execute(session)
+	var numRows int64
+	var err error
+	if session.inTxn() {
+		numRows, err = session.rwTxn.Update(session.ctx, stmt)
 		if err != nil {
 			return nil, err
 		}
-	}
+	} else {
+		begin := BeginStatement{}
+		_, err = begin.Execute(session)
+		if err != nil {
+			return nil, err
+		}
 
-	numRows, err := session.rwTxn.Update(session.ctx, stmt)
-	if err != nil {
-		return nil, err
-	}
+		numRows, err = session.rwTxn.Update(session.ctx, stmt)
+		if err != nil {
+			return nil, err
+		}
 
-	commit := CommitStatement{}
-	_, err = commit.Execute(session)
-	if err != nil {
-		return nil, err
+		commit := CommitStatement{}
+		_, err = commit.Execute(session)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	elapsed := time.Since(t1).String()
@@ -398,21 +405,26 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 type BeginStatement struct{}
 
 func (s *BeginStatement) Execute(session *Session) (*Result, error) {
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	contextChanged := make(chan bool)
 
 	t1 := time.Now()
-	var txnError error
 	go func() {
+		txnExecuted := false
 		_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-			// switch to transaction context
+			// ReadWriteTransaction might retry this function, but it's not supported in this tool.
+			if txnExecuted {
+				return txnRetryError
+			}
+			txnExecuted = true
+
+			// switch session context to transaction context
 			oldCtx := session.ctx
 			session.ctx = ctx
 			defer func() {
 				session.ctx = oldCtx
 			}()
 			session.rwTxn = txn
-			wg.Done()
+			contextChanged <- true
 
 			// wait for mutations...
 			isCommitted := <-session.committedChan
@@ -423,16 +435,14 @@ func (s *BeginStatement) Execute(session *Session) (*Result, error) {
 				return rollbackError
 			}
 		})
-		if err != nil && err != rollbackError {
-			txnError = err
-			wg.Done()
-		}
-		session.txnFinished <- true
+		session.txnFinished <- err
 	}()
-	wg.Wait()
 
-	if txnError != nil {
-		return nil, txnError
+	select {
+	case <-contextChanged:
+		// go
+	case err := <-session.txnFinished:
+		return nil, err
 	}
 
 	elapsed := time.Since(t1).String()
@@ -451,47 +461,41 @@ func (s *BeginStatement) Execute(session *Session) (*Result, error) {
 type CommitStatement struct{}
 
 func (s *CommitStatement) Execute(session *Session) (*Result, error) {
-	t1 := time.Now()
-	session.committedChan <- true
-	<-session.txnFinished
-	// TODO error catch
+	defer session.finishTxn()
+	return withElapsedTime(func() (*Result, error) {
+		session.committedChan <- true
 
-	session.rwTxn = nil
+		err := <-session.txnFinished
+		if err != nil {
+			return nil, err
+		}
 
-	elapsed := time.Since(t1).String()
-
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-		Stats: Stats{
-			AffectedRows: 0,
-			ElapsedTime:  elapsed,
-		},
-	}, nil
+		return &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}, nil
+	})
 }
 
 type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
-	t1 := time.Now()
-	session.committedChan <- false
-	<-session.txnFinished
-	// TODO error catch
+	defer session.finishTxn()
+	return withElapsedTime(func() (*Result, error) {
+		session.committedChan <- false
 
-	session.rwTxn = nil
+		err := <-session.txnFinished
+		if err != nil && err != rollbackError {
+			return nil, err
+		}
 
-	elapsed := time.Since(t1).String()
-
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-		Stats: Stats{
-			AffectedRows: 0,
-			ElapsedTime:  elapsed,
-		},
-	}, nil
+		return &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}, nil
+	})
 }
 
 type ExitStatement struct{}

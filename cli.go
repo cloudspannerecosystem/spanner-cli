@@ -22,7 +22,7 @@ type Session struct {
 	client        *spanner.Client
 	adminClient   *adminapi.DatabaseAdminClient
 	rwTxn         *spanner.ReadWriteTransaction
-	txnFinished   chan bool
+	txnFinished   chan error
 	committedChan chan bool
 }
 
@@ -46,13 +46,17 @@ func NewSession(projectId string, instanceId string, databaseId string) (*Sessio
 		databaseId:    databaseId,
 		client:        client,
 		adminClient:   adminClient,
-		txnFinished:   make(chan bool),
+		txnFinished:   make(chan error),
 		committedChan: make(chan bool),
 	}, nil
 }
 
 func (s *Session) inTxn() bool {
 	return s.rwTxn != nil
+}
+
+func (s *Session) finishTxn() {
+	s.rwTxn = nil
 }
 
 type Cli struct {
@@ -161,11 +165,14 @@ func (s *Session) GetInstancePath() string {
 
 func readInput(rl *readline.Instance) (string, error) {
 	lines := make([]string, 0)
+	defer rl.SetPrompt(rl.Config.Prompt)
+
 	for {
 		line, err := rl.Readline()
 		if err != nil {
 			return "", err
 		}
+		rl.SetPrompt("      -> ") // same padding to `spanner>` prompt
 
 		line = strings.TrimSpace(line)
 		if len(line) != 0 && line[len(line)-1] == ';' { // terminated
