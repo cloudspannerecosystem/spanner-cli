@@ -10,6 +10,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/olekukonko/tablewriter"
 	// adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -48,13 +49,43 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 
 func (c *Cli) Run() {
 	for {
-		// fmt.Printf("[%s]\n", dbPath)
-		fmt.Printf("> ")
+		prompt := fmt.Sprintf("\x1b[36m[%s]\x1b[0m\n> ", buildDatabasePath(c.projectId, c.instanceId, c.databaseId))
+		fmt.Print(prompt)
+
 		input := readInput(os.Stdin)
 		if input == "exit;" {
 			os.Exit(0)
 		}
-		fmt.Println(input)
+
+		statement, err := buildStatement(input)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		result, err := statement.Execute(c.client, c.adminClient)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		table := tablewriter.NewWriter(os.Stdout)
+		for _, row := range result.Rows {
+			table.Append(row.Columns)
+		}
+		table.SetHeader(result.ColumnNames)
+		if len(result.Rows) > 0 {
+			table.SetAutoFormatHeaders(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.Render()
+		}
+
+		if result.QueryStats.RowsReturned == 0 {
+			fmt.Printf("Empty set (%s)\n", result.QueryStats.ElapsedTime)
+		} else {
+			fmt.Printf("%d rows in set (%s)\n", result.QueryStats.RowsReturned, result.QueryStats.ElapsedTime)
+		}
+		fmt.Printf("\n")
 	}
 }
 
@@ -67,7 +98,7 @@ func readInput(in io.Reader) string {
 		text = strings.Trim(text, " ")
 		lines = append(lines, text)
 
-		if text[len(text)-1] == ';' {
+		if len(text) != 0 && text[len(text)-1] == ';' {
 			return strings.Join(lines, " ")
 		}
 	}
@@ -80,59 +111,3 @@ func buildInstancePath(projectId, instanceId string) string {
 func buildDatabasePath(projectId, instanceId, databaseId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 }
-
-// type Statement string
-
-// const (
-// StatementQuery Statement =
-// )
-
-// func detectStatement(input string) Statement {
-// }
-
-// func (s *Statement) Execute() {
-// stmt := spanner.NewStatement(input)
-// iter := client.Single().QueryWithStats(ctx, stmt)
-
-// defer iter.Stop()
-// table := tablewriter.NewWriter(os.Stdout)
-// rows := make([]*spanner.Row, 0, 0)
-// for {
-// row, err := iter.Next()
-// if err == iterator.Done {
-// break
-// }
-// if err != nil {
-// log.Fatalf("failed to query: %v", err)
-// }
-// rows = append(rows, row)
-
-// columns := make([]string, row.Size())
-// for i := 0; i < row.Size(); i++ {
-// var column spanner.GenericColumnValue
-// err := row.Column(i, &column)
-// if err != nil {
-// log.Fatalf("failed to parse column: %v", err)
-// }
-// columns[i] = fmt.Sprintf("%s", column.Value)
-// }
-// table.Append(columns)
-// table.SetHeader(row.ColumnNames())
-// }
-// if len(rows) > 0 {
-// table.SetAutoFormatHeaders(false)
-// table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-// table.SetAlignment(tablewriter.ALIGN_LEFT)
-// table.Render()
-// }
-
-// rowsReturned, _ := strconv.Atoi(iter.QueryStats["rows_returned"].(string))
-// elapsedTime := iter.QueryStats["elapsed_time"].(string)
-// if rowsReturned == 0 {
-// fmt.Printf("Empty set (%s)\n", elapsedTime)
-// } else {
-// fmt.Printf("%d rows in set (%s)\n", rowsReturned, elapsedTime)
-// }
-// fmt.Printf("\n")
-// }
-// }
