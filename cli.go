@@ -15,12 +15,19 @@ import (
 )
 
 type Session struct {
-	ctx         context.Context
-	projectId   string
-	instanceId  string
-	databaseId  string
-	client      *spanner.Client
-	adminClient *adminapi.DatabaseAdminClient
+	ctx           context.Context
+	projectId     string
+	instanceId    string
+	databaseId    string
+	client        *spanner.Client
+	adminClient   *adminapi.DatabaseAdminClient
+	rwTxn         *spanner.ReadWriteTransaction
+	txnFinished   chan bool
+	committedChan chan bool
+}
+
+func (s *Session) inTxn() bool {
+	return s.rwTxn != nil
 }
 
 type Cli struct {
@@ -41,12 +48,14 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 	}
 
 	session := &Session{
-		ctx:         ctx,
-		projectId:   projectId,
-		instanceId:  instanceId,
-		databaseId:  databaseId,
-		client:      client,
-		adminClient: adminClient,
+		ctx:           ctx,
+		projectId:     projectId,
+		instanceId:    instanceId,
+		databaseId:    databaseId,
+		client:        client,
+		adminClient:   adminClient,
+		txnFinished:   make(chan bool),
+		committedChan: make(chan bool),
 	}
 
 	fmt.Printf("Connected.\n")
@@ -65,6 +74,8 @@ func (c *Cli) Run() {
 		statement, err := buildStatement(input)
 		if err != nil {
 			if err == statementExitError {
+				c.Session.client.Close()
+				c.Session.adminClient.Close()
 				os.Exit(0)
 			}
 			fmt.Println(err)

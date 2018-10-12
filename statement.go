@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/spanner"
@@ -49,6 +50,11 @@ var (
 	updateRe = regexp.MustCompile(`(?i)^UPDATE\s+.+$`)
 	deleteRe = regexp.MustCompile(`(?i)^DELETE\s+.+$`)
 
+	// Transaction
+	beginRe    = regexp.MustCompile(`(?i)^BEGIN$`)
+	commitRe   = regexp.MustCompile(`(?i)^COMMIT$`)
+	rollbackRe = regexp.MustCompile(`(?i)^ROLLBACK$`)
+
 	// Other
 	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
 	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
@@ -58,6 +64,7 @@ var (
 
 var (
 	statementExitError = errors.New("exit")
+	rollbackError      = errors.New("rollback")
 )
 
 func buildStatement(input string) (Statement, error) {
@@ -86,6 +93,12 @@ func buildStatement(input string) (Statement, error) {
 		stmt = &DmlStatement{
 			text: input,
 		}
+	} else if beginRe.MatchString(input) {
+		stmt = &BeginStatement{}
+	} else if commitRe.MatchString(input) {
+		stmt = &CommitStatement{}
+	} else if rollbackRe.MatchString(input) {
+		stmt = &RollbackStatement{}
 	}
 
 	if stmt == nil {
@@ -101,7 +114,12 @@ type QueryStatement struct {
 
 func (s *QueryStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.text)
-	iter := session.client.Single().QueryWithStats(session.ctx, stmt)
+	var iter *spanner.RowIterator
+	if session.inTxn() {
+		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
+	} else {
+		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
+	}
 
 	result := &Result{
 		ColumnNames: make([]string, 0),
@@ -312,20 +330,128 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	t1 := time.Now()
-	_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-		numRows, err := txn.Update(ctx, stmt)
+
+	if !session.inTxn() {
+		begin := BeginStatement{}
+		_, err := begin.Execute(session)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		result.QueryStats.Rows = int(numRows) // TODO: int64
-		return nil
-	})
+	}
+
+	numRows, err := session.rwTxn.Update(session.ctx, stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	commit := CommitStatement{}
+	_, err = commit.Execute(session)
 	if err != nil {
 		return nil, err
 	}
 
 	elapsed := time.Since(t1).String()
+	result.QueryStats.Rows = int(numRows) // TODO: int64
 	result.QueryStats.ElapsedTime = elapsed
 
 	return result, nil
+}
+
+type BeginStatement struct{}
+
+func (s *BeginStatement) Execute(session *Session) (*Result, error) {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	t1 := time.Now()
+	var txnError error
+	go func() {
+		_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+			// switch to transaction context
+			oldCtx := session.ctx
+			session.ctx = ctx
+			defer func() {
+				session.ctx = oldCtx
+			}()
+			session.rwTxn = txn
+			wg.Done()
+
+			// wait for mutations...
+			isCommitted := <-session.committedChan
+
+			if isCommitted {
+				return nil
+			} else {
+				return rollbackError
+			}
+		})
+		if err != nil && err != rollbackError {
+			txnError = err
+			wg.Done()
+		}
+		session.txnFinished <- true
+	}()
+	wg.Wait()
+
+	if txnError != nil {
+		return nil, txnError
+	}
+
+	elapsed := time.Since(t1).String()
+
+	return &Result{
+		ColumnNames: make([]string, 0),
+		Rows:        make([]Row, 0),
+		IsMutation:  true,
+		QueryStats: QueryStats{
+			Rows:        0,
+			ElapsedTime: elapsed,
+		},
+	}, nil
+}
+
+type CommitStatement struct{}
+
+func (s *CommitStatement) Execute(session *Session) (*Result, error) {
+	t1 := time.Now()
+	session.committedChan <- true
+	<-session.txnFinished
+	// TODO error catch
+
+	session.rwTxn = nil
+
+	elapsed := time.Since(t1).String()
+
+	return &Result{
+		ColumnNames: make([]string, 0),
+		Rows:        make([]Row, 0),
+		IsMutation:  true,
+		QueryStats: QueryStats{
+			Rows:        0,
+			ElapsedTime: elapsed,
+		},
+	}, nil
+}
+
+type RollbackStatement struct{}
+
+func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
+	t1 := time.Now()
+	session.committedChan <- false
+	<-session.txnFinished
+	// TODO error catch
+
+	session.rwTxn = nil
+
+	elapsed := time.Since(t1).String()
+
+	return &Result{
+		ColumnNames: make([]string, 0),
+		Rows:        make([]Row, 0),
+		IsMutation:  true,
+		QueryStats: QueryStats{
+			Rows:        0,
+			ElapsedTime: elapsed,
+		},
+	}, nil
 }
