@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -16,7 +15,7 @@ import (
 )
 
 type Statement interface {
-	Execute(cli *Cli) (*Result, error)
+	Execute(session *Session) (*Result, error)
 }
 
 type Result struct {
@@ -62,10 +61,9 @@ type QueryStatement struct {
 	text string
 }
 
-func (s *QueryStatement) Execute(cli *Cli) (*Result, error) {
+func (s *QueryStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.text)
-	ctx := context.Background() // TODO
-	iter := cli.client.Single().QueryWithStats(ctx, stmt)
+	iter := session.client.Single().QueryWithStats(session.ctx, stmt)
 
 	result := &Result{
 		ColumnNames: make([]string, 0),
@@ -131,9 +129,7 @@ type CreateTableStatement struct {
 	text string
 }
 
-func (s *CreateTableStatement) Execute(cli *Cli) (*Result, error) {
-	ctx := context.Background() // TODO
-
+func (s *CreateTableStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),
@@ -141,14 +137,14 @@ func (s *CreateTableStatement) Execute(cli *Cli) (*Result, error) {
 	}
 
 	t1 := time.Now()
-	op, err := cli.adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database:   cli.GetDatabasePath(),
+	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
+		Database:   session.GetDatabasePath(),
 		Statements: []string{s.text},
 	})
 	if err != nil {
 		return nil, err
 	}
-	if err := op.Wait(ctx); err != nil {
+	if err := op.Wait(session.ctx); err != nil {
 		return nil, err
 	}
 	elapsed := time.Since(t1).String()
@@ -164,9 +160,7 @@ func (s *CreateTableStatement) Execute(cli *Cli) (*Result, error) {
 type ShowDatabasesStatement struct {
 }
 
-func (s *ShowDatabasesStatement) Execute(cli *Cli) (*Result, error) {
-	ctx := context.Background() // TODO
-
+func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		ColumnNames: []string{"Database"},
 		Rows:        make([]Row, 0),
@@ -175,8 +169,8 @@ func (s *ShowDatabasesStatement) Execute(cli *Cli) (*Result, error) {
 
 	t1 := time.Now()
 
-	dbIter := cli.adminClient.ListDatabases(ctx, &adminpb.ListDatabasesRequest{
-		Parent: cli.GetInstancePath(),
+	dbIter := session.adminClient.ListDatabases(session.ctx, &adminpb.ListDatabasesRequest{
+		Parent: session.GetInstancePath(),
 	})
 
 	for {
@@ -187,7 +181,10 @@ func (s *ShowDatabasesStatement) Execute(cli *Cli) (*Result, error) {
 		if err != nil {
 			return nil, err
 		}
-		dbname, _ := getDatabaseFromPath(database.GetName())
+
+		re := regexp.MustCompile(`projects/[^/]+/instances/[^/]+/databases/(.+)`)
+		matched := re.FindStringSubmatch(database.GetName())
+		dbname := matched[1]
 		resultRow := Row{
 			Columns: []string{dbname},
 		}
@@ -208,9 +205,7 @@ type ShowCreateTableStatement struct {
 	table string
 }
 
-func (s *ShowCreateTableStatement) Execute(cli *Cli) (*Result, error) {
-	ctx := context.Background() // TODO
-
+func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		ColumnNames: []string{"Table", "Create Table"},
 		Rows:        make([]Row, 0),
@@ -219,8 +214,8 @@ func (s *ShowCreateTableStatement) Execute(cli *Cli) (*Result, error) {
 
 	t1 := time.Now()
 
-	ddlResponse, err := cli.adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{
-		Database: cli.GetDatabasePath(),
+	ddlResponse, err := session.adminClient.GetDatabaseDdl(session.ctx, &adminpb.GetDatabaseDdlRequest{
+		Database: session.GetDatabasePath(),
 	})
 	if err != nil {
 		return nil, err

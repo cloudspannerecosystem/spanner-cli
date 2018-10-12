@@ -14,7 +14,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-type Cli struct {
+type Session struct {
+	ctx         context.Context
 	projectId   string
 	instanceId  string
 	databaseId  string
@@ -22,10 +23,13 @@ type Cli struct {
 	adminClient *adminapi.DatabaseAdminClient
 }
 
-func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
-	ctx := context.Background() // TODO
-	dbPath := buildDatabasePath(projectId, instanceId, databaseId)
+type Cli struct {
+	Session *Session
+}
 
+func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
+	ctx := context.Background()
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 	client, err := spanner.NewClient(ctx, dbPath)
 	if err != nil {
 		return nil, err
@@ -36,20 +40,25 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Connected.\n")
-
-	return &Cli{
+	session := &Session{
+		ctx:         ctx,
 		projectId:   projectId,
 		instanceId:  instanceId,
 		databaseId:  databaseId,
 		client:      client,
 		adminClient: adminClient,
+	}
+
+	fmt.Printf("Connected.\n")
+
+	return &Cli{
+		Session: session,
 	}, nil
 }
 
 func (c *Cli) Run() {
 	for {
-		prompt := fmt.Sprintf("\x1b[36m[%s]\x1b[0m\n> ", buildDatabasePath(c.projectId, c.instanceId, c.databaseId))
+		prompt := fmt.Sprintf("\x1b[36m[%s]\x1b[0m\n> ", c.Session.GetDatabasePath())
 		fmt.Print(prompt)
 
 		input := readInput(os.Stdin)
@@ -64,7 +73,7 @@ func (c *Cli) Run() {
 		}
 
 		ticker := printProgressingMark()
-		result, err := statement.Execute(c)
+		result, err := statement.Execute(c.Session)
 		ticker.Stop()
 		fmt.Printf("\r")
 		if err != nil {
@@ -97,12 +106,12 @@ func (c *Cli) Run() {
 	}
 }
 
-func (c *Cli) GetDatabasePath() string {
-	return buildDatabasePath(c.projectId, c.instanceId, c.databaseId)
+func (s *Session) GetDatabasePath() string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", s.projectId, s.instanceId, s.databaseId)
 }
 
-func (c *Cli) GetInstancePath() string {
-	return buildInstancePath(c.projectId, c.instanceId)
+func (s *Session) GetInstancePath() string {
+	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
 }
 
 func readInput(in io.Reader) string {
@@ -135,12 +144,4 @@ func printProgressingMark() *time.Ticker {
 		}
 	}()
 	return ticker
-}
-
-func buildInstancePath(projectId, instanceId string) string {
-	return fmt.Sprintf("projects/%s/instances/%s", projectId, instanceId)
-}
-
-func buildDatabasePath(projectId, instanceId, databaseId string) string {
-	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 }
