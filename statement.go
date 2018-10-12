@@ -36,15 +36,24 @@ type QueryStats struct {
 }
 
 var (
+	// SQL
+	selectRe = regexp.MustCompile(`(?i)^SELECT\s.+$`)
+
+	// DDL
+	createTableRe = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
+	alterTableRe  = regexp.MustCompile(`(?i)^ALTER\s+TABLE\s.+$`)
+	dropTableRe   = regexp.MustCompile(`(?i)^DROP\s+TABLE\s.+$`)
+
+	// DML
+	insertRe = regexp.MustCompile(`(?i)^INSERT\s+.+$`)
+	updateRe = regexp.MustCompile(`(?i)^UPDATE\s+.+$`)
+	deleteRe = regexp.MustCompile(`(?i)^DELETE\s+.+$`)
+
+	// Other
 	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
-	selectRe          = regexp.MustCompile(`(?i)^SELECT\s.+$`)
-	createTableRe     = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
 	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.*)$`)
 	showTablesRe      = regexp.MustCompile(`(?i)^SHOW\s+TABLES$`)
-	insertRe          = regexp.MustCompile(`(?i)^INSERT\s+INTO.+$`)
-	updateRe          = regexp.MustCompile(`(?i)^UPDATE\s+.+$`)
-	deleteRe          = regexp.MustCompile(`(?i)^DELETE\s+.+$`)
 )
 
 var (
@@ -60,8 +69,8 @@ func buildStatement(input string) (Statement, error) {
 		stmt = &QueryStatement{
 			text: input,
 		}
-	} else if createTableRe.MatchString(input) {
-		stmt = &CreateTableStatement{
+	} else if createTableRe.MatchString(input) || alterTableRe.MatchString(input) || dropTableRe.MatchString(input) {
+		stmt = &DdlStatement{
 			text: input,
 		}
 	} else if showDatabasesRe.MatchString(input) {
@@ -154,11 +163,11 @@ func (s *QueryStatement) Execute(session *Session) (*Result, error) {
 	return result, nil
 }
 
-type CreateTableStatement struct {
+type DdlStatement struct {
 	text string
 }
 
-func (s *CreateTableStatement) Execute(session *Session) (*Result, error) {
+func (s *DdlStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),
