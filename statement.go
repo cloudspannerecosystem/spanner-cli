@@ -40,6 +40,7 @@ var (
 	createTableRe     = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
 	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.*)$`)
+	showTablesRe      = regexp.MustCompile(`(?i)^SHOW\s+TABLES$`)
 )
 
 var (
@@ -66,6 +67,8 @@ func buildStatement(input string) (Statement, error) {
 		stmt = &ShowCreateTableStatement{
 			table: matched[1],
 		}
+	} else if showTablesRe.MatchString(input) {
+		stmt = &ShowTablesStatement{}
 	}
 
 	if stmt == nil {
@@ -253,6 +256,26 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 	result.QueryStats = QueryStats{
 		Rows:        len(result.Rows),
 		ElapsedTime: elapsed,
+	}
+
+	return result, nil
+}
+
+type ShowTablesStatement struct{}
+
+func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
+	query := QueryStatement{
+		text: `SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`,
+	}
+
+	result, err := query.Execute(session)
+	if err != nil {
+		return nil, err
+	}
+
+	// rename column name
+	if len(result.ColumnNames) == 1 {
+		result.ColumnNames[0] = fmt.Sprintf("Tables_in_%s", session.databaseId)
 	}
 
 	return result, nil
