@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -41,6 +42,9 @@ var (
 	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.*)$`)
 	showTablesRe      = regexp.MustCompile(`(?i)^SHOW\s+TABLES$`)
+	insertRe          = regexp.MustCompile(`(?i)^INSERT\s+INTO.+$`)
+	updateRe          = regexp.MustCompile(`(?i)^UPDATE\s+.+$`)
+	deleteRe          = regexp.MustCompile(`(?i)^DELETE\s+.+$`)
 )
 
 var (
@@ -69,6 +73,10 @@ func buildStatement(input string) (Statement, error) {
 		}
 	} else if showTablesRe.MatchString(input) {
 		stmt = &ShowTablesStatement{}
+	} else if insertRe.MatchString(input) || updateRe.MatchString(input) || deleteRe.MatchString(input) {
+		stmt = &DmlStatement{
+			text: input,
+		}
 	}
 
 	if stmt == nil {
@@ -277,6 +285,38 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	if len(result.ColumnNames) == 1 {
 		result.ColumnNames[0] = fmt.Sprintf("Tables_in_%s", session.databaseId)
 	}
+
+	return result, nil
+}
+
+type DmlStatement struct {
+	text string
+}
+
+func (s *DmlStatement) Execute(session *Session) (*Result, error) {
+	stmt := spanner.NewStatement(s.text)
+
+	result := &Result{
+		ColumnNames: make([]string, 0),
+		Rows:        make([]Row, 0),
+		IsMutation:  true,
+	}
+
+	t1 := time.Now()
+	_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		numRows, err := txn.Update(ctx, stmt)
+		if err != nil {
+			return err
+		}
+		result.QueryStats.Rows = int(numRows) // TODO: int64
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	elapsed := time.Since(t1).String()
+	result.QueryStats.ElapsedTime = elapsed
 
 	return result, nil
 }
