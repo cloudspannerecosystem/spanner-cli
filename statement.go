@@ -45,8 +45,8 @@ var (
 	createTableRe    = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
 	alterTableRe     = regexp.MustCompile(`(?i)^ALTER\s+TABLE\s.+$`)
 	dropTableRe      = regexp.MustCompile(`(?i)^DROP\s+TABLE\s.+$`)
-	// createIndexRe = regexp.MustCompile(`(?i)^CREATE\s+INDEX\s.+$`)
-	// dropIndexRe   = regexp.MustCompile(`(?i)^DROP\s+INDEX\s.+$`)
+	createIndexRe    = regexp.MustCompile(`(?i)^CREATE\s+(UNIQUE\s+)?(NULL_FILTERED\s+)?INDEX\s.+$`)
+	dropIndexRe      = regexp.MustCompile(`(?i)^DROP\s+INDEX\s.+$`)
 
 	// DML
 	insertRe = regexp.MustCompile(`(?i)^INSERT\s+.+$`)
@@ -85,7 +85,7 @@ func buildStatement(input string) (Statement, error) {
 			text:     input,
 			database: matched[1],
 		}
-	} else if createTableRe.MatchString(input) || alterTableRe.MatchString(input) || dropTableRe.MatchString(input) {
+	} else if createTableRe.MatchString(input) || alterTableRe.MatchString(input) || dropTableRe.MatchString(input) || createIndexRe.MatchString(input) || dropIndexRe.MatchString(input) {
 		stmt = &DdlStatement{
 			text: input,
 		}
