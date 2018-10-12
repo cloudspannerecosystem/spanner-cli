@@ -60,21 +60,26 @@ var (
 
 	// Other
 	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
+	useRe             = regexp.MustCompile(`(?i)^USE\s+(.+)$`)
 	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?i)^SHOW\s+TABLES$`)
 )
 
 var (
-	statementExitError = errors.New("exit")
-	rollbackError      = errors.New("rollback")
+	rollbackError = errors.New("rollback")
 )
 
 func buildStatement(input string) (Statement, error) {
 	var stmt Statement
 
 	if exitRe.MatchString(input) {
-		return nil, statementExitError
+		stmt = &ExitStatement{}
+	} else if useRe.MatchString(input) {
+		matched := useRe.FindStringSubmatch(input)
+		stmt = &UseStatement{
+			database: matched[1],
+		}
 	} else if selectRe.MatchString(input) {
 		stmt = &QueryStatement{
 			text: input,
@@ -493,4 +498,20 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 			ElapsedTime: elapsed,
 		},
 	}, nil
+}
+
+type ExitStatement struct{}
+
+func (s *ExitStatement) Execute(session *Session) (*Result, error) {
+	// do nothing
+	return &Result{}, nil
+}
+
+type UseStatement struct {
+	database string
+}
+
+func (s *UseStatement) Execute(session *Session) (*Result, error) {
+	// do nothing
+	return &Result{}, nil
 }

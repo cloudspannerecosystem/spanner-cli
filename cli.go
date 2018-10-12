@@ -25,15 +25,7 @@ type Session struct {
 	committedChan chan bool
 }
 
-func (s *Session) inTxn() bool {
-	return s.rwTxn != nil
-}
-
-type Cli struct {
-	Session *Session
-}
-
-func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
+func NewSession(projectId string, instanceId string, databaseId string) (*Session, error) {
 	ctx := context.Background()
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 	client, err := spanner.NewClient(ctx, dbPath)
@@ -46,7 +38,7 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 		return nil, err
 	}
 
-	session := &Session{
+	return &Session{
 		ctx:           ctx,
 		projectId:     projectId,
 		instanceId:    instanceId,
@@ -55,6 +47,21 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 		adminClient:   adminClient,
 		txnFinished:   make(chan bool),
 		committedChan: make(chan bool),
+	}, nil
+}
+
+func (s *Session) inTxn() bool {
+	return s.rwTxn != nil
+}
+
+type Cli struct {
+	Session *Session
+}
+
+func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
+	session, err := NewSession(projectId, instanceId, databaseId)
+	if err != nil {
+		return nil, err
 	}
 
 	fmt.Printf("Connected.\n")
@@ -77,12 +84,26 @@ func (c *Cli) Run() {
 		input := readInput(rl)
 		statement, err := buildStatement(input)
 		if err != nil {
-			if err == statementExitError {
-				c.Session.client.Close()
-				c.Session.adminClient.Close()
-				os.Exit(0)
-			}
 			fmt.Println(err)
+			continue
+		}
+
+		if _, ok := statement.(*ExitStatement); ok {
+			c.Session.client.Close()
+			c.Session.adminClient.Close()
+			os.Exit(0)
+		}
+
+		if stmt, ok := statement.(*UseStatement); ok {
+			c.Session.client.Close()
+			c.Session.adminClient.Close()
+			newSession, err := NewSession(c.Session.projectId, c.Session.instanceId, stmt.database)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			c.Session = newSession
+			fmt.Println("Database changed")
 			continue
 		}
 
