@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -66,11 +65,16 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 }
 
 func (c *Cli) Run() {
-	for {
-		prompt := fmt.Sprintf("\x1b[36m[%s]\x1b[0m\n> ", c.Session.GetDatabasePath())
-		fmt.Print(prompt)
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:      "spanner> ",
+		HistoryFile: "/tmp/spanner_cli_readline.tmp",
+	})
+	if err != nil {
+		panic(err)
+	}
 
-		input := readInput(os.Stdin)
+	for {
+		input := readInput(rl)
 		statement, err := buildStatement(input)
 		if err != nil {
 			if err == statementExitError {
@@ -124,18 +128,17 @@ func (s *Session) GetInstancePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
 }
 
-func readInput(in io.Reader) string {
-	scanner := bufio.NewScanner(in)
+func readInput(rl *readline.Instance) string {
 	lines := make([]string, 0)
 	for {
-		scanner.Scan()
-		text := strings.Trim(scanner.Text(), " ")
-		if len(text) != 0 && text[len(text)-1] == ';' { // terminated
-			text = strings.TrimRight(text, ";")
-			lines = append(lines, text)
-			return strings.Trim(strings.Join(lines, " "), " ")
+		line, _ := rl.Readline()
+		line = strings.TrimSpace(line)
+		if len(line) != 0 && line[len(line)-1] == ';' { // terminated
+			line = strings.TrimRight(line, ";")
+			lines = append(lines, line)
+			return strings.TrimSpace(strings.Join(lines, " "))
 		} else {
-			lines = append(lines, text)
+			lines = append(lines, line)
 		}
 	}
 }
