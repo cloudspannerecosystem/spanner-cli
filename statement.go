@@ -41,9 +41,12 @@ var (
 	selectRe = regexp.MustCompile(`(?i)^SELECT\s.+$`)
 
 	// DDL
-	createTableRe = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
-	alterTableRe  = regexp.MustCompile(`(?i)^ALTER\s+TABLE\s.+$`)
-	dropTableRe   = regexp.MustCompile(`(?i)^DROP\s+TABLE\s.+$`)
+	createDatabaseRe = regexp.MustCompile(`(?i)^CREATE\s+DATABASE\s+(.+)$`)
+	createTableRe    = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
+	alterTableRe     = regexp.MustCompile(`(?i)^ALTER\s+TABLE\s.+$`)
+	dropTableRe      = regexp.MustCompile(`(?i)^DROP\s+TABLE\s.+$`)
+	// createIndexRe = regexp.MustCompile(`(?i)^CREATE\s+INDEX\s.+$`)
+	// dropIndexRe   = regexp.MustCompile(`(?i)^DROP\s+INDEX\s.+$`)
 
 	// DML
 	insertRe = regexp.MustCompile(`(?i)^INSERT\s+.+$`)
@@ -58,7 +61,7 @@ var (
 	// Other
 	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
 	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
-	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.*)$`)
+	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?i)^SHOW\s+TABLES$`)
 )
 
@@ -75,6 +78,12 @@ func buildStatement(input string) (Statement, error) {
 	} else if selectRe.MatchString(input) {
 		stmt = &QueryStatement{
 			text: input,
+		}
+	} else if createDatabaseRe.MatchString(input) {
+		matched := createDatabaseRe.FindStringSubmatch(input)
+		stmt = &CreateDatabaseStatement{
+			text:     input,
+			database: matched[1],
 		}
 	} else if createTableRe.MatchString(input) || alterTableRe.MatchString(input) || dropTableRe.MatchString(input) {
 		stmt = &DdlStatement{
@@ -179,6 +188,36 @@ func (s *QueryStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	return result, nil
+}
+
+type CreateDatabaseStatement struct {
+	text     string
+	database string
+}
+
+func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
+	t1 := time.Now()
+	op, err := session.adminClient.CreateDatabase(session.ctx, &adminpb.CreateDatabaseRequest{
+		Parent:          session.GetInstancePath(),
+		CreateStatement: s.text,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := op.Wait(session.ctx); err != nil {
+		return nil, err
+	}
+	elapsed := time.Since(t1).String()
+
+	return &Result{
+		ColumnNames: make([]string, 0),
+		Rows:        make([]Row, 0),
+		IsMutation:  true,
+		QueryStats: QueryStats{
+			Rows:        0,
+			ElapsedTime: elapsed,
+		},
+	}, nil
 }
 
 type DdlStatement struct {
