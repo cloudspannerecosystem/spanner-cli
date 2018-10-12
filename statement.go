@@ -23,7 +23,7 @@ type Statement interface {
 type Result struct {
 	ColumnNames []string
 	Rows        []Row
-	QueryStats  QueryStats
+	Stats       Stats
 	IsMutation  bool
 }
 
@@ -31,9 +31,9 @@ type Row struct {
 	Columns []string
 }
 
-type QueryStats struct {
-	Rows        int
-	ElapsedTime string
+type Stats struct {
+	AffectedRows int
+	ElapsedTime  string
 }
 
 var (
@@ -70,7 +70,7 @@ var (
 	rollbackError = errors.New("rollback")
 )
 
-func buildStatement(input string) (Statement, error) {
+func BuildStatement(input string) (Statement, error) {
 	var stmt Statement
 
 	if exitRe.MatchString(input) {
@@ -78,10 +78,10 @@ func buildStatement(input string) (Statement, error) {
 	} else if useRe.MatchString(input) {
 		matched := useRe.FindStringSubmatch(input)
 		stmt = &UseStatement{
-			database: matched[1],
+			Database: matched[1],
 		}
 	} else if selectRe.MatchString(input) {
-		stmt = &QueryStatement{
+		stmt = &SelectStatement{
 			text: input,
 		}
 	} else if createDatabaseRe.MatchString(input) {
@@ -122,11 +122,11 @@ func buildStatement(input string) (Statement, error) {
 	return stmt, nil
 }
 
-type QueryStatement struct {
+type SelectStatement struct {
 	text string
 }
 
-func (s *QueryStatement) Execute(session *Session) (*Result, error) {
+func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.text)
 	var iter *spanner.RowIterator
 	if session.inTxn() {
@@ -187,9 +187,9 @@ func (s *QueryStatement) Execute(session *Session) (*Result, error) {
 
 	rowsReturned, _ := strconv.Atoi(iter.QueryStats["rows_returned"].(string))
 	elapsedTime := iter.QueryStats["elapsed_time"].(string)
-	result.QueryStats = QueryStats{
-		Rows:        rowsReturned,
-		ElapsedTime: elapsedTime,
+	result.Stats = Stats{
+		AffectedRows: rowsReturned,
+		ElapsedTime:  elapsedTime,
 	}
 
 	return result, nil
@@ -218,9 +218,9 @@ func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),
 		IsMutation:  true,
-		QueryStats: QueryStats{
-			Rows:        0,
-			ElapsedTime: elapsed,
+		Stats: Stats{
+			AffectedRows: 0,
+			ElapsedTime:  elapsed,
 		},
 	}, nil
 }
@@ -249,9 +249,9 @@ func (s *DdlStatement) Execute(session *Session) (*Result, error) {
 	}
 	elapsed := time.Since(t1).String()
 
-	result.QueryStats = QueryStats{
-		Rows:        0,
-		ElapsedTime: elapsed,
+	result.Stats = Stats{
+		AffectedRows: 0,
+		ElapsedTime:  elapsed,
 	}
 
 	return result, nil
@@ -293,9 +293,9 @@ func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
 
 	elapsed := time.Since(t1).String()
 
-	result.QueryStats = QueryStats{
-		Rows:        len(result.Rows),
-		ElapsedTime: elapsed,
+	result.Stats = Stats{
+		AffectedRows: len(result.Rows),
+		ElapsedTime:  elapsed,
 	}
 
 	return result, nil
@@ -306,44 +306,38 @@ type ShowCreateTableStatement struct {
 }
 
 func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames: []string{"Table", "Create Table"},
-		Rows:        make([]Row, 0),
-		IsMutation:  false,
-	}
-
-	t1 := time.Now()
-
-	ddlResponse, err := session.adminClient.GetDatabaseDdl(session.ctx, &adminpb.GetDatabaseDdlRequest{
-		Database: session.GetDatabasePath(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	for _, statement := range ddlResponse.Statements {
-		if strings.HasPrefix(statement, fmt.Sprintf("CREATE TABLE %s", s.table)) {
-			resultRow := Row{
-				Columns: []string{s.table, statement},
-			}
-			result.Rows = append(result.Rows, resultRow)
-			break
+	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: []string{"Table", "Create Table"},
+			Rows:        make([]Row, 0),
+			IsMutation:  false,
 		}
-	}
 
-	elapsed := time.Since(t1).String()
+		ddlResponse, err := session.adminClient.GetDatabaseDdl(session.ctx, &adminpb.GetDatabaseDdlRequest{
+			Database: session.GetDatabasePath(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, stmt := range ddlResponse.Statements {
+			if strings.HasPrefix(stmt, fmt.Sprintf("CREATE TABLE %s", s.table)) {
+				resultRow := Row{
+					Columns: []string{s.table, stmt},
+				}
+				result.Rows = append(result.Rows, resultRow)
+				break
+			}
+		}
+		result.Stats.AffectedRows = len(result.Rows)
 
-	result.QueryStats = QueryStats{
-		Rows:        len(result.Rows),
-		ElapsedTime: elapsed,
-	}
-
-	return result, nil
+		return result, nil
+	})
 }
 
 type ShowTablesStatement struct{}
 
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
-	query := QueryStatement{
+	query := SelectStatement{
 		text: `SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`,
 	}
 
@@ -395,8 +389,8 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	elapsed := time.Since(t1).String()
-	result.QueryStats.Rows = int(numRows) // TODO: int64
-	result.QueryStats.ElapsedTime = elapsed
+	result.Stats.AffectedRows = int(numRows)
+	result.Stats.ElapsedTime = elapsed
 
 	return result, nil
 }
@@ -447,9 +441,9 @@ func (s *BeginStatement) Execute(session *Session) (*Result, error) {
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),
 		IsMutation:  true,
-		QueryStats: QueryStats{
-			Rows:        0,
-			ElapsedTime: elapsed,
+		Stats: Stats{
+			AffectedRows: 0,
+			ElapsedTime:  elapsed,
 		},
 	}, nil
 }
@@ -470,9 +464,9 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),
 		IsMutation:  true,
-		QueryStats: QueryStats{
-			Rows:        0,
-			ElapsedTime: elapsed,
+		Stats: Stats{
+			AffectedRows: 0,
+			ElapsedTime:  elapsed,
 		},
 	}, nil
 }
@@ -493,9 +487,9 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),
 		IsMutation:  true,
-		QueryStats: QueryStats{
-			Rows:        0,
-			ElapsedTime: elapsed,
+		Stats: Stats{
+			AffectedRows: 0,
+			ElapsedTime:  elapsed,
 		},
 	}, nil
 }
@@ -508,10 +502,22 @@ func (s *ExitStatement) Execute(session *Session) (*Result, error) {
 }
 
 type UseStatement struct {
-	database string
+	Database string
 }
 
 func (s *UseStatement) Execute(session *Session) (*Result, error) {
 	// do nothing
 	return &Result{}, nil
+}
+
+func withElapsedTime(f func() (*Result, error)) (*Result, error) {
+	t1 := time.Now()
+	result, err := f()
+	elapsed := time.Since(t1).String()
+
+	if err != nil {
+		return nil, err
+	}
+	result.Stats.ElapsedTime = elapsed
+	return result, nil
 }

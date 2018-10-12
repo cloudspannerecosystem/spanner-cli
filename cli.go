@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -81,23 +82,25 @@ func (c *Cli) Run() {
 	}
 
 	for {
-		input := readInput(rl)
-		statement, err := buildStatement(input)
+		input, err := readInput(rl)
+		if err == io.EOF {
+			c.Exit()
+		}
+
+		stmt, err := BuildStatement(input)
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 
-		if _, ok := statement.(*ExitStatement); ok {
-			c.Session.client.Close()
-			c.Session.adminClient.Close()
-			os.Exit(0)
+		if _, ok := stmt.(*ExitStatement); ok {
+			c.Exit()
 		}
 
-		if stmt, ok := statement.(*UseStatement); ok {
+		if s, ok := stmt.(*UseStatement); ok {
 			c.Session.client.Close()
 			c.Session.adminClient.Close()
-			newSession, err := NewSession(c.Session.projectId, c.Session.instanceId, stmt.database)
+			newSession, err := NewSession(c.Session.projectId, c.Session.instanceId, s.Database)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -108,9 +111,9 @@ func (c *Cli) Run() {
 		}
 
 		ticker := printProgressingMark()
-		result, err := statement.Execute(c.Session)
+		result, err := stmt.Execute(c.Session)
 		ticker.Stop()
-		fmt.Printf("\r")
+		fmt.Printf("\r") // clear progressing mark
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -129,16 +132,23 @@ func (c *Cli) Run() {
 		}
 
 		if result.IsMutation {
-			fmt.Printf("Query OK, %d rows affected (%s)\n", result.QueryStats.Rows, result.QueryStats.ElapsedTime)
+			fmt.Printf("Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
 		} else {
-			if result.QueryStats.Rows == 0 {
-				fmt.Printf("Empty set (%s)\n", result.QueryStats.ElapsedTime)
+			if result.Stats.AffectedRows == 0 {
+				fmt.Printf("Empty set (%s)\n", result.Stats.ElapsedTime)
 			} else {
-				fmt.Printf("%d rows in set (%s)\n", result.QueryStats.Rows, result.QueryStats.ElapsedTime)
+				fmt.Printf("%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
 			}
 		}
 		fmt.Printf("\n")
 	}
+}
+
+func (c *Cli) Exit() {
+	c.Session.client.Close()
+	c.Session.adminClient.Close()
+	fmt.Println("Bye")
+	os.Exit(0)
 }
 
 func (s *Session) GetDatabasePath() string {
@@ -149,15 +159,19 @@ func (s *Session) GetInstancePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
 }
 
-func readInput(rl *readline.Instance) string {
+func readInput(rl *readline.Instance) (string, error) {
 	lines := make([]string, 0)
 	for {
-		line, _ := rl.Readline()
+		line, err := rl.Readline()
+		if err != nil {
+			return "", err
+		}
+
 		line = strings.TrimSpace(line)
 		if len(line) != 0 && line[len(line)-1] == ';' { // terminated
 			line = strings.TrimRight(line, ";")
 			lines = append(lines, line)
-			return strings.TrimSpace(strings.Join(lines, " "))
+			return strings.TrimSpace(strings.Join(lines, " ")), nil
 		} else {
 			lines = append(lines, line)
 		}
