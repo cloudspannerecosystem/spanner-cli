@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -53,7 +54,7 @@ func (c *Cli) Run() {
 		fmt.Print(prompt)
 
 		input := readInput(os.Stdin)
-		if input == "exit;" {
+		if input == "exit" {
 			os.Exit(0)
 		}
 
@@ -62,7 +63,11 @@ func (c *Cli) Run() {
 			fmt.Println(err)
 			continue
 		}
-		result, err := statement.Execute(c.client, c.adminClient)
+
+		ticker := printProgressingMark()
+		result, err := statement.Execute(c)
+		ticker.Stop()
+		fmt.Printf("\r")
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -80,13 +85,25 @@ func (c *Cli) Run() {
 			table.Render()
 		}
 
-		if result.QueryStats.RowsReturned == 0 {
-			fmt.Printf("Empty set (%s)\n", result.QueryStats.ElapsedTime)
+		if result.IsMutation {
+			fmt.Printf("Query OK, %d rows affected (%s)\n", result.QueryStats.Rows, result.QueryStats.ElapsedTime)
 		} else {
-			fmt.Printf("%d rows in set (%s)\n", result.QueryStats.RowsReturned, result.QueryStats.ElapsedTime)
+			if result.QueryStats.Rows == 0 {
+				fmt.Printf("Empty set (%s)\n", result.QueryStats.ElapsedTime)
+			} else {
+				fmt.Printf("%d rows in set (%s)\n", result.QueryStats.Rows, result.QueryStats.ElapsedTime)
+			}
 		}
 		fmt.Printf("\n")
 	}
+}
+
+func (c *Cli) GetDatabasePath() string {
+	return buildDatabasePath(c.projectId, c.instanceId, c.databaseId)
+}
+
+func (c *Cli) GetInstancePath() string {
+	return buildInstancePath(c.projectId, c.instanceId)
 }
 
 func readInput(in io.Reader) string {
@@ -96,12 +113,29 @@ func readInput(in io.Reader) string {
 		scanner.Scan()
 		text := scanner.Text()
 		text = strings.Trim(text, " ")
-		lines = append(lines, text)
-
 		if len(text) != 0 && text[len(text)-1] == ';' {
+			text = strings.TrimRight(text, ";")
+			lines = append(lines, text)
 			return strings.Join(lines, " ")
+		} else {
+			lines = append(lines, text)
 		}
 	}
+}
+
+func printProgressingMark() *time.Ticker {
+	progressMarks := []string{"-", "\\", "|", "/"}
+	ticker := time.NewTicker(time.Millisecond * 100)
+	go func() {
+		i := 0
+		for {
+			<-ticker.C
+			mark := progressMarks[i%len(progressMarks)]
+			fmt.Printf("\r%s", mark)
+			i++
+		}
+	}()
+	return ticker
 }
 
 func buildInstancePath(projectId, instanceId string) string {
