@@ -34,27 +34,45 @@ type QueryStats struct {
 	ElapsedTime string
 }
 
+var (
+	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
+	selectRe          = regexp.MustCompile(`(?i)^SELECT\s.+$`)
+	createTableRe     = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
+	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
+	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.*)$`)
+)
+
+var (
+	statementExitError = errors.New("exit")
+)
+
 func buildStatement(input string) (Statement, error) {
-	if strings.HasPrefix(input, "select") {
-		return &QueryStatement{
+	var stmt Statement
+
+	if exitRe.MatchString(input) {
+		return nil, statementExitError
+	} else if selectRe.MatchString(input) {
+		stmt = &QueryStatement{
 			text: input,
-		}, nil
-	}
-	if strings.HasPrefix(input, "create table") {
-		return &CreateTableStatement{
+		}
+	} else if createTableRe.MatchString(input) {
+		stmt = &CreateTableStatement{
 			text: input,
-		}, nil
+		}
+	} else if showDatabasesRe.MatchString(input) {
+		stmt = &ShowDatabasesStatement{}
+	} else if showCreateTableRe.MatchString(input) {
+		matched := showCreateTableRe.FindStringSubmatch(input)
+		stmt = &ShowCreateTableStatement{
+			table: matched[1],
+		}
 	}
-	if strings.HasPrefix(input, "show databases") {
-		return &ShowDatabasesStatement{}, nil
+
+	if stmt == nil {
+		return nil, errors.New("invalid statement")
 	}
-	if strings.HasPrefix(input, "show create table") {
-		found := regexp.MustCompile("show create table (.*)").FindStringSubmatch(input)
-		return &ShowCreateTableStatement{
-			table: found[1],
-		}, nil
-	}
-	return nil, errors.New("invalid statement")
+
+	return stmt, nil
 }
 
 type QueryStatement struct {

@@ -62,12 +62,11 @@ func (c *Cli) Run() {
 		fmt.Print(prompt)
 
 		input := readInput(os.Stdin)
-		if input == "exit" {
-			os.Exit(0)
-		}
-
 		statement, err := buildStatement(input)
 		if err != nil {
+			if err == statementExitError {
+				os.Exit(0)
+			}
 			fmt.Println(err)
 			continue
 		}
@@ -119,12 +118,11 @@ func readInput(in io.Reader) string {
 	lines := make([]string, 0)
 	for {
 		scanner.Scan()
-		text := scanner.Text()
-		text = strings.Trim(text, " ")
-		if len(text) != 0 && text[len(text)-1] == ';' {
+		text := strings.Trim(scanner.Text(), " ")
+		if len(text) != 0 && text[len(text)-1] == ';' { // terminated
 			text = strings.TrimRight(text, ";")
 			lines = append(lines, text)
-			return strings.Join(lines, " ")
+			return strings.Trim(strings.Join(lines, " "), " ")
 		} else {
 			lines = append(lines, text)
 		}
