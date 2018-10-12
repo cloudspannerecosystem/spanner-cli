@@ -12,7 +12,6 @@ import (
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/olekukonko/tablewriter"
-	// adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 type Cli struct {

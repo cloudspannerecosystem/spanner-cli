@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,12 @@ func buildStatement(input string) (Statement, error) {
 	}
 	if strings.HasPrefix(input, "show databases") {
 		return &ShowDatabasesStatement{}, nil
+	}
+	if strings.HasPrefix(input, "show create table") {
+		found := regexp.MustCompile("show create table (.*)").FindStringSubmatch(input)
+		return &ShowCreateTableStatement{
+			table: found[1],
+		}, nil
 	}
 	return nil, errors.New("invalid statement")
 }
@@ -185,6 +192,47 @@ func (s *ShowDatabasesStatement) Execute(cli *Cli) (*Result, error) {
 			Columns: []string{dbname},
 		}
 		result.Rows = append(result.Rows, resultRow)
+	}
+
+	elapsed := time.Since(t1).String()
+
+	result.QueryStats = QueryStats{
+		Rows:        len(result.Rows),
+		ElapsedTime: elapsed,
+	}
+
+	return result, nil
+}
+
+type ShowCreateTableStatement struct {
+	table string
+}
+
+func (s *ShowCreateTableStatement) Execute(cli *Cli) (*Result, error) {
+	ctx := context.Background() // TODO
+
+	result := &Result{
+		ColumnNames: []string{"Table", "Create Table"},
+		Rows:        make([]Row, 0),
+		IsMutation:  false,
+	}
+
+	t1 := time.Now()
+
+	ddlResponse, err := cli.adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{
+		Database: cli.GetDatabasePath(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, statement := range ddlResponse.Statements {
+		if strings.HasPrefix(statement, fmt.Sprintf("CREATE TABLE %s", s.table)) {
+			resultRow := Row{
+				Columns: []string{s.table, statement},
+			}
+			result.Rows = append(result.Rows, resultRow)
+			break
+		}
 	}
 
 	elapsed := time.Since(t1).String()

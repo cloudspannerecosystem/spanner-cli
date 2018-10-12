@@ -4,13 +4,12 @@ spanner-cli
 WIP
 
 ```
-spanner-cli -d <DATABASE>
+spanner-cli -p <PROJECT> -i <INSTANCE> -d <DATABASE>
 ```
 
 ```
--p: project name (optional)
--i: instance name (optional)
+-p: project name
+-i: instance name
 -d: database name
---service-account: service account (optional)
 ```
 
