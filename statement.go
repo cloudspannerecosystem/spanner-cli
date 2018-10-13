@@ -173,19 +173,39 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 				return nil, err
 			}
 			// fmt.Println(column.Type.Code)
+
+			// Allowable types: https://cloud.google.com/spanner/docs/data-types#allowable-types
 			switch column.Type.Code {
+			case spannerpb.TypeCode_BOOL:
+				var v spanner.NullBool
+				if err := column.Decode(&v); err != nil {
+					return nil, err
+				}
+				if v.Valid {
+					resultRow.Columns[i] = fmt.Sprintf("%t", v.Bool)
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
 			case spannerpb.TypeCode_INT64:
-				var v int64
+				var v spanner.NullInt64
 				if err := column.Decode(&v); err != nil {
 					return nil, err
 				}
-				resultRow.Columns[i] = fmt.Sprintf("%d", v)
+				if v.Valid {
+					resultRow.Columns[i] = fmt.Sprintf("%d", v.Int64)
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
 			case spannerpb.TypeCode_STRING:
-				var v string
+				var v spanner.NullString
 				if err := column.Decode(&v); err != nil {
 					return nil, err
 				}
-				resultRow.Columns[i] = v
+				if v.Valid {
+					resultRow.Columns[i] = v.StringVal
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
 			case spannerpb.TypeCode_TIMESTAMP:
 				var v spanner.NullTime
 				if err := column.Decode(&v); err != nil {

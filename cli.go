@@ -120,7 +120,7 @@ func (c *Cli) Run() {
 
 		stmt, err := BuildStatement(input)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("ERROR: %s\n", err)
 			continue
 		}
 
@@ -133,7 +133,7 @@ func (c *Cli) Run() {
 			c.Session.adminClient.Close()
 			newSession, err := NewSession(c.Session.projectId, c.Session.instanceId, s.Database)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("ERROR: %s\n", err)
 				continue
 			}
 			c.Session = newSession
@@ -146,7 +146,7 @@ func (c *Cli) Run() {
 		ticker.Stop()
 		fmt.Printf("\r") // clear progressing mark
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("ERROR: %s\n", err)
 			continue
 		}
 
