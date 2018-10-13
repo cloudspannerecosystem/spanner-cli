@@ -405,68 +405,52 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 type BeginStatement struct{}
 
 func (s *BeginStatement) Execute(session *Session) (*Result, error) {
-	contextChanged := make(chan bool)
-
-	t1 := time.Now()
-	go func() {
-		txnExecuted := false
-		_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-			// ReadWriteTransaction might retry this function, but it's not supported in this tool.
-			if txnExecuted {
-				return txnRetryError
-			}
-			txnExecuted = true
-
-			// switch session context to transaction context
-			oldCtx := session.ctx
-			session.ctx = ctx
-			defer func() {
-				session.ctx = oldCtx
-			}()
-			session.rwTxn = txn
-			contextChanged <- true
-
-			// wait for mutations...
-			isCommitted := <-session.committedChan
-
-			if isCommitted {
-				return nil
-			} else {
-				return rollbackError
-			}
-		})
-		session.txnFinished <- err
-	}()
-
-	select {
-	case <-contextChanged:
-		// go
-	case err := <-session.txnFinished:
-		return nil, err
-	}
-
-	elapsed := time.Since(t1).String()
-
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-		Stats: Stats{
-			AffectedRows: 0,
-			ElapsedTime:  elapsed,
-		},
-	}, nil
-}
-
-type CommitStatement struct{}
-
-func (s *CommitStatement) Execute(session *Session) (*Result, error) {
-	defer session.finishTxn()
 	return withElapsedTime(func() (*Result, error) {
-		session.committedChan <- true
+		if session.inTxn() {
+			// commit implicitly like MySQL (https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html)
+			commit := CommitStatement{}
+			_, err := commit.Execute(session)
+			if err != nil {
+				return nil, err
+			}
+		}
 
-		err := <-session.txnFinished
-		if err != nil {
+		contextChanged := make(chan bool)
+
+		go func() {
+			txnExecuted := false
+			_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+				// ReadWriteTransaction might retry this function, but it's not supported in this tool.
+				if txnExecuted {
+					return txnRetryError
+				}
+				txnExecuted = true
+
+				// switch session context to transaction context
+				oldCtx := session.ctx
+				session.ctx = ctx
+				defer func() {
+					session.ctx = oldCtx
+				}()
+				session.rwTxn = txn
+				contextChanged <- true
+
+				// wait for mutations...
+				isCommitted := <-session.committedChan
+
+				if isCommitted {
+					return nil
+				} else {
+					return rollbackError
+				}
+			})
+			session.txnFinished <- err
+		}()
+
+		select {
+		case <-contextChanged:
+			// go
+		case err := <-session.txnFinished:
 			return nil, err
 		}
 
@@ -478,11 +462,47 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 	})
 }
 
+type CommitStatement struct{}
+
+func (s *CommitStatement) Execute(session *Session) (*Result, error) {
+	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}
+
+		if !session.inTxn() {
+			return result, nil
+		}
+
+		defer session.finishTxn()
+		session.committedChan <- true
+
+		err := <-session.txnFinished
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	})
+}
+
 type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
-	defer session.finishTxn()
 	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}
+
+		if !session.inTxn() {
+			return result, nil
+		}
+
+		defer session.finishTxn()
 		session.committedChan <- false
 
 		err := <-session.txnFinished
@@ -490,11 +510,7 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 			return nil, err
 		}
 
-		return &Result{
-			ColumnNames: make([]string, 0),
-			Rows:        make([]Row, 0),
-			IsMutation:  true,
-		}, nil
+		return result, nil
 	})
 }
 

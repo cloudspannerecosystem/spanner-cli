@@ -71,6 +71,12 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 
 	fmt.Printf("Connected.\n")
 
+	// HACK: for speed up user's first execution
+	go func() {
+		stmt := &SelectStatement{"SELECT 1"}
+		stmt.Execute(session)
+	}()
+
 	return &Cli{
 		Session: session,
 	}, nil
