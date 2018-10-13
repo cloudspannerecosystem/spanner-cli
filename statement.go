@@ -186,6 +186,16 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 				} else {
 					resultRow.Columns[i] = "NULL"
 				}
+			case spannerpb.TypeCode_FLOAT64:
+				var v spanner.NullFloat64
+				if err := column.Decode(&v); err != nil {
+					return nil, err
+				}
+				if v.Valid {
+					resultRow.Columns[i] = fmt.Sprintf("%f", v.Float64)
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
 			case spannerpb.TypeCode_INT64:
 				var v spanner.NullInt64
 				if err := column.Decode(&v); err != nil {
