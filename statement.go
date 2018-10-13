@@ -186,6 +186,26 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 					return nil, err
 				}
 				resultRow.Columns[i] = v
+			case spannerpb.TypeCode_TIMESTAMP:
+				var v spanner.NullTime
+				if err := column.Decode(&v); err != nil {
+					return nil, err
+				}
+				if v.Valid {
+					resultRow.Columns[i] = fmt.Sprintf("%s", v.Time.Format(time.RFC3339Nano))
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
+			case spannerpb.TypeCode_DATE:
+				var v spanner.NullDate
+				if err := column.Decode(&v); err != nil {
+					return nil, err
+				}
+				if v.Valid {
+					resultRow.Columns[i] = strings.Trim(v.String(), `"`)
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
 			default:
 				resultRow.Columns[i] = fmt.Sprintf("%s", column.Value)
 			}
@@ -315,7 +335,7 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 			return nil, err
 		}
 		for _, stmt := range ddlResponse.Statements {
-			if strings.HasPrefix(stmt, fmt.Sprintf("CREATE TABLE %s", s.table)) {
+			if regexp.MustCompile(`(?i)^CREATE TABLE ` + s.table).MatchString(stmt) {
 				resultRow := Row{
 					Columns: []string{s.table, stmt},
 				}
