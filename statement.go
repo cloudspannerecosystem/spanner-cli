@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"regexp"
@@ -186,6 +187,16 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 				} else {
 					resultRow.Columns[i] = "NULL"
 				}
+			case spannerpb.TypeCode_BYTES:
+				var v []byte
+				if err := column.Decode(&v); err != nil {
+					return nil, err
+				}
+				if v != nil {
+					resultRow.Columns[i] = base64.RawStdEncoding.EncodeToString(v)
+				} else {
+					resultRow.Columns[i] = "NULL"
+				}
 			case spannerpb.TypeCode_FLOAT64:
 				var v spanner.NullFloat64
 				if err := column.Decode(&v); err != nil {
@@ -236,6 +247,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 				} else {
 					resultRow.Columns[i] = "NULL"
 				}
+			// TODO: Array, Struct
 			default:
 				resultRow.Columns[i] = fmt.Sprintf("%s", column.Value)
 			}
