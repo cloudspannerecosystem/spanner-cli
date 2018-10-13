@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"os/exec"
+	"strings"
 )
 
 func main() {
@@ -15,10 +18,40 @@ func main() {
 	flag.StringVar(&databaseId, "database", "", "")
 	flag.Parse()
 
+	if projectId == "" {
+		projectId = getDefaultProjectId()
+	}
+	if instanceId == "" {
+		instanceId = getDefaultInstanceId()
+	}
+
+	if projectId == "" || instanceId == "" || databaseId == "" {
+		flag.Usage()
+		os.Exit(-1)
+	}
+
 	cli, err := NewCli(projectId, instanceId, databaseId)
 	if err != nil {
 		log.Fatalf("failed to connect to Spanner: %s", err)
 	}
 
 	cli.Run()
+}
+
+func getDefaultProjectId() string {
+	cmd := exec.Command("gcloud", "config", "get-value", "core/project")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSuffix(string(out), "\n")
+}
+
+func getDefaultInstanceId() string {
+	cmd := exec.Command("gcloud", "config", "get-value", "spanner/instance")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSuffix(string(out), "\n")
 }

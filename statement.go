@@ -53,9 +53,11 @@ var (
 	deleteRe = regexp.MustCompile(`(?i)^DELETE\s+.+$`)
 
 	// Transaction
-	beginRe    = regexp.MustCompile(`(?i)^BEGIN$`)
+	beginRwRe  = regexp.MustCompile(`(?i)^BEGIN(\s+RW)?$`)
+	beginRoRe  = regexp.MustCompile(`(?i)^BEGIN\s+RO$`)
 	commitRe   = regexp.MustCompile(`(?i)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?i)^ROLLBACK$`)
+	closeRe    = regexp.MustCompile(`(?i)^CLOSE$`)
 
 	// Other
 	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
@@ -107,12 +109,16 @@ func BuildStatement(input string) (Statement, error) {
 		stmt = &DmlStatement{
 			text: input,
 		}
-	} else if beginRe.MatchString(input) {
-		stmt = &BeginStatement{}
+	} else if beginRwRe.MatchString(input) {
+		stmt = &BeginRwStatement{}
+	} else if beginRoRe.MatchString(input) {
+		stmt = &BeginRoStatement{}
 	} else if commitRe.MatchString(input) {
 		stmt = &CommitStatement{}
 	} else if rollbackRe.MatchString(input) {
 		stmt = &RollbackStatement{}
+	} else if closeRe.MatchString(input) {
+		stmt = &CloseStatement{}
 	}
 
 	if stmt == nil {
@@ -129,8 +135,11 @@ type SelectStatement struct {
 func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.text)
 	var iter *spanner.RowIterator
-	if session.inTxn() {
+
+	if session.inRwTxn() {
 		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
+	} else if session.inRoTxn() {
+		iter = session.roTxn.QueryWithStats(session.ctx, stmt)
 	} else {
 		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
 	}
@@ -201,28 +210,24 @@ type CreateDatabaseStatement struct {
 }
 
 func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
-	t1 := time.Now()
-	op, err := session.adminClient.CreateDatabase(session.ctx, &adminpb.CreateDatabaseRequest{
-		Parent:          session.GetInstancePath(),
-		CreateStatement: s.text,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if _, err := op.Wait(session.ctx); err != nil {
-		return nil, err
-	}
-	elapsed := time.Since(t1).String()
+	return withElapsedTime(func() (*Result, error) {
+		op, err := session.adminClient.CreateDatabase(session.ctx, &adminpb.CreateDatabaseRequest{
+			Parent:          session.GetInstancePath(),
+			CreateStatement: s.text,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if _, err := op.Wait(session.ctx); err != nil {
+			return nil, err
+		}
 
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-		Stats: Stats{
-			AffectedRows: 0,
-			ElapsedTime:  elapsed,
-		},
-	}, nil
+		return &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}, nil
+	})
 }
 
 type DdlStatement struct {
@@ -230,75 +235,65 @@ type DdlStatement struct {
 }
 
 func (s *DdlStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}
+	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}
 
-	t1 := time.Now()
-	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database:   session.GetDatabasePath(),
-		Statements: []string{s.text},
+		op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
+			Database:   session.GetDatabasePath(),
+			Statements: []string{s.text},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := op.Wait(session.ctx); err != nil {
+			return nil, err
+		}
+
+		return result, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	if err := op.Wait(session.ctx); err != nil {
-		return nil, err
-	}
-	elapsed := time.Since(t1).String()
-
-	result.Stats = Stats{
-		AffectedRows: 0,
-		ElapsedTime:  elapsed,
-	}
-
-	return result, nil
 }
 
 type ShowDatabasesStatement struct {
 }
 
 func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames: []string{"Database"},
-		Rows:        make([]Row, 0),
-		IsMutation:  false,
-	}
+	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: []string{"Database"},
+			Rows:        make([]Row, 0),
+			IsMutation:  false,
+		}
 
-	t1 := time.Now()
+		dbIter := session.adminClient.ListDatabases(session.ctx, &adminpb.ListDatabasesRequest{
+			Parent: session.GetInstancePath(),
+		})
 
-	dbIter := session.adminClient.ListDatabases(session.ctx, &adminpb.ListDatabasesRequest{
-		Parent: session.GetInstancePath(),
+		for {
+			database, err := dbIter.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+
+			re := regexp.MustCompile(`projects/[^/]+/instances/[^/]+/databases/(.+)`)
+			matched := re.FindStringSubmatch(database.GetName())
+			dbname := matched[1]
+			resultRow := Row{
+				Columns: []string{dbname},
+			}
+			result.Rows = append(result.Rows, resultRow)
+		}
+
+		result.Stats.AffectedRows = len(result.Rows)
+
+		return result, nil
 	})
-
-	for {
-		database, err := dbIter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		re := regexp.MustCompile(`projects/[^/]+/instances/[^/]+/databases/(.+)`)
-		matched := re.FindStringSubmatch(database.GetName())
-		dbname := matched[1]
-		resultRow := Row{
-			Columns: []string{dbname},
-		}
-		result.Rows = append(result.Rows, resultRow)
-	}
-
-	elapsed := time.Since(t1).String()
-
-	result.Stats = Stats{
-		AffectedRows: len(result.Rows),
-		ElapsedTime:  elapsed,
-	}
-
-	return result, nil
 }
 
 type ShowCreateTableStatement struct {
@@ -359,54 +354,52 @@ type DmlStatement struct {
 }
 
 func (s *DmlStatement) Execute(session *Session) (*Result, error) {
-	stmt := spanner.NewStatement(s.text)
+	return withElapsedTime(func() (*Result, error) {
+		stmt := spanner.NewStatement(s.text)
 
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}
-
-	t1 := time.Now()
-
-	var numRows int64
-	var err error
-	if session.inTxn() {
-		numRows, err = session.rwTxn.Update(session.ctx, stmt)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		begin := BeginStatement{}
-		_, err = begin.Execute(session)
-		if err != nil {
-			return nil, err
+		result := &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
 		}
 
-		numRows, err = session.rwTxn.Update(session.ctx, stmt)
-		if err != nil {
-			return nil, err
+		var numRows int64
+		var err error
+		if session.inRwTxn() {
+			numRows, err = session.rwTxn.Update(session.ctx, stmt)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			begin := BeginRwStatement{}
+			_, err = begin.Execute(session)
+			if err != nil {
+				return nil, err
+			}
+
+			numRows, err = session.rwTxn.Update(session.ctx, stmt)
+			if err != nil {
+				return nil, err
+			}
+
+			commit := CommitStatement{}
+			_, err = commit.Execute(session)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		commit := CommitStatement{}
-		_, err = commit.Execute(session)
-		if err != nil {
-			return nil, err
-		}
-	}
+		result.Stats.AffectedRows = int(numRows)
 
-	elapsed := time.Since(t1).String()
-	result.Stats.AffectedRows = int(numRows)
-	result.Stats.ElapsedTime = elapsed
-
-	return result, nil
+		return result, nil
+	})
 }
 
-type BeginStatement struct{}
+type BeginRwStatement struct{}
 
-func (s *BeginStatement) Execute(session *Session) (*Result, error) {
+func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 	return withElapsedTime(func() (*Result, error) {
-		if session.inTxn() {
+		if session.inRwTxn() {
 			// commit implicitly like MySQL (https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html)
 			commit := CommitStatement{}
 			_, err := commit.Execute(session)
@@ -472,11 +465,11 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 			IsMutation:  true,
 		}
 
-		if !session.inTxn() {
+		if !session.inRwTxn() {
 			return result, nil
 		}
 
-		defer session.finishTxn()
+		defer session.finishRwTxn()
 		session.committedChan <- true
 
 		err := <-session.txnFinished
@@ -498,17 +491,55 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 			IsMutation:  true,
 		}
 
-		if !session.inTxn() {
+		if !session.inRwTxn() {
 			return result, nil
 		}
 
-		defer session.finishTxn()
+		defer session.finishRwTxn()
 		session.committedChan <- false
 
 		err := <-session.txnFinished
 		if err != nil && err != rollbackError {
 			return nil, err
 		}
+
+		return result, nil
+	})
+}
+
+type BeginRoStatement struct{}
+
+func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
+	return withElapsedTime(func() (*Result, error) {
+		// if session.roTxn() {
+		// }
+
+		txn := session.client.ReadOnlyTransaction()
+		session.roTxn = txn
+
+		return &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}, nil
+	})
+}
+
+type CloseStatement struct{}
+
+func (s *CloseStatement) Execute(session *Session) (*Result, error) {
+	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: make([]string, 0),
+			Rows:        make([]Row, 0),
+			IsMutation:  true,
+		}
+
+		if !session.inRoTxn() {
+			return result, nil
+		}
+
+		session.finishRoTxn()
 
 		return result, nil
 	})

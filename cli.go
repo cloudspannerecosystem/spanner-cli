@@ -15,15 +15,20 @@ import (
 )
 
 type Session struct {
-	ctx           context.Context
-	projectId     string
-	instanceId    string
-	databaseId    string
-	client        *spanner.Client
-	adminClient   *adminapi.DatabaseAdminClient
+	ctx         context.Context
+	projectId   string
+	instanceId  string
+	databaseId  string
+	client      *spanner.Client
+	adminClient *adminapi.DatabaseAdminClient
+
+	// for read-write transaction
 	rwTxn         *spanner.ReadWriteTransaction
 	txnFinished   chan error
 	committedChan chan bool
+
+	// for read-only transaction
+	roTxn *spanner.ReadOnlyTransaction
 }
 
 func NewSession(projectId string, instanceId string, databaseId string) (*Session, error) {
@@ -51,12 +56,21 @@ func NewSession(projectId string, instanceId string, databaseId string) (*Sessio
 	}, nil
 }
 
-func (s *Session) inTxn() bool {
+func (s *Session) inRwTxn() bool {
 	return s.rwTxn != nil
 }
 
-func (s *Session) finishTxn() {
+func (s *Session) inRoTxn() bool {
+	return s.roTxn != nil
+}
+
+func (s *Session) finishRwTxn() {
 	s.rwTxn = nil
+}
+
+func (s *Session) finishRoTxn() {
+	s.roTxn.Close()
+	s.roTxn = nil
 }
 
 type Cli struct {
@@ -71,7 +85,7 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 
 	fmt.Printf("Connected.\n")
 
-	// HACK: for speed up user's first execution
+	// HACK: for speed up first execution
 	go func() {
 		stmt := &SelectStatement{"SELECT 1"}
 		stmt.Execute(session)
@@ -92,6 +106,13 @@ func (c *Cli) Run() {
 	}
 
 	for {
+		if c.Session.inRwTxn() {
+			rl.SetPrompt("spanner(rw txn)> ")
+		} else if c.Session.inRoTxn() {
+			rl.SetPrompt("spanner(ro txn)> ")
+		} else {
+			rl.SetPrompt("spanner> ")
+		}
 		input, err := readInput(rl)
 		if err == io.EOF {
 			c.Exit()
@@ -171,14 +192,16 @@ func (s *Session) GetInstancePath() string {
 
 func readInput(rl *readline.Instance) (string, error) {
 	lines := make([]string, 0)
-	defer rl.SetPrompt(rl.Config.Prompt)
+	origPrompt := rl.Config.Prompt
+	defer rl.SetPrompt(origPrompt)
 
 	for {
 		line, err := rl.Readline()
 		if err != nil {
 			return "", err
 		}
-		rl.SetPrompt("      -> ") // same padding to `spanner>` prompt
+		// rl.SetPrompt(fmt.Sprintf("%s-> ", strings.Repeat(" ", len(origPrompt)-3))) // same length to original prompt
+		rl.SetPrompt("      -> ") // same length to original prompt
 
 		line = strings.TrimSpace(line)
 		if len(line) != 0 && line[len(line)-1] == ';' { // terminated
