@@ -531,7 +531,10 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 		if session.inRwTxn() {
 			numRows, err = session.rwTxn.Update(session.ctx, stmt)
 			if err != nil {
-				return nil, err
+				// abort transaction
+				rollback := &RollbackStatement{}
+				rollback.Execute(session)
+				return nil, fmt.Errorf("error has happend during update, so abort transaction: %s", err)
 			}
 		} else {
 			// start implicit transaction
@@ -740,11 +743,11 @@ func (s *UseStatement) Execute(session *Session) (*Result, error) {
 func withElapsedTime(f func() (*Result, error)) (*Result, error) {
 	t1 := time.Now()
 	result, err := f()
-	elapsed := time.Since(t1).String()
+	elapsed := time.Since(t1).Seconds()
 
 	if err != nil {
 		return nil, err
 	}
-	result.Stats.ElapsedTime = elapsed
+	result.Stats.ElapsedTime = fmt.Sprintf("%0.2f sec", elapsed)
 	return result, nil
 }
