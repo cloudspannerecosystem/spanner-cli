@@ -62,3 +62,4 @@ spanner-cli --project=<PROJECT> --instance=<INSTANCE> --database=<DATABASE>
 * EXPLAIN
 * DESCRIBE
 * evaluate SQL from stdin
+* show secondary index by "SHOW CREATE TABLE"

@@ -64,7 +64,7 @@ func NewSession(projectId string, instanceId string, databaseId string) (*Sessio
 	if exists {
 		return session, nil
 	} else {
-		return nil, errors.New("database not exists")
+		return nil, errors.New("database doesn't exist")
 	}
 }
 

@@ -482,6 +482,10 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 				break
 			}
 		}
+		if len(result.Rows) == 0 {
+			return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.table))
+		}
+
 		result.Stats.AffectedRows = len(result.Rows)
 
 		return result, nil
