@@ -8,7 +8,6 @@ spanner-cli, the Cloud Spanner command line interface.
 `spanner-cli` is a command line client for [Cloud Spanner](https://cloud.google.com/spanner/).  
 You can control your Spanner databases with idiomatic SQL commands like `mysql(1)`.
 
-## Disclaimer
 This tool is still **ALPHA** quality.  
 Do not use this tool for controlling production databases.
 
@@ -27,7 +26,7 @@ All syntax is case-insensitive.
 | List databases | `SHOW DATABASES;` | |
 | Select database | `USE <database>;` | |
 | Create database | `CREATE DATABSE <database>;` | |
-| Drop database |  | Not implemented now |
+| Drop database |  | Not supported yet |
 | List tables | `SHOW TABLES;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
 | Create table | `CREATE TABLE ...;` | |
