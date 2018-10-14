@@ -9,7 +9,7 @@ spanner-cli, the Cloud Spanner command line interface.
 You can control your Spanner databases with idiomatic SQL commands like `mysql(1)`.
 
 This tool is still **ALPHA** quality.  
-Do not use this tool for controlling production databases.
+Do not use this tool for operating production databases.
 
 ## Install
 
@@ -19,7 +19,7 @@ go get -u github.com/yfuruyama/spanner-cli
 
 ## Syntax
 
-All syntax is case-insensitive.
+The syntax is case-insensitive.
 
 | Usage | Syntax | Note |
 | --- | --- | --- |

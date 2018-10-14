@@ -534,6 +534,7 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 				return nil, err
 			}
 		} else {
+			// start implicit transaction
 			begin := BeginRwStatement{}
 			_, err = begin.Execute(session)
 			if err != nil {
@@ -542,6 +543,9 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 
 			numRows, err = session.rwTxn.Update(session.ctx, stmt)
 			if err != nil {
+				// once error has happened, escape from implicit transaction
+				rollback := &RollbackStatement{}
+				rollback.Execute(session)
 				return nil, err
 			}
 
