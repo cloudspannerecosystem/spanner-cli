@@ -621,6 +621,10 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 type CommitStatement struct{}
 
 func (s *CommitStatement) Execute(session *Session) (*Result, error) {
+	if session.inRoTxn() {
+		return nil, errors.New("You're in read-only transaction. Please finish the transaction by 'CLOSE;'")
+	}
+
 	return withElapsedTime(func() (*Result, error) {
 		result := &Result{
 			ColumnNames: make([]string, 0),
@@ -647,6 +651,10 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
+	if session.inRoTxn() {
+		return nil, errors.New("You're in read-only transaction. Please finish the transaction by 'CLOSE;'")
+	}
+
 	return withElapsedTime(func() (*Result, error) {
 		result := &Result{
 			ColumnNames: make([]string, 0),
