@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 type Session struct {
@@ -44,7 +46,7 @@ func NewSession(projectId string, instanceId string, databaseId string) (*Sessio
 		return nil, err
 	}
 
-	return &Session{
+	session := &Session{
 		ctx:           ctx,
 		projectId:     projectId,
 		instanceId:    instanceId,
@@ -53,7 +55,17 @@ func NewSession(projectId string, instanceId string, databaseId string) (*Sessio
 		adminClient:   adminClient,
 		txnFinished:   make(chan error),
 		committedChan: make(chan bool),
-	}, nil
+	}
+
+	exists, err := session.databaseExists()
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return session, nil
+	} else {
+		return nil, errors.New("database not exists")
+	}
 }
 
 func (s *Session) inRwTxn() bool {
@@ -71,6 +83,28 @@ func (s *Session) finishRwTxn() {
 func (s *Session) finishRoTxn() {
 	s.roTxn.Close()
 	s.roTxn = nil
+}
+
+func (s *Session) GetDatabasePath() string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", s.projectId, s.instanceId, s.databaseId)
+}
+
+func (s *Session) GetInstancePath() string {
+	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
+}
+
+func (s *Session) databaseExists() (bool, error) {
+	db, err := s.adminClient.GetDatabase(s.ctx, &adminpb.GetDatabaseRequest{
+		Name: s.GetDatabasePath(),
+	})
+	if err != nil {
+		return false, err
+	}
+	if db != nil {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }
 
 type Cli struct {
@@ -180,14 +214,6 @@ func (c *Cli) Exit() {
 	c.Session.adminClient.Close()
 	fmt.Println("Bye")
 	os.Exit(0)
-}
-
-func (s *Session) GetDatabasePath() string {
-	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", s.projectId, s.instanceId, s.databaseId)
-}
-
-func (s *Session) GetInstancePath() string {
-	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
 }
 
 func readInput(rl *readline.Instance) (string, error) {

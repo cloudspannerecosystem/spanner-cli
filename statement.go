@@ -670,6 +670,7 @@ type BeginRoStatement struct{}
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	return withElapsedTime(func() (*Result, error) {
+		// TODO
 		// if session.roTxn() {
 		// }
 
