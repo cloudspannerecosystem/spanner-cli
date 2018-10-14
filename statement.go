@@ -257,25 +257,7 @@ func decodeColumn(column spanner.GenericColumnValue) (string, error) {
 			}
 		case sppb.TypeCode_STRUCT:
 			// TODO
-			// structType := column.Type.GetStructType()
-			// fmt.Printf("%#v\n", structType)
-			// for _, field := range structType.GetFields() {
-			// fmt.Printf("%#v\n", field)
-			// fmt.Printf("here")
-			// }
-			// var vs []*struct{}
-			var vs []*struct {
-				X int64
-				Y int64
-			}
-			// SELECT ARRAY(SELECT STRUCT(1 AS X, 2 AS Y));
-			if err := column.Decode(&vs); err != nil {
-				return "", err
-			}
-			for _, v := range vs {
-				fmt.Printf("%#v\n", v)
-			}
-			// no field name ==> ERROR: spanner: code = "InvalidArgument", desc = "cannot decode list_value:<values:<string_value:\"1\" > values:<string_value:\"2\" > > (array element 0) as STRUCT, unnamed field 0 in Cloud Spanner STRUCT fields:<type:<code:INT64 > > fields:<type:<code:INT64 > > "
+			return "", errors.New("STRUCT data type is not supported now.")
 		}
 		return fmt.Sprintf("[%s]", strings.Join(decoded, ", ")), nil
 	case sppb.TypeCode_BOOL:
