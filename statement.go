@@ -257,7 +257,7 @@ func decodeColumn(column spanner.GenericColumnValue) (string, error) {
 			}
 		case sppb.TypeCode_STRUCT:
 			// TODO
-			return "", errors.New("STRUCT data type is not supported now.")
+			return "", errors.New("STRUCT data type is not supported yet.")
 		}
 		return fmt.Sprintf("[%s]", strings.Join(decoded, ", ")), nil
 	case sppb.TypeCode_BOOL:
