@@ -113,10 +113,17 @@ func (c *Cli) Run() {
 				table.Render()
 			}
 		} else if delimiter == DelimiterVertical {
+			max := 0
+			for _, columnName := range result.ColumnNames {
+				if len(columnName) > max {
+					max = len(columnName)
+				}
+			}
+			format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
 			for i, row := range result.Rows {
 				fmt.Printf("*************************** %d. row ***************************\n", i+1)
 				for j, column := range row.Columns {
-					fmt.Printf("%s: %s\n", result.ColumnNames[j], column)
+					fmt.Printf(format, result.ColumnNames[j], column)
 				}
 			}
 		}

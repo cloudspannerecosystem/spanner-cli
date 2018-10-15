@@ -81,12 +81,11 @@ Query OK, 1 rows affected (0.61 sec)
 spanner(rw txn)> COMMIT;
 Query OK, 0 rows affected (0.20 sec)
 
-spanner> SELECT * FROM users ORDER BY id ASC;
-+----+------+--------+
-| id | name | active |
-+----+------+--------+
-| 1  | foo  | true   |
-+----+------+--------+
+spanner> SELECT * FROM users ORDER BY id ASC\G
+*************************** 1. row ***************************
+    id: 1
+  name: foo
+active: true
 1 rows in set (2.58 msecs)
 
 spanner> DROP TABLE users;
@@ -147,7 +146,6 @@ $ SPANNER_CLI_INTEGRATION_TEST_PROJECT_ID=$PROJECT_ID SPANNER_CLI_INTEGRATION_TE
 * STRUCT data type
 * comment literal (#)
 * prompt customize
-* vertical format for query result (\G)
 * EXPLAIN
 * DESCRIBE
 * evaluate SQL from stdin
