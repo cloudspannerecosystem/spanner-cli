@@ -17,6 +17,9 @@ Do not use this tool for operating production databases.
 go get -u github.com/yfuruyama/spanner-cli
 ```
 
+This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.
+Please be sure to prepare your credential by `gcloud auth application-default login`.
+
 ## Syntax
 
 The syntax is case-insensitive.
