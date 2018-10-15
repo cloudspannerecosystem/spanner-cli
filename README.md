@@ -21,11 +21,7 @@ go get -u github.com/yfuruyama/spanner-cli
 
 ## Usage
 
-This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
-Please be sure to prepare your credential by `gcloud auth application-default login`.
-
 ```
-$ spanner-cli --help
 Usage
     spanner-cli [options...]
 
@@ -37,6 +33,9 @@ Options:
     --instance=INSTANCE (optional)    Cloud Spanner Instance ID (default: gcloud config value of "spanner/instance")
     --database=DATABASE (required)    Cloud Spanner Database ID
 ```
+
+This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
+Please be sure to prepare your credential by `gcloud auth application-default login`.
 
 ## Example
 
