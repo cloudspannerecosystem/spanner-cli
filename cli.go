@@ -13,6 +13,13 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+type Delimiter string
+
+const (
+	DelimiterHorizontal Delimiter = ";"
+	DelimiterVertical   Delimiter = "\\G"
+)
+
 type Cli struct {
 	Session *Session
 }
@@ -54,7 +61,7 @@ func (c *Cli) Run() {
 		} else {
 			rl.SetPrompt("spanner> ")
 		}
-		input, err := readInput(rl)
+		input, delimiter, err := readInput(rl)
 		if err == io.EOF {
 			c.Exit()
 		}
@@ -92,16 +99,33 @@ func (c *Cli) Run() {
 			continue
 		}
 
-		table := tablewriter.NewWriter(os.Stdout)
-		for _, row := range result.Rows {
-			table.Append(row.Columns)
-		}
-		table.SetHeader(result.ColumnNames)
-		if len(result.Rows) > 0 {
-			table.SetAutoFormatHeaders(false)
-			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-			table.SetAlignment(tablewriter.ALIGN_LEFT)
-			table.Render()
+		// Show results
+		if delimiter == DelimiterHorizontal {
+			table := tablewriter.NewWriter(os.Stdout)
+			for _, row := range result.Rows {
+				table.Append(row.Columns)
+			}
+			table.SetHeader(result.ColumnNames)
+			if len(result.Rows) > 0 {
+				table.SetAutoFormatHeaders(false)
+				table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+				table.SetAlignment(tablewriter.ALIGN_LEFT)
+				table.Render()
+			}
+		} else if delimiter == DelimiterVertical {
+			max := 0
+			for _, columnName := range result.ColumnNames {
+				if len(columnName) > max {
+					max = len(columnName)
+				}
+			}
+			format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
+			for i, row := range result.Rows {
+				fmt.Printf("*************************** %d. row ***************************\n", i+1)
+				for j, column := range row.Columns {
+					fmt.Printf(format, result.ColumnNames[j], column)
+				}
+			}
 		}
 
 		if result.IsMutation {
@@ -124,7 +148,7 @@ func (c *Cli) Exit() {
 	os.Exit(0)
 }
 
-func readInput(rl *readline.Instance) (string, error) {
+func readInput(rl *readline.Instance) (string, Delimiter, error) {
 	lines := make([]string, 0)
 	origPrompt := rl.Config.Prompt
 	defer rl.SetPrompt(origPrompt)
@@ -132,18 +156,21 @@ func readInput(rl *readline.Instance) (string, error) {
 	for {
 		line, err := rl.Readline()
 		if err != nil {
-			return "", err
+			return "", Delimiter("UNKNOWN"), err
 		}
 		rl.SetPrompt("      -> ") // same length to original prompt
 
 		line = strings.TrimSpace(line)
-		if len(line) != 0 && line[len(line)-1] == ';' { // terminated
-			line = strings.TrimRight(line, ";")
-			lines = append(lines, line)
-			return strings.TrimSpace(strings.Join(lines, " ")), nil
-		} else {
-			lines = append(lines, line)
+		if len(line) != 0 {
+			for _, delimiter := range []Delimiter{DelimiterHorizontal, DelimiterVertical} {
+				if strings.HasSuffix(line, string(delimiter)) {
+					line = strings.TrimRight(line, string(delimiter))
+					lines = append(lines, line)
+					return strings.TrimSpace(strings.Join(lines, " ")), delimiter, nil
+				}
+			}
 		}
+		lines = append(lines, line)
 	}
 }
 
