@@ -116,6 +116,7 @@ The syntax is case-insensitive.
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
 | Query | `SELECT ...;` | |
+| Stale Read | | Not supported yet |
 | DML | `INSERT / UPDATE / DELETE ...;` | |
 | Partitioned DML | | Not supported yet |
 | Start Read-Write Transaction | `BEGIN (RW);` | |
@@ -124,6 +125,7 @@ The syntax is case-insensitive.
 | Start Read-Only Transaction | `BEGIN RO;` | |
 | End Read-Only Transaction | `CLOSE;` | |
 | Show Query Execution Plan | | Not supported yet |
+| Exit | `EXIT;` | |
 
 ## How to develop
 
