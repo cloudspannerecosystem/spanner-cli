@@ -19,13 +19,29 @@ Do not use this tool for operating production databases.
 go get -u github.com/yfuruyama/spanner-cli
 ```
 
-This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.
+## Usage
+
+This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
 Please be sure to prepare your credential by `gcloud auth application-default login`.
+
+```
+$ spanner-cli --help
+Usage
+    spanner-cli [options...]
+
+Example:
+    spanner-cli --project=myproject --instance=myinstance --database=mydb
+
+Options:
+    --project=PROJECT   (optional)    GCP Project ID            (default: gcloud config value of "core/project")
+    --instance=INSTANCE (optional)    Cloud Spanner Instance ID (default: gcloud config value of "spanner/instance")
+    --database=DATABASE (required)    Cloud Spanner Database ID
+```
 
 ## Example
 
 ```
-$ spanner-cli --project=<PROJECT> --instance=<INSTANCE> --database=<DATABASE>
+$ spanner-cli --project=myproject --instance=myinstance --database=mydb
 
 Connected.
 spanner> CREATE TABLE users (
@@ -36,11 +52,11 @@ spanner> CREATE TABLE users (
 Query OK, 0 rows affected (30.60 sec)
 
 spanner> SHOW TABLES;
-+-----------------+
-| Tables_in_my_db |
-+-----------------+
-| users           |
-+-----------------+
++----------------+
+| Tables_in_mydb |
++----------------+
+| users          |
++----------------+
 1 rows in set (18.66 msecs)
 
 spanner> INSERT INTO users (id, name, active) VALUES (1, "foo", true), (2, "bar", false);

@@ -2,11 +2,24 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 )
+
+var usage = `Usage:
+    spanner-cli [options...]
+
+Example:
+    spanner-cli --project=myproject --instance=myinstance --database=mydb
+
+Options:
+    --project=PROJECT   (optional)    GCP Project ID            (default: gcloud config value of "core/project")
+    --instance=INSTANCE (optional)    Cloud Spanner Instance ID (default: gcloud config value of "spanner/instance")
+    --database=DATABASE (required)    Cloud Spanner Database ID
+`
 
 func main() {
 	var projectId string
@@ -16,6 +29,7 @@ func main() {
 	flag.StringVar(&projectId, "project", "", "")
 	flag.StringVar(&instanceId, "instance", "", "")
 	flag.StringVar(&databaseId, "database", "", "")
+	flag.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	flag.Parse()
 
 	if projectId == "" {
