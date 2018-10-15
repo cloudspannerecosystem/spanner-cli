@@ -5,6 +5,8 @@ spanner-cli
 
 spanner-cli, the Cloud Spanner command line interface.
 
+![gif](https://github.com/yfuruyama/spanner-cli/blob/master/image/spanner_cli.gif)
+
 ## Description
 
 `spanner-cli` is a command line client for [Cloud Spanner](https://cloud.google.com/spanner/).  
