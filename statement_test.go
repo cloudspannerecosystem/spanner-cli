@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -34,15 +35,22 @@ func TestBuildStatement(t *testing.T) {
 	}
 
 	for _, test := range validTests {
-		got, err := BuildStatement(test.Input)
-		if err != nil {
-			t.Error(err)
-		}
-		gotType := reflect.TypeOf(got)
-		expectedType := reflect.TypeOf(test.Expected)
+		for i := 0; i < 2; i++ {
+			input := test.Input
+			if i == 1 {
+				// check case insensitivility
+				input = strings.ToLower(input)
+			}
+			got, err := BuildStatement(input)
+			if err != nil {
+				t.Error(err)
+			}
+			gotType := reflect.TypeOf(got)
+			expectedType := reflect.TypeOf(test.Expected)
 
-		if gotType != expectedType {
-			t.Errorf("invalid statement type: expected = %s, but got = %s", expectedType, gotType)
+			if gotType != expectedType {
+				t.Errorf("invalid statement type: expected = %s, but got = %s", expectedType, gotType)
+			}
 		}
 	}
 

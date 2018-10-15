@@ -121,6 +121,15 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	return session, tableId, tearDown
 }
 
+func compareResult(t *testing.T, got *Result, expected *Result) {
+	opts := []cmp.Option{
+		cmpopts.IgnoreFields(Stats{}, "ElapsedTime"),
+	}
+	if !cmp.Equal(got, expected, opts...) {
+		t.Errorf("diff: %s", cmp.Diff(got, expected, opts...))
+	}
+}
+
 func TestSelect(t *testing.T) {
 	t.Parallel()
 	if skipIntegrateTest {
@@ -145,10 +154,7 @@ func TestSelect(t *testing.T) {
 		t.Fatalf("unexpected error happened: %s", err)
 	}
 
-	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Stats{}, "ElapsedTime"),
-	}
-	expected := &Result{
+	compareResult(t, result, &Result{
 		ColumnNames: []string{"id", "active"},
 		Rows: []Row{
 			Row{[]string{"1", "true"}},
@@ -158,11 +164,7 @@ func TestSelect(t *testing.T) {
 			AffectedRows: 2,
 		},
 		IsMutation: false,
-	}
-
-	if !cmp.Equal(result, expected, opts...) {
-		t.Errorf("diff: %s", cmp.Diff(result, expected, opts...))
-	}
+	})
 }
 
 func TestDml(t *testing.T) {
@@ -184,24 +186,17 @@ func TestDml(t *testing.T) {
 
 	result, err := stmt.Execute(session)
 	if err != nil {
-		t.Errorf("unexpected error happened: %s", err)
+		t.Fatalf("unexpected error happened: %s", err)
 	}
 
-	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Stats{}, "ElapsedTime"),
-	}
-	expected := &Result{
+	compareResult(t, result, &Result{
 		ColumnNames: []string{},
 		Rows:        []Row{},
 		Stats: Stats{
 			AffectedRows: 2,
 		},
 		IsMutation: true,
-	}
-
-	if !cmp.Equal(result, expected, opts...) {
-		t.Errorf("diff: %s", cmp.Diff(result, expected, opts...))
-	}
+	})
 
 	// check by query
 	query := spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
@@ -214,11 +209,11 @@ func TestDml(t *testing.T) {
 			break
 		}
 		if err != nil {
-			fmt.Errorf("unexpected error: %s", err)
+			t.Fatalf("unexpected error: %s", err)
 		}
 		var got testTableSchema
 		if err := row.ToStruct(&got); err != nil {
-			fmt.Errorf("unexpected error: %s", err)
+			t.Fatalf("unexpected error: %s", err)
 		}
 		gotStructs = append(gotStructs, got)
 	}
@@ -229,4 +224,297 @@ func TestDml(t *testing.T) {
 	if !cmp.Equal(gotStructs, expectedStructs) {
 		t.Errorf("diff: %s", cmp.Diff(gotStructs, expectedStructs))
 	}
+}
+
+func TestReadWriteTransaction(t *testing.T) {
+	t.Parallel()
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	t.Run("begin, insert, and commit", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+
+		session, tableId, tearDown := setup(t, ctx, []string{})
+		defer tearDown()
+
+		// begin
+		stmt, err := BuildStatement("BEGIN")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err := stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 0,
+			},
+			IsMutation: true,
+		})
+
+		// insert
+		stmt, err = BuildStatement(fmt.Sprintf("INSERT INTO %s (id, active) VALUES (1, true), (2, false)", tableId))
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 2,
+			},
+			IsMutation: true,
+		})
+
+		// commit
+		stmt, err = BuildStatement("COMMIT")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 0,
+			},
+			IsMutation: true,
+		})
+
+		// check by query
+		query := spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
+		iter := session.client.Single().Query(ctx, query)
+		defer iter.Stop()
+		gotStructs := make([]testTableSchema, 0)
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			var got testTableSchema
+			if err := row.ToStruct(&got); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			gotStructs = append(gotStructs, got)
+		}
+		expectedStructs := []testTableSchema{
+			{1, true},
+			{2, false},
+		}
+		if !cmp.Equal(gotStructs, expectedStructs) {
+			t.Errorf("diff: %s", cmp.Diff(gotStructs, expectedStructs))
+		}
+	})
+
+	t.Run("begin, insert, and rollback", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+
+		session, tableId, tearDown := setup(t, ctx, []string{})
+		defer tearDown()
+
+		// begin
+		stmt, err := BuildStatement("BEGIN")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err := stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 0,
+			},
+			IsMutation: true,
+		})
+
+		// insert
+		stmt, err = BuildStatement(fmt.Sprintf("INSERT INTO %s (id, active) VALUES (1, true), (2, false)", tableId))
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 2,
+			},
+			IsMutation: true,
+		})
+
+		// rollback
+		stmt, err = BuildStatement("ROLLBACK")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 0,
+			},
+			IsMutation: true,
+		})
+
+		// check by query
+		query := spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
+		iter := session.client.Single().Query(ctx, query)
+		defer iter.Stop()
+		iter.Do(func(row *spanner.Row) error {
+			t.Errorf("rollbacked, but written row found: %#v", row)
+			return nil
+		})
+	})
+}
+
+func TestReadOnlyTransaction(t *testing.T) {
+	t.Parallel()
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	t.Run("begin ro, query, and close", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+
+		session, tableId, tearDown := setup(t, ctx, []string{
+			"INSERT INTO [[TABLE]] (id, active) VALUES (1, true), (2, false)",
+		})
+		defer tearDown()
+
+		// begin
+		stmt, err := BuildStatement("BEGIN RO")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err := stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 0,
+			},
+			IsMutation: true,
+		})
+
+		// query
+		stmt, err = BuildStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{"id", "active"},
+			Rows: []Row{
+				Row{[]string{"1", "true"}},
+				Row{[]string{"2", "false"}},
+			},
+			Stats: Stats{
+				AffectedRows: 2,
+			},
+			IsMutation: false,
+		})
+
+		// close
+		stmt, err = BuildStatement("CLOSE")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		compareResult(t, result, &Result{
+			ColumnNames: []string{},
+			Rows:        []Row{},
+			Stats: Stats{
+				AffectedRows: 0,
+			},
+			IsMutation: true,
+		})
+	})
+}
+
+func TestShowCreateTable(t *testing.T) {
+	t.Parallel()
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	session, tableId, tearDown := setup(t, ctx, []string{})
+	defer tearDown()
+
+	stmt, err := BuildStatement(fmt.Sprintf("SHOW CREATE TABLE %s", tableId))
+	if err != nil {
+		t.Fatalf("invalid statement: error=%s", err)
+	}
+
+	result, err := stmt.Execute(session)
+	if err != nil {
+		t.Fatalf("unexpected error happened: %s", err)
+	}
+
+	compareResult(t, result, &Result{
+		ColumnNames: []string{"Table", "Create Table"},
+		Rows: []Row{
+			Row{[]string{tableId, fmt.Sprintf("CREATE TABLE %s (\n  id INT64 NOT NULL,\n  active BOOL NOT NULL,\n) PRIMARY KEY(id)", tableId)}},
+		},
+		Stats: Stats{
+			AffectedRows: 1,
+		},
+		IsMutation: false,
+	})
 }
