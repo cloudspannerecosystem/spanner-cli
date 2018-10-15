@@ -81,11 +81,12 @@ Query OK, 1 rows affected (0.61 sec)
 spanner(rw txn)> COMMIT;
 Query OK, 0 rows affected (0.20 sec)
 
-spanner> SELECT * FROM users ORDER BY id ASC\G
-*************************** 1. row ***************************
-    id: 1
-  name: foo
-active: true
+spanner> SELECT * FROM users ORDER BY id ASC;
++----+------+--------+
+| id | name | active |
++----+------+--------+
+| 1  | foo  | true   |
++----+------+--------+
 1 rows in set (2.58 msecs)
 
 spanner> DROP TABLE users;
@@ -100,7 +101,8 @@ Bye
 
 ## Syntax
 
-The syntax is case-insensitive.
+The syntax is case-insensitive.  
+`\G` delimiter is also supported for dispalying results vertically.
 
 | Usage | Syntax | Note |
 | --- | --- | --- |
