@@ -1,4 +1,3 @@
 * test
 * README
-* function visibility
-* refactor
+* rafactor (especially function visibility)

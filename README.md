@@ -52,6 +52,20 @@ TODO
 spanner-cli --project=<PROJECT> --instance=<INSTANCE> --database=<DATABASE>
 ```
 
+## How to develop
+
+Run unit tests
+
+```
+$ make test
+```
+
+Run unit tests and integration tests, which connects to real Cloud Spanner database.
+
+```
+$ SPANNER_CLI_INTEGRATION_TEST_PROJECT_ID=$PROJECT_ID SPANNER_CLI_INTEGRATION_TEST_INSTANCE_ID=${INSTANCE_ID} SPANNER_CLI_INTEGRATION_TEST_DATABASE_ID=${DATABASE_ID} SPANNER_CLI_INTEGRATION_TEST_CREDENTIAL=${CREDENTIALS} make test
+```
+
 ## TODO
 
 * STRUCT data type

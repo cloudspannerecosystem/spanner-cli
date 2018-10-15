@@ -5,13 +5,8 @@ import (
 	"testing"
 )
 
-func TestXxx(t *testing.T) {
-	// stmt.Execute を基本は実施
-	// buildstatemt も別途やったほうがよさそう
-}
-
 func TestBuildStatement(t *testing.T) {
-	tests := []struct {
+	validTests := []struct {
 		Input    string
 		Expected Statement
 	}{
@@ -38,7 +33,7 @@ func TestBuildStatement(t *testing.T) {
 		{"SHOW TABLES", &ShowTablesStatement{}},
 	}
 
-	for _, test := range tests {
+	for _, test := range validTests {
 		got, err := BuildStatement(test.Input)
 		if err != nil {
 			t.Error(err)
@@ -48,6 +43,21 @@ func TestBuildStatement(t *testing.T) {
 
 		if gotType != expectedType {
 			t.Errorf("invalid statement type: expected = %s, but got = %s", expectedType, gotType)
+		}
+	}
+
+	invalidTests := []struct {
+		Input string
+	}{
+		{"FOO BAR"},
+		{"SELEC T FROM t1"},
+		{"SET @a = 1"},
+	}
+
+	for _, test := range invalidTests {
+		got, err := BuildStatement(test.Input)
+		if err == nil {
+			t.Errorf("expected error, but got = %#v", got)
 		}
 	}
 }
