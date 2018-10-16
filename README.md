@@ -172,12 +172,10 @@ There are some defined variables for being used in prompt.
 
 Variables:
 
-```
-\p : GCP Project ID
-\i : Cloud Spanner Instance ID
-\d : Cloud Spanner Database ID
-\t : In transaction
-```
+* `\p` : GCP Project ID
+* `\i` : Cloud Spanner Instance ID
+* `\d` : Cloud Spanner Database ID
+* `\t` : In transaction
 
 Example:
 
