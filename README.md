@@ -234,4 +234,3 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 * EXPLAIN
 * DESCRIBE
 * show secondary index by "SHOW CREATE TABLE"
-* support `~/.spanner_cli.cfg`
