@@ -4,11 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/option"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+)
+
+var (
+	promptReInTransaction = regexp.MustCompile(`\\t`)
+	promptReProjectId     = regexp.MustCompile(`\\p`)
+	promptReInstanceId    = regexp.MustCompile(`\\i`)
+	promptReDatabaseId    = regexp.MustCompile(`\\d`)
 )
 
 type Session struct {
@@ -85,6 +93,22 @@ func (s *Session) GetDatabasePath() string {
 
 func (s *Session) GetInstancePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
+}
+
+func (s *Session) InterpolatePromptVariable(prompt string) string {
+	prompt = promptReProjectId.ReplaceAllString(prompt, s.projectId)
+	prompt = promptReInstanceId.ReplaceAllString(prompt, s.instanceId)
+	prompt = promptReDatabaseId.ReplaceAllString(prompt, s.databaseId)
+
+	if s.inRwTxn() {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
+	} else if s.inRoTxn() {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
+	} else {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
+	}
+
+	return prompt
 }
 
 func (s *Session) databaseExists() (bool, error) {

@@ -28,11 +28,12 @@ Usage:
   spanner-cli [OPTIONS]
 
 Application Options:
-  -p, --project=  GCP Project ID. (default: gcloud config value of "core/project")
-  -i, --instance= Cloud Spanner Instance ID. (default: gcloud config value of "spanner/instance")
-  -d, --database= Cloud Spanner Database ID.
+  -p, --project=  (required) GCP Project ID.
+  -i, --instance= (required) Cloud Spanner Instance ID
+  -d, --database= (required) Cloud Spanner Database ID.
   -e, --execute=  Execute SQL statement and quit.
   -t, --table     Display output in table format for batch mode.
+      --prompt=   Set the prompt to the specified format
 
 Help Options:
   -h, --help      Show this help message
@@ -164,6 +165,42 @@ The syntax is case-insensitive.
 | Show Query Execution Plan | | Not supported yet |
 | Exit | `EXIT;` | |
 
+## Customize prompt
+
+You can customize the prompt by `--prompt` option.  
+There are some defined variables for being used in prompt.
+
+Variables:
+
+```
+\p : GCP Project ID
+\i : Cloud Spanner Instance ID
+\d : Cloud Spanner Database ID
+\t : In transaction
+```
+
+Example:
+
+```
+$ spanner-cli -p myproject -i myinstance -d mydb --prompt='[\p:\i:\d]\t> '
+Connected.
+[myproject:myinstance:mydb]> SELECT * FROM users ORDER BY id ASC;
++----+------+--------+
+| id | name | active |
++----+------+--------+
+| 1  | foo  | true   |
+| 2  | bar  | false  |
++----+------+--------+
+2 rows in set (3.09 msecs)
+
+[myproject:myinstance:mydb]> begin;
+Query OK, 0 rows affected (0.08 sec)
+
+[myproject:myinstance:mydb](rw txn)> ...
+```
+
+The default prompt is `spanner\t> `.
+
 ## How to develop
 
 Run unit tests
@@ -181,7 +218,7 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 ## TODO
 
 * STRUCT data type
-* prompt customize
 * EXPLAIN
 * DESCRIBE
 * show secondary index by "SHOW CREATE TABLE"
+* support `~/.spanner_cli.cfg`

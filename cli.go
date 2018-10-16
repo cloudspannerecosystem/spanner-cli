@@ -28,11 +28,16 @@ const (
 	DisplayModeTab
 )
 
+const (
+	DefaultPrompt = `spanner\t> `
+)
+
 type Cli struct {
 	Session *Session
+	Prompt  string
 }
 
-func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId string, prompt string) (*Cli, error) {
 	ctx := context.Background()
 	session, err := NewSession(ctx, projectId, instanceId, databaseId, spanner.ClientConfig{})
 	if err != nil {
@@ -45,14 +50,18 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 		stmt.Execute(session)
 	}()
 
+	if prompt == "" {
+		prompt = DefaultPrompt
+	}
+
 	return &Cli{
 		Session: session,
+		Prompt:  prompt,
 	}, nil
 }
 
 func (c *Cli) RunInteractive() {
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:      "spanner> ",
 		HistoryFile: "/tmp/spanner_cli_readline.tmp",
 	})
 	if err != nil {
@@ -62,13 +71,9 @@ func (c *Cli) RunInteractive() {
 	fmt.Printf("Connected.\n")
 
 	for {
-		if c.Session.inRwTxn() {
-			rl.SetPrompt("spanner(rw txn)> ")
-		} else if c.Session.inRoTxn() {
-			rl.SetPrompt("spanner(ro txn)> ")
-		} else {
-			rl.SetPrompt("spanner> ")
-		}
+		prompt := c.Session.InterpolatePromptVariable(c.Prompt)
+		rl.SetPrompt(prompt)
+
 		input, delimiter, err := readInteractiveInput(rl)
 		if err == io.EOF {
 			c.Exit()
