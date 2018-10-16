@@ -20,6 +20,14 @@ const (
 	DelimiterVertical   Delimiter = "\\G"
 )
 
+type DisplayMode int
+
+const (
+	DisplayModeTable DisplayMode = iota
+	DisplayModeVertical
+	DisplayModeTab
+)
+
 type Cli struct {
 	Session *Session
 }
@@ -30,8 +38,6 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("Connected.\n")
 
 	// HACK: for speed up first execution
 	go func() {
@@ -44,7 +50,7 @@ func NewCli(projectId, instanceId, databaseId string) (*Cli, error) {
 	}, nil
 }
 
-func (c *Cli) Run() {
+func (c *Cli) RunInteractive() {
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:      "spanner> ",
 		HistoryFile: "/tmp/spanner_cli_readline.tmp",
@@ -52,6 +58,8 @@ func (c *Cli) Run() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Connected.\n")
 
 	for {
 		if c.Session.inRwTxn() {
@@ -99,35 +107,82 @@ func (c *Cli) Run() {
 			continue
 		}
 
-		// Show results
 		if delimiter == DelimiterHorizontal {
-			table := tablewriter.NewWriter(os.Stdout)
-			for _, row := range result.Rows {
-				table.Append(row.Columns)
-			}
-			table.SetHeader(result.ColumnNames)
-			if len(result.Rows) > 0 {
-				table.SetAutoFormatHeaders(false)
-				table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-				table.SetAlignment(tablewriter.ALIGN_LEFT)
-				table.Render()
-			}
-		} else if delimiter == DelimiterVertical {
-			max := 0
-			for _, columnName := range result.ColumnNames {
-				if len(columnName) > max {
-					max = len(columnName)
-				}
-			}
-			format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
-			for i, row := range result.Rows {
-				fmt.Printf("*************************** %d. row ***************************\n", i+1)
-				for j, column := range row.Columns {
-					fmt.Printf(format, result.ColumnNames[j], column)
-				}
-			}
+			printResult(result, DisplayModeTable, true)
+		} else {
+			printResult(result, DisplayModeVertical, true)
 		}
 
+		fmt.Printf("\n")
+	}
+}
+
+func (c *Cli) RunBatch(input string, displayTable bool) {
+	for _, separated := range separateInput(input) {
+		stmt, err := BuildStatement(separated.Statement)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+			return
+		}
+
+		result, err := stmt.Execute(c.Session)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+			return
+		}
+
+		if displayTable {
+			printResult(result, DisplayModeTable, false)
+		} else if separated.Delimiter == DelimiterVertical {
+			printResult(result, DisplayModeVertical, false)
+		} else {
+			printResult(result, DisplayModeTab, false)
+		}
+	}
+}
+
+func (c *Cli) Exit() {
+	c.Session.client.Close()
+	c.Session.adminClient.Close()
+	fmt.Println("Bye")
+	os.Exit(0)
+}
+
+func printResult(result *Result, mode DisplayMode, withStats bool) {
+	if mode == DisplayModeTable {
+		table := tablewriter.NewWriter(os.Stdout)
+		for _, row := range result.Rows {
+			table.Append(row.Columns)
+		}
+		table.SetHeader(result.ColumnNames)
+		if len(result.Rows) > 0 {
+			table.SetAutoFormatHeaders(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.Render()
+		}
+	} else if mode == DisplayModeVertical {
+		max := 0
+		for _, columnName := range result.ColumnNames {
+			if len(columnName) > max {
+				max = len(columnName)
+			}
+		}
+		format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
+		for i, row := range result.Rows {
+			fmt.Printf("*************************** %d. row ***************************\n", i+1)
+			for j, column := range row.Columns {
+				fmt.Printf(format, result.ColumnNames[j], column)
+			}
+		}
+	} else if mode == DisplayModeTab {
+		fmt.Println(strings.Join(result.ColumnNames, "\t"))
+		for _, row := range result.Rows {
+			fmt.Println(strings.Join(row.Columns, "\t"))
+		}
+	}
+
+	if withStats {
 		if result.IsMutation {
 			fmt.Printf("Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
 		} else {
@@ -137,15 +192,12 @@ func (c *Cli) Run() {
 				fmt.Printf("%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
 			}
 		}
-		fmt.Printf("\n")
 	}
 }
 
-func (c *Cli) Exit() {
-	c.Session.client.Close()
-	c.Session.adminClient.Close()
-	fmt.Println("Bye")
-	os.Exit(0)
+type InputStatement struct {
+	Statement string
+	Delimiter Delimiter
 }
 
 func readInput(rl *readline.Instance) (string, Delimiter, error) {
@@ -172,6 +224,34 @@ func readInput(rl *readline.Instance) (string, Delimiter, error) {
 		}
 		lines = append(lines, line)
 	}
+}
+
+// separate to each statement
+func separateInput(input string) []InputStatement {
+	input = strings.TrimSpace(input)
+	statements := make([]InputStatement, 0)
+	for input != "" {
+		if idx := strings.Index(input, string(DelimiterHorizontal)); idx != -1 {
+			statements = append(statements, InputStatement{
+				Statement: strings.TrimSpace(input[:idx]),
+				Delimiter: DelimiterHorizontal,
+			})
+			input = strings.TrimSpace(input[idx+1:])
+		} else if idx := strings.Index(input, string(DelimiterVertical)); idx != -1 {
+			statements = append(statements, InputStatement{
+				Statement: strings.TrimSpace(input[:idx]),
+				Delimiter: DelimiterVertical,
+			})
+			input = strings.TrimSpace(input[idx+2:]) // +2 for \ and G
+		} else {
+			statements = append(statements, InputStatement{
+				Statement: strings.TrimSpace(input),
+				Delimiter: DelimiterHorizontal, // default horizontal
+			})
+			break
+		}
+	}
+	return statements
 }
 
 func printProgressingMark() *time.Ticker {

@@ -150,5 +150,4 @@ $ SPANNER_CLI_INTEGRATION_TEST_PROJECT_ID=$PROJECT_ID SPANNER_CLI_INTEGRATION_TE
 * prompt customize
 * EXPLAIN
 * DESCRIBE
-* evaluate SQL from stdin
 * show secondary index by "SHOW CREATE TABLE"
