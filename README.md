@@ -181,7 +181,6 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 ## TODO
 
 * STRUCT data type
-* comment literal (#)
 * prompt customize
 * EXPLAIN
 * DESCRIBE

@@ -212,10 +212,13 @@ func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
 		if err != nil {
 			return "", Delimiter("UNKNOWN"), err
 		}
-		rl.SetPrompt("      -> ") // same length to original prompt
 
 		line = strings.TrimSpace(line)
 		if len(line) != 0 {
+			// check comment literal
+			if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "--") {
+				continue
+			}
 			for _, delimiter := range []Delimiter{DelimiterHorizontal, DelimiterVertical} {
 				if strings.HasSuffix(line, string(delimiter)) {
 					line = strings.TrimRight(line, string(delimiter))
@@ -225,6 +228,7 @@ func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
 			}
 		}
 		lines = append(lines, line)
+		rl.SetPrompt("      -> ") // same length to original prompt
 	}
 }
 
