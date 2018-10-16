@@ -69,7 +69,7 @@ func (c *Cli) RunInteractive() {
 		} else {
 			rl.SetPrompt("spanner> ")
 		}
-		input, delimiter, err := readInput(rl)
+		input, delimiter, err := readInteractiveInput(rl)
 		if err == io.EOF {
 			c.Exit()
 		}
@@ -200,7 +200,7 @@ type InputStatement struct {
 	Delimiter Delimiter
 }
 
-func readInput(rl *readline.Instance) (string, Delimiter, error) {
+func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
 	lines := make([]string, 0)
 	origPrompt := rl.Config.Prompt
 	defer rl.SetPrompt(origPrompt)
@@ -230,6 +230,9 @@ func readInput(rl *readline.Instance) (string, Delimiter, error) {
 func separateInput(input string) []InputStatement {
 	input = strings.TrimSpace(input)
 	statements := make([]InputStatement, 0)
+
+	// NOTE: This logic doesn't do syntactic analysis, but just checks the delimiter position,
+	// so it's fragile for the case that delimiters appear in strings.
 	for input != "" {
 		if idx := strings.Index(input, string(DelimiterHorizontal)); idx != -1 {
 			statements = append(statements, InputStatement{
