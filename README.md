@@ -24,16 +24,18 @@ go get -u github.com/yfuruyama/spanner-cli
 ## Usage
 
 ```
-Usage
-    spanner-cli [options...]
+Usage:
+  spanner-cli [OPTIONS]
 
-Example:
-    spanner-cli --project=myproject --instance=myinstance --database=mydb
+Application Options:
+  -p, --project=  GCP Project ID. (default: gcloud config value of "core/project")
+  -i, --instance= Cloud Spanner Instance ID. (default: gcloud config value of "spanner/instance")
+  -d, --database= Cloud Spanner Database ID.
+  -e, --execute=  Execute SQL statement and quit.
+  -t, --table     Display output in table format for batch mode.
 
-Options:
-    --project=PROJECT   (optional)    GCP Project ID            (default: gcloud config value of "core/project")
-    --instance=INSTANCE (optional)    Cloud Spanner Instance ID (default: gcloud config value of "spanner/instance")
-    --database=DATABASE (required)    Cloud Spanner Database ID
+Help Options:
+  -h, --help      Show this help message
 ```
 
 This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
@@ -41,8 +43,10 @@ Please be sure to prepare your credential by `gcloud auth application-default lo
 
 ## Example
 
+### Interactive mode
+
 ```
-$ spanner-cli --project=myproject --instance=myinstance --database=mydb
+$ spanner-cli -p myproject -i myinstance -d mydb
 
 Connected.
 spanner> CREATE TABLE users (
@@ -99,6 +103,31 @@ spanner> EXIT;
 Bye
 ```
 
+### Batch mode
+
+```
+# By passing SQL from standard input, spanner-cli runs in batch mode
+$ echo 'SELECT * FROM users;' | spanner-cli -p myproject -i myinstance -d mydb
+id      name    active
+1       foo     true
+2       bar     false
+
+# You can also pass SQL from command line option `-e`
+$ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;'
+id      name    active
+1       foo     true
+2       bar     false
+
+# With `-t` option, results are displayed in table format
+$ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;' -t
++----+------+--------+
+| id | name | active |
++----+------+--------+
+| 1  | foo  | true   |
+| 2  | bar  | false  |
++----+------+--------+
+```
+
 ## Syntax
 
 The syntax is case-insensitive.  
@@ -150,5 +179,4 @@ $ SPANNER_CLI_INTEGRATION_TEST_PROJECT_ID=$PROJECT_ID SPANNER_CLI_INTEGRATION_TE
 * prompt customize
 * EXPLAIN
 * DESCRIBE
-* evaluate SQL from stdin
 * show secondary index by "SHOW CREATE TABLE"
