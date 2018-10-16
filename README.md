@@ -47,7 +47,6 @@ Please be sure to prepare your credential by `gcloud auth application-default lo
 
 ```
 $ spanner-cli -p myproject -i myinstance -d mydb
-
 Connected.
 spanner> CREATE TABLE users (
       ->   id INT64 NOT NULL,
@@ -105,20 +104,27 @@ Bye
 
 ### Batch mode
 
+By passing SQL from standard input, `spanner-cli` runs in batch mode
+
 ```
-# By passing SQL from standard input, spanner-cli runs in batch mode
 $ echo 'SELECT * FROM users;' | spanner-cli -p myproject -i myinstance -d mydb
 id      name    active
 1       foo     true
 2       bar     false
+```
 
-# You can also pass SQL from command line option `-e`
+You can also pass SQL from command line option `-e`
+
+```
 $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;'
 id      name    active
 1       foo     true
 2       bar     false
+```
 
-# With `-t` option, results are displayed in table format
+With `-t` option, results are displayed in table format
+
+```
 $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;' -t
 +----+------+--------+
 | id | name | active |
