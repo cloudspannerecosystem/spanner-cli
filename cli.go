@@ -176,9 +176,11 @@ func printResult(result *Result, mode DisplayMode, withStats bool) {
 			}
 		}
 	} else if mode == DisplayModeTab {
-		fmt.Println(strings.Join(result.ColumnNames, "\t"))
-		for _, row := range result.Rows {
-			fmt.Println(strings.Join(row.Columns, "\t"))
+		if len(result.ColumnNames) > 0 {
+			fmt.Println(strings.Join(result.ColumnNames, "\t"))
+			for _, row := range result.Rows {
+				fmt.Println(strings.Join(row.Columns, "\t"))
+			}
 		}
 	}
 
