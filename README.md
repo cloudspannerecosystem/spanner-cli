@@ -199,7 +199,7 @@ Query OK, 0 rows affected (0.08 sec)
 
 The default prompt is `spanner\t> `.
 
-## Config file - spanner_cli.cnf
+## Config file
 
 This tool supports a configuration file called `spanner_cli.cnf` like `my.cnf`.  
 The config file path must be `~/.spanner_cli.cnf`.  
@@ -211,7 +211,7 @@ Example:
 [spanner]
 project = myproject
 instance = myinstance
-prompt = "[01;36m[\\p:\\i:\\d]\\t>[0m "
+prompt = "[\\p:\\i:\\d]\\t> "
 ```
 
 ## How to develop
