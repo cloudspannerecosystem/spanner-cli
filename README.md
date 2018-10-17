@@ -1,7 +1,5 @@
-spanner-cli
+spanner-cli [![CircleCI](https://circleci.com/gh/yfuruyama/spanner-cli.svg?style=svg)](https://circleci.com/gh/yfuruyama/spanner-cli)
 ===
-
-[![CircleCI](https://circleci.com/gh/yfuruyama/spanner-cli.svg?style=svg)](https://circleci.com/gh/yfuruyama/spanner-cli)
 
 spanner-cli, the Cloud Spanner command line interface.
 
