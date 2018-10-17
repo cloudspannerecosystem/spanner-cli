@@ -199,6 +199,21 @@ Query OK, 0 rows affected (0.08 sec)
 
 The default prompt is `spanner\t> `.
 
+## Config file
+
+This tool supports a configuration file called `spanner_cli.cnf` like `my.cnf`.  
+The config file path must be `~/.spanner_cli.cnf`.  
+In the config file, you can set default option values for command line options.
+
+Example:
+
+```conf
+[spanner]
+project = myproject
+instance = myinstance
+prompt = "[\\p:\\i:\\d]\\t> "
+```
+
 ## How to develop
 
 Run unit tests
@@ -219,4 +234,3 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 * EXPLAIN
 * DESCRIBE
 * show secondary index by "SHOW CREATE TABLE"
-* support `~/.spanner_cli.cfg`
