@@ -90,14 +90,14 @@ func (c *Cli) RunInteractive() {
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
-			c.Session.client.Close()
-			c.Session.adminClient.Close()
 			ctx := context.Background()
 			newSession, err := NewSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, spanner.ClientConfig{})
 			if err != nil {
 				fmt.Printf("ERROR: %s\n", err)
 				continue
 			}
+			c.Session.client.Close()
+			c.Session.adminClient.Close()
 			c.Session = newSession
 			fmt.Println("Database changed")
 			continue
