@@ -12,6 +12,7 @@ func TestBuildStatement(t *testing.T) {
 		Expected Statement
 	}{
 		{"SELECT * FROM t1", &SelectStatement{}},
+		{"SELECT\n*\nFROM t1", &SelectStatement{}},
 		{"CREATE DATABASE d1", &CreateDatabaseStatement{}},
 		{"CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)", &DdlStatement{}},
 		{"ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL", &DdlStatement{}},
@@ -32,7 +33,8 @@ func TestBuildStatement(t *testing.T) {
 		{"SHOW DATABASES", &ShowDatabasesStatement{}},
 		{"SHOW CREATE TABLE t1", &ShowCreateTableStatement{}},
 		{"SHOW TABLES", &ShowTablesStatement{}},
-		{"SELECT\n*\nFROM t1", &SelectStatement{}},
+		{"DESCRIBE t1", &DescribeTableStatement{}},
+		{"DESC t1", &DescribeTableStatement{}},
 	}
 
 	for _, test := range validTests {
