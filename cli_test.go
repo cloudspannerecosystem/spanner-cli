@@ -34,6 +34,7 @@ func TestSeparateInput(t *testing.T) {
 		{`SELECT * FROM t1; SELECT * FROM t2\G`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}, InputStatement{"SELECT * FROM t2", DelimiterVertical}}},
 		{`SELECT * FROM t1\G SELECT * FROM t2`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterVertical}, InputStatement{"SELECT * FROM t2", DelimiterHorizontal}}},
 		{`SELECT * FROM t1; abcd `, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}, InputStatement{"abcd", DelimiterHorizontal}}},
+		{"SELECT\n*\nFROM t1;", []InputStatement{InputStatement{"SELECT\n*\nFROM t1", DelimiterHorizontal}}},
 	}
 
 	for _, test := range tests {

@@ -32,6 +32,7 @@ func TestBuildStatement(t *testing.T) {
 		{"SHOW DATABASES", &ShowDatabasesStatement{}},
 		{"SHOW CREATE TABLE t1", &ShowCreateTableStatement{}},
 		{"SHOW TABLES", &ShowTablesStatement{}},
+		{"SELECT\n*\nFROM t1", &SelectStatement{}},
 	}
 
 	for _, test := range validTests {
@@ -43,7 +44,7 @@ func TestBuildStatement(t *testing.T) {
 			}
 			got, err := BuildStatement(input)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			gotType := reflect.TypeOf(got)
 			expectedType := reflect.TypeOf(test.Expected)
