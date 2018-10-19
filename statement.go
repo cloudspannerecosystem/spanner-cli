@@ -35,34 +35,34 @@ type Stats struct {
 
 var (
 	// SQL
-	selectRe = regexp.MustCompile(`(?i)^SELECT\s.+$`)
+	selectRe = regexp.MustCompile(`(?is)^SELECT\s.+$`)
 
 	// DDL
-	createDatabaseRe = regexp.MustCompile(`(?i)^CREATE\s+DATABASE\s+(.+)$`)
-	createTableRe    = regexp.MustCompile(`(?i)^CREATE\s+TABLE\s.+$`)
-	alterTableRe     = regexp.MustCompile(`(?i)^ALTER\s+TABLE\s.+$`)
-	dropTableRe      = regexp.MustCompile(`(?i)^DROP\s+TABLE\s.+$`)
-	createIndexRe    = regexp.MustCompile(`(?i)^CREATE\s+(UNIQUE\s+)?(NULL_FILTERED\s+)?INDEX\s.+$`)
-	dropIndexRe      = regexp.MustCompile(`(?i)^DROP\s+INDEX\s.+$`)
+	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s+(.+)$`)
+	createTableRe    = regexp.MustCompile(`(?is)^CREATE\s+TABLE\s.+$`)
+	alterTableRe     = regexp.MustCompile(`(?is)^ALTER\s+TABLE\s.+$`)
+	dropTableRe      = regexp.MustCompile(`(?is)^DROP\s+TABLE\s.+$`)
+	createIndexRe    = regexp.MustCompile(`(?is)^CREATE\s+(UNIQUE\s+)?(NULL_FILTERED\s+)?INDEX\s.+$`)
+	dropIndexRe      = regexp.MustCompile(`(?is)^DROP\s+INDEX\s.+$`)
 
 	// DML
-	insertRe = regexp.MustCompile(`(?i)^INSERT\s+.+$`)
-	updateRe = regexp.MustCompile(`(?i)^UPDATE\s+.+$`)
-	deleteRe = regexp.MustCompile(`(?i)^DELETE\s+.+$`)
+	insertRe = regexp.MustCompile(`(?is)^INSERT\s+.+$`)
+	updateRe = regexp.MustCompile(`(?is)^UPDATE\s+.+$`)
+	deleteRe = regexp.MustCompile(`(?is)^DELETE\s+.+$`)
 
 	// Transaction
-	beginRwRe  = regexp.MustCompile(`(?i)^BEGIN(\s+RW)?$`)
-	beginRoRe  = regexp.MustCompile(`(?i)^BEGIN\s+RO$`)
-	commitRe   = regexp.MustCompile(`(?i)^COMMIT$`)
-	rollbackRe = regexp.MustCompile(`(?i)^ROLLBACK$`)
-	closeRe    = regexp.MustCompile(`(?i)^CLOSE$`)
+	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
+	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO$`)
+	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
+	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
+	closeRe    = regexp.MustCompile(`(?is)^CLOSE$`)
 
 	// Other
-	exitRe            = regexp.MustCompile(`(?i)^EXIT$`)
-	useRe             = regexp.MustCompile(`(?i)^USE\s+(.+)$`)
-	showDatabasesRe   = regexp.MustCompile(`(?i)^SHOW\s+DATABASES$`)
-	showCreateTableRe = regexp.MustCompile(`(?i)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
-	showTablesRe      = regexp.MustCompile(`(?i)^SHOW\s+TABLES$`)
+	exitRe            = regexp.MustCompile(`(?is)^EXIT$`)
+	useRe             = regexp.MustCompile(`(?is)^USE\s+(.+)$`)
+	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
+	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
+	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
 )
 
 var (
