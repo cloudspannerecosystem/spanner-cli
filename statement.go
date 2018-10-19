@@ -355,12 +355,14 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 		}
 
 		stmt := spanner.NewStatement(s.text)
-		_, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
+		queryPlan, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
 		if err != nil {
 			return nil, err
 		}
 
-		result.Rows[0] = Row{[]string{".\n|-test\n|-test\n"}}
+		tree := BuildQueryPlanTree(queryPlan, 0)
+		rendered := tree.Render()
+		result.Rows[0] = Row{[]string{rendered}}
 
 		return result, nil
 	})
