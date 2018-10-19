@@ -146,7 +146,7 @@ The syntax is case-insensitive.
 | Drop database |  | Not supported yet |
 | List tables | `SHOW TABLES;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
-| Show columns | `DESCRIBE <table>;` | |
+| Show columns | `SHOW COLUMNS <table>;` | |
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |
@@ -156,12 +156,12 @@ The syntax is case-insensitive.
 | Stale Read | | Not supported yet |
 | DML | `INSERT / UPDATE / DELETE ...;` | |
 | Partitioned DML | | Not supported yet |
+| Show Query Execution Plan | | `EXPLAIN SELECT ...;` |
 | Start Read-Write Transaction | `BEGIN (RW);` | |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO;` | |
 | End Read-Only Transaction | `CLOSE;` | |
-| Show Query Execution Plan | | Not supported yet |
 | Exit | `EXIT;` | |
 
 ## Customize prompt
@@ -230,5 +230,4 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 ## TODO
 
 * STRUCT data type
-* EXPLAIN
 * show secondary index by "SHOW CREATE TABLE"
