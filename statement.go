@@ -63,10 +63,11 @@ var (
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
+	describeTableRe   = regexp.MustCompile(`(?is)^DESC(?:RIBE)?\s+(.+)$`)
 )
 
 var (
-	txnRetryError = errors.New("transaction retried, but it's not supported.")
+	txnRetryError = errors.New("transaction temporarily failed")
 	rollbackError = errors.New("rollback")
 )
 
@@ -103,6 +104,11 @@ func BuildStatement(input string) (Statement, error) {
 		}
 	} else if showTablesRe.MatchString(input) {
 		stmt = &ShowTablesStatement{}
+	} else if describeTableRe.MatchString(input) {
+		matched := describeTableRe.FindStringSubmatch(input)
+		stmt = &DescribeTableStatement{
+			table: matched[1],
+		}
 	} else if insertRe.MatchString(input) || updateRe.MatchString(input) || deleteRe.MatchString(input) {
 		stmt = &DmlStatement{
 			text: input,
@@ -314,8 +320,9 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 type ShowTablesStatement struct{}
 
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
+	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	query := SelectStatement{
-		text: `SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`,
+		text: fmt.Sprintf(`SELECT t.table_name AS %s FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`, alias),
 	}
 
 	result, err := query.Execute(session)
@@ -323,9 +330,46 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	// rename column name
-	if len(result.ColumnNames) == 1 {
-		result.ColumnNames[0] = fmt.Sprintf("Tables_in_%s", session.databaseId)
+	return result, nil
+}
+
+type DescribeTableStatement struct {
+	table string
+}
+
+func (s *DescribeTableStatement) Execute(session *Session) (*Result, error) {
+	query := SelectStatement{
+		text: fmt.Sprintf(`SELECT
+  C.COLUMN_NAME as Field,
+  C.SPANNER_TYPE as Type,
+  C.IS_NULLABLE as `+"`NULL`"+`,
+  C.COLUMN_DEFAULT as `+"`Default`"+`,
+  IC.INDEX_TYPE as `+"`Key`"+`,
+  IC.COLUMN_ORDERING as Key_Order,
+  CONCAT(CO.OPTION_NAME, "=", CO.OPTION_VALUE) as `+"`Options`"+`
+FROM
+  INFORMATION_SCHEMA.COLUMNS C
+LEFT JOIN
+  INFORMATION_SCHEMA.INDEX_COLUMNS IC
+ON
+  C.COLUMN_NAME = IC.COLUMN_NAME AND C.TABLE_NAME = IC.TABLE_NAME
+LEFT JOIN
+  INFORMATION_SCHEMA.COLUMN_OPTIONS CO
+ON
+  C.COLUMN_NAME = CO.COLUMN_NAME AND C.TABLE_NAME = CO.TABLE_NAME
+WHERE
+  C.TABLE_NAME = '%s'
+ORDER BY
+  C.ORDINAL_POSITION ASC`, s.table),
+	}
+
+	result, err := query.Execute(session)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Rows) == 0 {
+		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.table))
 	}
 
 	return result, nil

@@ -146,6 +146,7 @@ The syntax is case-insensitive.
 | Drop database |  | Not supported yet |
 | List tables | `SHOW TABLES;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
+| Show columns | `DESCRIBE <table>;` | |
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |
@@ -230,5 +231,4 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 
 * STRUCT data type
 * EXPLAIN
-* DESCRIBE
 * show secondary index by "SHOW CREATE TABLE"
