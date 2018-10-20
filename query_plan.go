@@ -55,36 +55,8 @@ func (n *Node) IsVisible() bool {
 
 func (n *Node) String() string {
 	operator := n.PlanNode.DisplayName
-	switch operator {
-	case "Distributed Union":
-		if typ, ok := getMetadataString(n, "call_type"); ok {
-			operator = fmt.Sprintf("%s %s", typ, operator)
-		}
-		return operator
-	case "Limit":
-		if typ, ok := getMetadataString(n, "limit_type"); ok {
-			operator = fmt.Sprintf("%s %s", typ, operator)
-		}
-		return operator
-	case "Scan":
-		if typ, ok := getMetadataString(n, "scan_type"); ok {
-			operator = typ
-		}
-		str := operator
-		if target, ok := getMetadataString(n, "scan_target"); ok {
-			str = fmt.Sprintf("%s: %s", str, target)
-		}
-		return str
-	case "Aggregate":
-		if n.PlanNode.ShortRepresentation != nil {
-			fmt.Println(n.PlanNode.ShortRepresentation.Description)
-		}
-
-		if typ, ok := getMetadataString(n, "iterator_type"); ok {
-			return fmt.Sprintf("%s %s", typ, operator)
-		}
-	}
-	return operator
+	metadata := getAllMetadataString(n)
+	return operator + " " + metadata
 }
 
 func getMetadataString(node *Node, key string) (string, bool) {
@@ -107,7 +79,7 @@ func getAllMetadataString(node *Node) string {
 	for k, v := range node.PlanNode.Metadata.Fields {
 		fields = append(fields, fmt.Sprintf("%s: %s", k, v.GetStringValue()))
 	}
-	return fmt.Sprintf(`"%s"`, strings.Join(fields, ", "))
+	return fmt.Sprintf(`(%s)`, strings.Join(fields, ", "))
 }
 
 func renderTree(tree treeprint.Tree, node *Node) {
