@@ -38,6 +38,17 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 
 func (n *Node) Render() string {
 	tree := treeprint.New()
-	tree.AddBranch(n.PlanNode.DisplayName)
-	return tree.String()
+	renderTree(tree, n)
+	return "\n" + tree.String()
+}
+
+func renderTree(tree treeprint.Tree, node *Node) {
+	if len(node.Children) > 0 {
+		branch := tree.AddBranch(node.PlanNode.DisplayName)
+		for _, child := range node.Children {
+			renderTree(branch, child)
+		}
+	} else {
+		tree.AddNode(node.PlanNode.DisplayName)
+	}
 }
