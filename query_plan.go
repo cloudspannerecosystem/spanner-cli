@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/xlab/treeprint"
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
@@ -12,7 +15,6 @@ type Node struct {
 
 func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	if len(plan.PlanNodes) == 0 {
-		// TODO
 		return &Node{}
 	}
 
@@ -42,13 +44,85 @@ func (n *Node) Render() string {
 	return "\n" + tree.String()
 }
 
+func (n *Node) IsVisible() bool {
+	operator := n.PlanNode.DisplayName
+	if operator == "Function" || operator == "Reference" || operator == "Constant" {
+		return false
+	}
+
+	return true
+}
+
+func (n *Node) String() string {
+	operator := n.PlanNode.DisplayName
+	switch operator {
+	case "Distributed Union":
+		if typ, ok := getMetadataString(n, "call_type"); ok {
+			operator = fmt.Sprintf("%s %s", typ, operator)
+		}
+		return operator
+	case "Limit":
+		if typ, ok := getMetadataString(n, "limit_type"); ok {
+			operator = fmt.Sprintf("%s %s", typ, operator)
+		}
+		return operator
+	case "Scan":
+		if typ, ok := getMetadataString(n, "scan_type"); ok {
+			operator = typ
+		}
+		str := operator
+		if target, ok := getMetadataString(n, "scan_target"); ok {
+			str = fmt.Sprintf("%s: %s", str, target)
+		}
+		return str
+	case "Aggregate":
+		if n.PlanNode.ShortRepresentation != nil {
+			fmt.Println(n.PlanNode.ShortRepresentation.Description)
+		}
+
+		if typ, ok := getMetadataString(n, "iterator_type"); ok {
+			return fmt.Sprintf("%s %s", typ, operator)
+		}
+	}
+	return operator
+}
+
+func getMetadataString(node *Node, key string) (string, bool) {
+	if node.PlanNode.Metadata == nil {
+		return "", false
+	}
+	if v, ok := node.PlanNode.Metadata.Fields[key]; ok {
+		return v.GetStringValue(), true
+	} else {
+		return "", false
+	}
+}
+
+func getAllMetadataString(node *Node) string {
+	if node.PlanNode.Metadata == nil {
+		return ""
+	}
+
+	fields := make([]string, 0)
+	for k, v := range node.PlanNode.Metadata.Fields {
+		fields = append(fields, fmt.Sprintf("%s: %s", k, v.GetStringValue()))
+	}
+	return fmt.Sprintf(`"%s"`, strings.Join(fields, ", "))
+}
+
 func renderTree(tree treeprint.Tree, node *Node) {
+	if !node.IsVisible() {
+		return
+	}
+
+	str := node.String()
+
 	if len(node.Children) > 0 {
-		branch := tree.AddBranch(node.PlanNode.DisplayName)
+		branch := tree.AddBranch(str)
 		for _, child := range node.Children {
 			renderTree(branch, child)
 		}
 	} else {
-		tree.AddNode(node.PlanNode.DisplayName)
+		tree.AddNode(str)
 	}
 }

@@ -346,7 +346,7 @@ type ExplainStatement struct {
 func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	return withElapsedTime(func() (*Result, error) {
 		result := &Result{
-			ColumnNames: []string{"Query_Execution_Plan"},
+			ColumnNames: []string{"Query_Execution_Plan (EXPERIMENTAL)"},
 			Rows:        make([]Row, 1),
 			IsMutation:  false,
 			Stats: Stats{
