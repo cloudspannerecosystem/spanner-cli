@@ -63,7 +63,8 @@ var (
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
-	describeTableRe   = regexp.MustCompile(`(?is)^DESC(?:RIBE)?\s+(.+)$`)
+	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS|EXPLAIN|DESC(?:RIBE)?)\s+(.+)$`)
+	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(SELECT\s+.+)$`)
 )
 
 var (
@@ -104,9 +105,14 @@ func BuildStatement(input string) (Statement, error) {
 		}
 	} else if showTablesRe.MatchString(input) {
 		stmt = &ShowTablesStatement{}
-	} else if describeTableRe.MatchString(input) {
-		matched := describeTableRe.FindStringSubmatch(input)
-		stmt = &DescribeTableStatement{
+	} else if explainRe.MatchString(input) {
+		matched := explainRe.FindStringSubmatch(input)
+		stmt = &ExplainStatement{
+			text: matched[1],
+		}
+	} else if showColumnsRe.MatchString(input) {
+		matched := showColumnsRe.FindStringSubmatch(input)
+		stmt = &ShowColumnsStatement{
 			table: matched[1],
 		}
 	} else if insertRe.MatchString(input) || updateRe.MatchString(input) || deleteRe.MatchString(input) {
@@ -333,11 +339,40 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	return result, nil
 }
 
-type DescribeTableStatement struct {
+type ExplainStatement struct {
+	text string
+}
+
+func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
+	return withElapsedTime(func() (*Result, error) {
+		result := &Result{
+			ColumnNames: []string{"Query_Execution_Plan (EXPERIMENTAL)"},
+			Rows:        make([]Row, 1),
+			IsMutation:  false,
+			Stats: Stats{
+				AffectedRows: 1,
+			},
+		}
+
+		stmt := spanner.NewStatement(s.text)
+		queryPlan, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
+		if err != nil {
+			return nil, err
+		}
+
+		tree := BuildQueryPlanTree(queryPlan, 0)
+		rendered := tree.Render()
+		result.Rows[0] = Row{[]string{rendered}}
+
+		return result, nil
+	})
+}
+
+type ShowColumnsStatement struct {
 	table string
 }
 
-func (s *DescribeTableStatement) Execute(session *Session) (*Result, error) {
+func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 	query := SelectStatement{
 		text: fmt.Sprintf(`SELECT
   C.COLUMN_NAME as Field,

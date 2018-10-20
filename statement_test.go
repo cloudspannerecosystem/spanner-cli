@@ -33,8 +33,13 @@ func TestBuildStatement(t *testing.T) {
 		{"SHOW DATABASES", &ShowDatabasesStatement{}},
 		{"SHOW CREATE TABLE t1", &ShowCreateTableStatement{}},
 		{"SHOW TABLES", &ShowTablesStatement{}},
-		{"DESCRIBE t1", &DescribeTableStatement{}},
-		{"DESC t1", &DescribeTableStatement{}},
+		{"SHOW COLUMNS t1", &ShowColumnsStatement{}},
+		{"EXPLAIN t1", &ShowColumnsStatement{}},
+		{"DESCRIBE t1", &ShowColumnsStatement{}},
+		{"DESC t1", &ShowColumnsStatement{}},
+		{"EXPLAIN SELECT * FROM t1", &ExplainStatement{}},
+		{"DESCRIBE SELECT * FROM t1", &ExplainStatement{}},
+		{"DESC SELECT * FROM t1", &ExplainStatement{}},
 	}
 
 	for _, test := range validTests {
