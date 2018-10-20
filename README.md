@@ -156,13 +156,13 @@ The syntax is case-insensitive.
 | Stale Read | | Not supported yet |
 | DML | `INSERT / UPDATE / DELETE ...;` | |
 | Partitioned DML | | Not supported yet |
-| Show Query Execution Plan | | `EXPLAIN SELECT ...;` |
+| Show Query Execution Plan | `EXPLAIN SELECT ...;` | |
 | Start Read-Write Transaction | `BEGIN (RW);` | |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO;` | |
 | End Read-Only Transaction | `CLOSE;` | |
-| Exit | `EXIT;` | |
+| Exit CLI | `EXIT;` | |
 
 ## Customize prompt
 
