@@ -1,3 +1,4 @@
 spanner-cli
 credentials.json
+dist/
 .DS_Store
