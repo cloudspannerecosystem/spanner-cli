@@ -1,0 +1,18 @@
+{
+  "ArtifactsDest": "dist",
+  "Tasks": [
+    "clean-destination",
+    "xc",
+    "archive-zip",
+    "rmbin"
+  ],
+  "TaskSettings": {
+    "archive-zip": {
+      "include-top-level-dir": "windows darwin linux",
+      "platforms": "windows darwin linux"
+    }
+  },
+  "Arch": "386 amd64",
+  "Os": "linux darwin windows",
+  "ConfigVersion": "0.9"
+}
