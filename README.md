@@ -15,6 +15,10 @@ Do not use this tool for operating production databases.
 
 ## Install
 
+You can get the latest binary from [Releases](https://github.com/yfuruyama/spanner-cli/releases).
+
+Or if you have installed `go`, just execute `go get` from your console. It takes a while to install all dependencies.
+
 ```
 go get -u github.com/yfuruyama/spanner-cli
 ```
