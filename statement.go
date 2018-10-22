@@ -63,7 +63,7 @@ var (
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
-	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS|EXPLAIN|DESC(?:RIBE)?)\s+(.+)$`)
+	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM|EXPLAIN|DESC(?:RIBE)?)\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(SELECT\s+.+)$`)
 )
 
