@@ -64,6 +64,7 @@ var (
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS|EXPLAIN|DESC(?:RIBE)?)\s+(.+)$`)
+	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(SELECT\s+.+)$`)
 )
 
@@ -113,6 +114,11 @@ func BuildStatement(input string) (Statement, error) {
 	} else if showColumnsRe.MatchString(input) {
 		matched := showColumnsRe.FindStringSubmatch(input)
 		stmt = &ShowColumnsStatement{
+			table: matched[1],
+		}
+	} else if showIndexRe.MatchString(input) {
+		matched := showIndexRe.FindStringSubmatch(input)
+		stmt = &ShowIndexStatement{
 			table: matched[1],
 		}
 	} else if insertRe.MatchString(input) || updateRe.MatchString(input) || deleteRe.MatchString(input) {
@@ -408,6 +414,14 @@ ORDER BY
 	}
 
 	return result, nil
+}
+
+type ShowIndexStatement struct {
+	table string
+}
+
+func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
+	return nil, nil
 }
 
 type DmlStatement struct {
