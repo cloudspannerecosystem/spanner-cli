@@ -421,7 +421,31 @@ type ShowIndexStatement struct {
 }
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
-	return nil, nil
+	query := SelectStatement{
+		text: fmt.Sprintf(`SELECT
+  TABLE_NAME as Table,
+  PARENT_TABLE_NAME as Parent_table,
+  INDEX_NAME as Index_name,
+  INDEX_TYPE as Index_type,
+  IS_UNIQUE as Is_unique,
+  IS_NULL_FILTERED as Is_null_filtered,
+  INDEX_STATE as Index_state
+FROM
+  INFORMATION_SCHEMA.INDEXES
+WHERE
+  TABLE_NAME = '%s'`, s.table),
+	}
+
+	result, err := query.Execute(session)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Rows) == 0 {
+		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.table))
+	}
+
+	return result, nil
 }
 
 type DmlStatement struct {
