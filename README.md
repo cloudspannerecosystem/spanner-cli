@@ -151,6 +151,7 @@ The syntax is case-insensitive.
 | List tables | `SHOW TABLES;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
 | Show columns | `SHOW COLUMNS FROM <table>;` | |
+| Show indexes | `SHOW INDEX FROM <table>;` | |
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |
