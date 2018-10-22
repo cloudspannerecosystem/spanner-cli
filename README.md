@@ -150,7 +150,7 @@ The syntax is case-insensitive.
 | Drop database |  | Not supported yet |
 | List tables | `SHOW TABLES;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
-| Show columns | `SHOW COLUMNS <table>;` | |
+| Show columns | `SHOW COLUMNS FROM <table>;` | |
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |

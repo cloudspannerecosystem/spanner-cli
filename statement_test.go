@@ -33,7 +33,7 @@ func TestBuildStatement(t *testing.T) {
 		{"SHOW DATABASES", &ShowDatabasesStatement{}},
 		{"SHOW CREATE TABLE t1", &ShowCreateTableStatement{}},
 		{"SHOW TABLES", &ShowTablesStatement{}},
-		{"SHOW COLUMNS t1", &ShowColumnsStatement{}},
+		{"SHOW COLUMNS FROM t1", &ShowColumnsStatement{}},
 		{"EXPLAIN t1", &ShowColumnsStatement{}},
 		{"DESCRIBE t1", &ShowColumnsStatement{}},
 		{"DESC t1", &ShowColumnsStatement{}},
