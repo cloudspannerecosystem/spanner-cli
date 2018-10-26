@@ -663,20 +663,20 @@ func (s *CloseStatement) Execute(session *Session) (*Result, error) {
 	})
 }
 
-type ExitStatement struct{}
+type NopStatement struct{}
 
-func (s *ExitStatement) Execute(session *Session) (*Result, error) {
+func (s *NopStatement) Execute(session *Session) (*Result, error) {
 	// do nothing
 	return &Result{}, nil
+}
+
+type ExitStatement struct {
+	NopStatement
 }
 
 type UseStatement struct {
 	Database string
-}
-
-func (s *UseStatement) Execute(session *Session) (*Result, error) {
-	// do nothing
-	return &Result{}, nil
+	NopStatement
 }
 
 func withElapsedTime(f func() (*Result, error)) (*Result, error) {
