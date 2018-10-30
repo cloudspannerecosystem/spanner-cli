@@ -7,7 +7,7 @@ spanner-cli, the Cloud Spanner command line interface.
 
 ## Description
 
-`spanner-cli` is a command line client for [Cloud Spanner](https://cloud.google.com/spanner/).  
+`spanner-cli` is a command line client for [Google Cloud Spanner](https://cloud.google.com/spanner/).  
 You can control your Spanner databases with idiomatic SQL commands like `mysql(1)`.
 
 This tool is still **ALPHA** quality.  
