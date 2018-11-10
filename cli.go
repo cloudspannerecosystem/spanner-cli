@@ -44,12 +44,6 @@ func NewCli(projectId, instanceId, databaseId string, prompt string) (*Cli, erro
 		return nil, err
 	}
 
-	// HACK: for speed up first execution
-	go func() {
-		stmt := &SelectStatement{"SELECT 1"}
-		stmt.Execute(session)
-	}()
-
 	if prompt == "" {
 		prompt = DefaultPrompt
 	}
@@ -65,10 +59,18 @@ func (c *Cli) RunInteractive() {
 		HistoryFile: "/tmp/spanner_cli_readline.tmp",
 	})
 	if err != nil {
-		panic(err)
+		c.ExitOnError(err)
 	}
 
-	fmt.Printf("Connected.\n")
+	exists, err := c.Session.DatabaseExists()
+	if err != nil {
+		c.ExitOnError(err)
+	}
+	if exists {
+		fmt.Printf("Connected.\n")
+	} else {
+		c.ExitOnError(fmt.Errorf("Unknown database '%s'", c.Session.databaseId))
+	}
 
 	for {
 		prompt := c.Session.InterpolatePromptVariable(c.Prompt)
@@ -96,6 +98,17 @@ func (c *Cli) RunInteractive() {
 				fmt.Printf("ERROR: %s\n", err)
 				continue
 			}
+
+			exists, err := newSession.DatabaseExists()
+			if err != nil {
+				fmt.Printf("ERROR: %s\n", err)
+				continue
+			}
+			if !exists {
+				fmt.Printf("ERROR: Unknown database '%s'\n", s.Database)
+				continue
+			}
+
 			c.Session.client.Close()
 			c.Session.adminClient.Close()
 			c.Session = newSession
@@ -151,6 +164,13 @@ func (c *Cli) Exit() {
 	c.Session.adminClient.Close()
 	fmt.Println("Bye")
 	os.Exit(0)
+}
+
+func (c *Cli) ExitOnError(err error) {
+	c.Session.client.Close()
+	c.Session.adminClient.Close()
+	fmt.Printf("ERROR: %s\n", err)
+	os.Exit(1)
 }
 
 func printResult(result *Result, mode DisplayMode, withStats bool) {

@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/option"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -59,15 +58,7 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 		committedChan: make(chan bool),
 	}
 
-	exists, err := session.databaseExists()
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return session, nil
-	} else {
-		return nil, errors.New("database doesn't exist")
-	}
+	return session, nil
 }
 
 func (s *Session) inRwTxn() bool {
@@ -111,16 +102,22 @@ func (s *Session) InterpolatePromptVariable(prompt string) string {
 	return prompt
 }
 
-func (s *Session) databaseExists() (bool, error) {
-	db, err := s.adminClient.GetDatabase(s.ctx, &adminpb.GetDatabaseRequest{
-		Name: s.GetDatabasePath(),
-	})
-	if err != nil {
-		return false, err
-	}
-	if db != nil {
+func (s *Session) DatabaseExists() (bool, error) {
+	// For users who don't have `spanner.databases.get` IAM permission,
+	// check database existence by running an actual query.
+	// cf. https://github.com/yfuruyama/spanner-cli/issues/10
+	stmt := spanner.NewStatement("SELECT 1")
+	iter := s.client.Single().Query(s.ctx, stmt)
+	defer iter.Stop()
+
+	_, err := iter.Next()
+	if err == nil {
 		return true, nil
 	} else {
-		return false, nil
+		if code := spanner.ErrCode(err); code == codes.NotFound || code == codes.InvalidArgument {
+			return false, nil
+		} else {
+			return false, fmt.Errorf("Checking database existence failed: %s", err)
+		}
 	}
 }
