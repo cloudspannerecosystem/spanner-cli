@@ -34,13 +34,13 @@ func main() {
 
 	// then, parse command line options
 	if _, err := parser.Parse(); err != nil {
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	opts := gopts.Spanner
 	if opts.ProjectId == "" || opts.InstanceId == "" || opts.DatabaseId == "" {
 		parser.WriteHelp(os.Stderr)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt)
@@ -53,13 +53,15 @@ func main() {
 		panic(err)
 	}
 
+	var exitCode int
 	if opts.Execute != "" {
-		cli.RunBatch(opts.Execute, opts.Table)
+		exitCode = cli.RunBatch(opts.Execute, opts.Table)
 	} else if stdin != "" {
-		cli.RunBatch(stdin, opts.Table)
+		exitCode = cli.RunBatch(stdin, opts.Table)
 	} else {
-		cli.RunInteractive()
+		exitCode = cli.RunInteractive()
 	}
+	os.Exit(exitCode)
 }
 
 func readConfigFile(parser *flags.Parser) error {

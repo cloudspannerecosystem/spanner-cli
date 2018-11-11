@@ -32,6 +32,11 @@ const (
 	DefaultPrompt = `spanner\t> `
 )
 
+const (
+	ExitCodeSuccess = 0
+	ExitCodeError   = 1
+)
+
 type Cli struct {
 	Session *Session
 	Prompt  string
@@ -54,22 +59,22 @@ func NewCli(projectId, instanceId, databaseId string, prompt string) (*Cli, erro
 	}, nil
 }
 
-func (c *Cli) RunInteractive() {
+func (c *Cli) RunInteractive() int {
 	rl, err := readline.NewEx(&readline.Config{
 		HistoryFile: "/tmp/spanner_cli_readline.tmp",
 	})
 	if err != nil {
-		c.ExitOnError(err)
+		return c.ExitOnError(err)
 	}
 
 	exists, err := c.Session.DatabaseExists()
 	if err != nil {
-		c.ExitOnError(err)
+		return c.ExitOnError(err)
 	}
 	if exists {
 		fmt.Printf("Connected.\n")
 	} else {
-		c.ExitOnError(fmt.Errorf("Unknown database '%s'", c.Session.databaseId))
+		return c.ExitOnError(fmt.Errorf("Unknown database '%s'", c.Session.databaseId))
 	}
 
 	for {
@@ -78,7 +83,7 @@ func (c *Cli) RunInteractive() {
 
 		input, delimiter, err := readInteractiveInput(rl)
 		if err == io.EOF {
-			c.Exit()
+			return c.Exit()
 		}
 
 		stmt, err := BuildStatement(input)
@@ -88,7 +93,7 @@ func (c *Cli) RunInteractive() {
 		}
 
 		if _, ok := stmt.(*ExitStatement); ok {
-			c.Exit()
+			return c.Exit()
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
@@ -135,18 +140,18 @@ func (c *Cli) RunInteractive() {
 	}
 }
 
-func (c *Cli) RunBatch(input string, displayTable bool) {
+func (c *Cli) RunBatch(input string, displayTable bool) int {
 	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.Statement)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
-			return
+			return ExitCodeError
 		}
 
 		result, err := stmt.Execute(c.Session)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
-			return
+			return ExitCodeError
 		}
 
 		if displayTable {
@@ -157,20 +162,19 @@ func (c *Cli) RunBatch(input string, displayTable bool) {
 			printResult(result, DisplayModeTab, false)
 		}
 	}
+	return ExitCodeSuccess
 }
 
-func (c *Cli) Exit() {
-	c.Session.client.Close()
-	c.Session.adminClient.Close()
+func (c *Cli) Exit() int {
+	c.Session.Close()
 	fmt.Println("Bye")
-	os.Exit(0)
+	return ExitCodeSuccess
 }
 
-func (c *Cli) ExitOnError(err error) {
-	c.Session.client.Close()
-	c.Session.adminClient.Close()
+func (c *Cli) ExitOnError(err error) int {
+	c.Session.Close()
 	fmt.Printf("ERROR: %s\n", err)
-	os.Exit(1)
+	return ExitCodeError
 }
 
 func printResult(result *Result, mode DisplayMode, withStats bool) {

@@ -78,6 +78,11 @@ func (s *Session) finishRoTxn() {
 	s.roTxn = nil
 }
 
+func (s *Session) Close() {
+	s.client.Close()
+	s.adminClient.Close()
+}
+
 func (s *Session) GetDatabasePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", s.projectId, s.instanceId, s.databaseId)
 }
