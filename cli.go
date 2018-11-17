@@ -114,19 +114,26 @@ func (c *Cli) RunInteractive() int {
 				continue
 			}
 
-			c.Session.client.Close()
-			c.Session.adminClient.Close()
+			c.Session.Close()
 			c.Session = newSession
 			fmt.Println("Database changed")
 			continue
 		}
 
+		// execute
 		stop := printProgressingMark()
+		t0 := time.Now()
 		result, err := stmt.Execute(c.Session)
+		elapsed := time.Since(t0).Seconds()
 		stop()
 		if err != nil {
 			fmt.Printf("ERROR: %s\n", err)
 			continue
+		}
+
+		// only SELECT statement has the elapsed time measured by the server
+		if result.Stats.ElapsedTime == "" {
+			result.Stats.ElapsedTime = fmt.Sprintf("%0.2f sec", elapsed)
 		}
 
 		if delimiter == DelimiterHorizontal {

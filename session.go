@@ -61,21 +61,32 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 	return session, nil
 }
 
-func (s *Session) inRwTxn() bool {
+func (s *Session) StartRwTxn(ctx context.Context, txn *spanner.ReadWriteTransaction) func() {
+	oldCtx := s.ctx
+	s.ctx = ctx
+	s.rwTxn = txn
+	finish := func() {
+		s.ctx = oldCtx
+		s.rwTxn = nil
+	}
+	return finish
+}
+
+func (s *Session) StartRoTxn(txn *spanner.ReadOnlyTransaction) {
+	s.roTxn = txn
+}
+
+func (s *Session) FinishRoTxn() {
+	s.roTxn.Close()
+	s.roTxn = nil
+}
+
+func (s *Session) InRwTxn() bool {
 	return s.rwTxn != nil
 }
 
-func (s *Session) inRoTxn() bool {
+func (s *Session) InRoTxn() bool {
 	return s.roTxn != nil
-}
-
-func (s *Session) finishRwTxn() {
-	s.rwTxn = nil
-}
-
-func (s *Session) finishRoTxn() {
-	s.roTxn.Close()
-	s.roTxn = nil
 }
 
 func (s *Session) Close() {
@@ -96,9 +107,9 @@ func (s *Session) InterpolatePromptVariable(prompt string) string {
 	prompt = promptReInstanceId.ReplaceAllString(prompt, s.instanceId)
 	prompt = promptReDatabaseId.ReplaceAllString(prompt, s.databaseId)
 
-	if s.inRwTxn() {
+	if s.InRwTxn() {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
-	} else if s.inRoTxn() {
+	} else if s.InRoTxn() {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
 	} else {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
