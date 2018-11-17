@@ -43,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt)
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, os.Stdout, os.Stderr)
 	if err != nil {
 		log.Fatalf("failed to connect to Spanner: %s", err)
 	}
