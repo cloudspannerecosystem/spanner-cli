@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,14 +37,22 @@ const (
 	ExitCodeError   = 1
 )
 
+var (
+	promptReInTransaction = regexp.MustCompile(`\\t`)
+	promptReProjectId     = regexp.MustCompile(`\\p`)
+	promptReInstanceId    = regexp.MustCompile(`\\i`)
+	promptReDatabaseId    = regexp.MustCompile(`\\d`)
+)
+
 type Cli struct {
 	Session   *Session
 	Prompt    string
+	InStream  io.ReadCloser
 	OutStream io.Writer
 	ErrStream io.Writer
 }
 
-func NewCli(projectId, instanceId, databaseId string, prompt string, outStream io.Writer, errStream io.Writer) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId string, prompt string, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer) (*Cli, error) {
 	ctx := context.Background()
 	session, err := NewSession(ctx, projectId, instanceId, databaseId, spanner.ClientConfig{})
 	if err != nil {
@@ -58,6 +66,7 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, outStream i
 	return &Cli{
 		Session:   session,
 		Prompt:    prompt,
+		InStream:  inStream,
 		OutStream: outStream,
 		ErrStream: errStream,
 	}, nil
@@ -65,6 +74,7 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, outStream i
 
 func (c *Cli) RunInteractive() int {
 	rl, err := readline.NewEx(&readline.Config{
+		Stdin:       c.InStream,
 		HistoryFile: "/tmp/spanner_cli_readline.tmp",
 	})
 	if err != nil {
@@ -82,8 +92,7 @@ func (c *Cli) RunInteractive() int {
 	}
 
 	for {
-		prompt := c.Session.InterpolatePromptVariable(c.Prompt)
-		rl.SetPrompt(prompt)
+		rl.SetPrompt(c.GetInterpolatedPrompt())
 
 		input, delimiter, err := readInteractiveInput(rl)
 		if err == io.EOF {
@@ -197,7 +206,7 @@ func (c *Cli) PrintBatchError(err error) {
 
 func (c *Cli) PrintResult(result *Result, mode DisplayMode, withStats bool) {
 	if mode == DisplayModeTable {
-		table := tablewriter.NewWriter(os.Stdout)
+		table := tablewriter.NewWriter(c.OutStream)
 		for _, row := range result.Rows {
 			table.Append(row.Columns)
 		}
@@ -242,6 +251,23 @@ func (c *Cli) PrintResult(result *Result, mode DisplayMode, withStats bool) {
 			}
 		}
 	}
+}
+
+func (c *Cli) GetInterpolatedPrompt() string {
+	prompt := c.Prompt
+	prompt = promptReProjectId.ReplaceAllString(prompt, c.Session.projectId)
+	prompt = promptReInstanceId.ReplaceAllString(prompt, c.Session.instanceId)
+	prompt = promptReDatabaseId.ReplaceAllString(prompt, c.Session.databaseId)
+
+	if c.Session.InRwTxn() {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
+	} else if c.Session.InRoTxn() {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
+	} else {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
+	}
+
+	return prompt
 }
 
 type InputStatement struct {
