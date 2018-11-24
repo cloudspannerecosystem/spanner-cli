@@ -483,6 +483,74 @@ func TestReadOnlyTransaction(t *testing.T) {
 			IsMutation: true,
 		})
 	})
+
+	t.Run("begin ro with stale read", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+
+		session, tableId, tearDown := setup(t, ctx, []string{
+			"INSERT INTO [[TABLE]] (id, active) VALUES (1, true), (2, false)",
+		})
+		defer tearDown()
+
+		// stale read also can't recognize the recent created table itself,
+		// so sleep for a while
+		time.Sleep(30 * time.Second)
+
+		// insert more fixture
+		stmt, err := BuildStatement(fmt.Sprintf("INSERT INTO %s (id, active) VALUES (3, true), (4, false)", tableId))
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+		if _, err := stmt.Execute(session); err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		// begin with stale read
+		stmt, err = BuildStatement("BEGIN RO 30")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		if _, err := stmt.Execute(session); err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		// query
+		stmt, err = BuildStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		result, err := stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		// should not include id=3 and id=4
+		compareResult(t, result, &Result{
+			ColumnNames: []string{"id", "active"},
+			Rows: []Row{
+				Row{[]string{"1", "true"}},
+				Row{[]string{"2", "false"}},
+			},
+			Stats: Stats{
+				AffectedRows: 2,
+			},
+			IsMutation: false,
+		})
+
+		// close
+		stmt, err = BuildStatement("CLOSE")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		_, err = stmt.Execute(session)
+		if err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+	})
 }
 
 func TestShowCreateTable(t *testing.T) {
