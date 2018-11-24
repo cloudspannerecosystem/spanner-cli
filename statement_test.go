@@ -25,6 +25,7 @@ func TestBuildStatement(t *testing.T) {
 		{"BEGIN", &BeginRwStatement{}},
 		{"BEGIN RW", &BeginRwStatement{}},
 		{"BEGIN RO", &BeginRoStatement{}},
+		{"BEGIN RO 10", &BeginRoStatement{}},
 		{"COMMIT", &CommitStatement{}},
 		{"ROLLBACK", &RollbackStatement{}},
 		{"CLOSE", &CloseStatement{}},

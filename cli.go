@@ -121,10 +121,9 @@ func (c *Cli) RunInteractive() int {
 			continue
 		}
 
-		ticker := printProgressingMark()
+		stop := printProgressingMark()
 		result, err := stmt.Execute(c.Session)
-		ticker.Stop()
-		fmt.Printf("\r") // clear progressing mark
+		stop()
 		if err != nil {
 			fmt.Printf("ERROR: %s\n", err)
 			continue
@@ -292,8 +291,8 @@ func separateInput(input string) []InputStatement {
 	return statements
 }
 
-func printProgressingMark() *time.Ticker {
-	progressMarks := []string{"-", "\\", "|", "/"}
+func printProgressingMark() func() {
+	progressMarks := []string{`-`, `\`, `|`, `/`}
 	ticker := time.NewTicker(time.Millisecond * 100)
 	go func() {
 		i := 0
@@ -304,5 +303,10 @@ func printProgressingMark() *time.Ticker {
 			i++
 		}
 	}()
-	return ticker
+
+	stop := func() {
+		ticker.Stop()
+		fmt.Printf("\r") // clear progressing mark
+	}
+	return stop
 }
