@@ -52,7 +52,7 @@ var (
 
 	// Transaction
 	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
-	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO$`)
+	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+(\d+))?$`)
 	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
 	closeRe    = regexp.MustCompile(`(?is)^CLOSE$`)
@@ -69,7 +69,7 @@ var (
 )
 
 var (
-	txnRetryError = errors.New("transaction temporarily failed")
+	txnRetryError = errors.New("transaction was aborted")
 	rollbackError = errors.New("rollback")
 )
 
@@ -128,7 +128,17 @@ func BuildStatement(input string) (Statement, error) {
 	} else if beginRwRe.MatchString(input) {
 		stmt = &BeginRwStatement{}
 	} else if beginRoRe.MatchString(input) {
-		stmt = &BeginRoStatement{}
+		matched := beginRoRe.FindStringSubmatch(input)
+		if matched[1] == "" {
+			stmt = &BeginRoStatement{}
+		} else {
+			i, err := strconv.Atoi(matched[1])
+			if err == nil {
+				stmt = &BeginRoStatement{
+					staleness: time.Duration(time.Duration(i) * time.Second),
+				}
+			}
+		}
 	} else if commitRe.MatchString(input) {
 		stmt = &CommitStatement{}
 	} else if rollbackRe.MatchString(input) {
@@ -622,7 +632,9 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 	})
 }
 
-type BeginRoStatement struct{}
+type BeginRoStatement struct {
+	staleness time.Duration
+}
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	return withElapsedTime(func() (*Result, error) {
@@ -633,6 +645,9 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 		}
 
 		txn := session.client.ReadOnlyTransaction()
+		if s.staleness != time.Duration(0) {
+			txn = txn.WithTimestampBound(spanner.ExactStaleness(s.staleness))
+		}
 		session.roTxn = txn
 
 		return &Result{

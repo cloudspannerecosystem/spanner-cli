@@ -158,7 +158,6 @@ The syntax is case-insensitive.
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
 | Query | `SELECT ...;` | |
-| Stale Read | | Not supported yet |
 | DML | `INSERT / UPDATE / DELETE ...;` | |
 | Partitioned DML | | Not supported yet |
 | Show Query Execution Plan | `EXPLAIN SELECT ...;` | |
@@ -166,6 +165,7 @@ The syntax is case-insensitive.
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO;` | |
+| Start Read-Only Transaction (Stale Read) | `BEGIN RO <seconds>` | |
 | End Read-Only Transaction | `CLOSE;` | |
 | Exit CLI | `EXIT;` | |
 
