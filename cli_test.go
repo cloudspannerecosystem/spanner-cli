@@ -1,8 +1,19 @@
 package main
 
 import (
+	"bytes"
+	"io"
+	"strings"
 	"testing"
 )
+
+type nopCloser struct {
+	io.Reader
+}
+
+func (n *nopCloser) Close() error {
+	return nil
+}
 
 func equalInputStatementSlice(a []InputStatement, b []InputStatement) bool {
 	if a == nil || b == nil {
@@ -44,4 +55,85 @@ func TestSeparateInput(t *testing.T) {
 			t.Errorf("invalid separation: expected = %v, but got = %v", test.Expected, got)
 		}
 	}
+}
+
+func TestPrintResult(t *testing.T) {
+	t.Run("DisplayModeTable", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		result := &Result{
+			ColumnNames: []string{"foo", "bar"},
+			Rows: []Row{
+				Row{[]string{"1", "2"}},
+				Row{[]string{"3", "4"}},
+			},
+			Stats:      Stats{},
+			IsMutation: false,
+		}
+		printResult(out, result, DisplayModeTable, false)
+
+		expected := strings.TrimPrefix(`
++-----+-----+
+| foo | bar |
++-----+-----+
+| 1   | 2   |
+| 3   | 4   |
++-----+-----+
+`, "\n")
+
+		got := out.String()
+		if got != expected {
+			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
+		}
+	})
+
+	t.Run("DisplayModeVertical", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		result := &Result{
+			ColumnNames: []string{"foo", "bar"},
+			Rows: []Row{
+				Row{[]string{"1", "2"}},
+				Row{[]string{"3", "4"}},
+			},
+			Stats:      Stats{},
+			IsMutation: false,
+		}
+		printResult(out, result, DisplayModeVertical, false)
+
+		expected := strings.TrimPrefix(`
+*************************** 1. row ***************************
+foo: 1
+bar: 2
+*************************** 2. row ***************************
+foo: 3
+bar: 4
+`, "\n")
+
+		got := out.String()
+		if got != expected {
+			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
+		}
+	})
+
+	t.Run("DisplayModeTab", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		result := &Result{
+			ColumnNames: []string{"foo", "bar"},
+			Rows: []Row{
+				Row{[]string{"1", "2"}},
+				Row{[]string{"3", "4"}},
+			},
+			Stats:      Stats{},
+			IsMutation: false,
+		}
+		printResult(out, result, DisplayModeTab, false)
+
+		expected := "foo\tbar\n" +
+			"1\t2\n" +
+			"3\t4\n"
+
+		got := out.String()
+		if got != expected {
+			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
+		}
+	})
 }

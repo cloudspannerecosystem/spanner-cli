@@ -3,19 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"regexp"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
-)
-
-var (
-	promptReInTransaction = regexp.MustCompile(`\\t`)
-	promptReProjectId     = regexp.MustCompile(`\\p`)
-	promptReInstanceId    = regexp.MustCompile(`\\i`)
-	promptReDatabaseId    = regexp.MustCompile(`\\d`)
 )
 
 type Session struct {
@@ -61,21 +53,32 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 	return session, nil
 }
 
-func (s *Session) inRwTxn() bool {
+func (s *Session) StartRwTxn(ctx context.Context, txn *spanner.ReadWriteTransaction) func() {
+	oldCtx := s.ctx
+	s.ctx = ctx
+	s.rwTxn = txn
+	finish := func() {
+		s.ctx = oldCtx
+		s.rwTxn = nil
+	}
+	return finish
+}
+
+func (s *Session) StartRoTxn(txn *spanner.ReadOnlyTransaction) {
+	s.roTxn = txn
+}
+
+func (s *Session) FinishRoTxn() {
+	s.roTxn.Close()
+	s.roTxn = nil
+}
+
+func (s *Session) InRwTxn() bool {
 	return s.rwTxn != nil
 }
 
-func (s *Session) inRoTxn() bool {
+func (s *Session) InRoTxn() bool {
 	return s.roTxn != nil
-}
-
-func (s *Session) finishRwTxn() {
-	s.rwTxn = nil
-}
-
-func (s *Session) finishRoTxn() {
-	s.roTxn.Close()
-	s.roTxn = nil
 }
 
 func (s *Session) Close() {
@@ -89,22 +92,6 @@ func (s *Session) GetDatabasePath() string {
 
 func (s *Session) GetInstancePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
-}
-
-func (s *Session) InterpolatePromptVariable(prompt string) string {
-	prompt = promptReProjectId.ReplaceAllString(prompt, s.projectId)
-	prompt = promptReInstanceId.ReplaceAllString(prompt, s.instanceId)
-	prompt = promptReDatabaseId.ReplaceAllString(prompt, s.databaseId)
-
-	if s.inRwTxn() {
-		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
-	} else if s.inRoTxn() {
-		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
-	} else {
-		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
-	}
-
-	return prompt
 }
 
 func (s *Session) DatabaseExists() (bool, error) {

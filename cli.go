@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,12 +37,22 @@ const (
 	ExitCodeError   = 1
 )
 
+var (
+	promptReInTransaction = regexp.MustCompile(`\\t`)
+	promptReProjectId     = regexp.MustCompile(`\\p`)
+	promptReInstanceId    = regexp.MustCompile(`\\i`)
+	promptReDatabaseId    = regexp.MustCompile(`\\d`)
+)
+
 type Cli struct {
-	Session *Session
-	Prompt  string
+	Session   *Session
+	Prompt    string
+	InStream  io.ReadCloser
+	OutStream io.Writer
+	ErrStream io.Writer
 }
 
-func NewCli(projectId, instanceId, databaseId string, prompt string) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId string, prompt string, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer) (*Cli, error) {
 	ctx := context.Background()
 	session, err := NewSession(ctx, projectId, instanceId, databaseId, spanner.ClientConfig{})
 	if err != nil {
@@ -54,13 +64,17 @@ func NewCli(projectId, instanceId, databaseId string, prompt string) (*Cli, erro
 	}
 
 	return &Cli{
-		Session: session,
-		Prompt:  prompt,
+		Session:   session,
+		Prompt:    prompt,
+		InStream:  inStream,
+		OutStream: outStream,
+		ErrStream: errStream,
 	}, nil
 }
 
 func (c *Cli) RunInteractive() int {
 	rl, err := readline.NewEx(&readline.Config{
+		Stdin:       c.InStream,
 		HistoryFile: "/tmp/spanner_cli_readline.tmp",
 	})
 	if err != nil {
@@ -72,14 +86,13 @@ func (c *Cli) RunInteractive() int {
 		return c.ExitOnError(err)
 	}
 	if exists {
-		fmt.Printf("Connected.\n")
+		fmt.Fprintf(c.OutStream, "Connected.\n")
 	} else {
 		return c.ExitOnError(fmt.Errorf("Unknown database '%s'", c.Session.databaseId))
 	}
 
 	for {
-		prompt := c.Session.InterpolatePromptVariable(c.Prompt)
-		rl.SetPrompt(prompt)
+		rl.SetPrompt(c.GetInterpolatedPrompt())
 
 		input, delimiter, err := readInteractiveInput(rl)
 		if err == io.EOF {
@@ -88,7 +101,7 @@ func (c *Cli) RunInteractive() int {
 
 		stmt, err := BuildStatement(input)
 		if err != nil {
-			fmt.Printf("ERROR: %s\n", err)
+			c.PrintInteractiveError(err)
 			continue
 		}
 
@@ -100,42 +113,49 @@ func (c *Cli) RunInteractive() int {
 			ctx := context.Background()
 			newSession, err := NewSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, spanner.ClientConfig{})
 			if err != nil {
-				fmt.Printf("ERROR: %s\n", err)
+				c.PrintInteractiveError(err)
 				continue
 			}
 
 			exists, err := newSession.DatabaseExists()
 			if err != nil {
-				fmt.Printf("ERROR: %s\n", err)
+				c.PrintInteractiveError(err)
 				continue
 			}
 			if !exists {
-				fmt.Printf("ERROR: Unknown database '%s'\n", s.Database)
+				c.PrintInteractiveError(fmt.Errorf("ERROR: Unknown database '%s'\n", s.Database))
 				continue
 			}
 
-			c.Session.client.Close()
-			c.Session.adminClient.Close()
+			c.Session.Close()
 			c.Session = newSession
-			fmt.Println("Database changed")
+			fmt.Fprintf(c.OutStream, "Database changed")
 			continue
 		}
 
-		stop := printProgressingMark()
+		// execute
+		stop := c.PrintProgressingMark()
+		t0 := time.Now()
 		result, err := stmt.Execute(c.Session)
+		elapsed := time.Since(t0).Seconds()
 		stop()
 		if err != nil {
-			fmt.Printf("ERROR: %s\n", err)
+			c.PrintInteractiveError(err)
 			continue
+		}
+
+		// only SELECT statement has the elapsed time measured by the server
+		if result.Stats.ElapsedTime == "" {
+			result.Stats.ElapsedTime = fmt.Sprintf("%0.2f sec", elapsed)
 		}
 
 		if delimiter == DelimiterHorizontal {
-			printResult(result, DisplayModeTable, true)
+			c.PrintResult(result, DisplayModeTable, true)
 		} else {
-			printResult(result, DisplayModeVertical, true)
+			c.PrintResult(result, DisplayModeVertical, true)
 		}
 
-		fmt.Printf("\n")
+		fmt.Fprintf(c.OutStream, "\n")
 	}
 }
 
@@ -143,22 +163,22 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.Statement)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+			c.PrintBatchError(err)
 			return ExitCodeError
 		}
 
 		result, err := stmt.Execute(c.Session)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+			c.PrintBatchError(err)
 			return ExitCodeError
 		}
 
 		if displayTable {
-			printResult(result, DisplayModeTable, false)
+			c.PrintResult(result, DisplayModeTable, false)
 		} else if separated.Delimiter == DelimiterVertical {
-			printResult(result, DisplayModeVertical, false)
+			c.PrintResult(result, DisplayModeVertical, false)
 		} else {
-			printResult(result, DisplayModeTab, false)
+			c.PrintResult(result, DisplayModeTab, false)
 		}
 	}
 	return ExitCodeSuccess
@@ -166,63 +186,63 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 
 func (c *Cli) Exit() int {
 	c.Session.Close()
-	fmt.Println("Bye")
+	fmt.Fprintln(c.OutStream, "Bye")
 	return ExitCodeSuccess
 }
 
 func (c *Cli) ExitOnError(err error) int {
 	c.Session.Close()
-	fmt.Printf("ERROR: %s\n", err)
+	fmt.Fprintf(c.ErrStream, "ERROR: %s\n", err)
 	return ExitCodeError
 }
 
-func printResult(result *Result, mode DisplayMode, withStats bool) {
-	if mode == DisplayModeTable {
-		table := tablewriter.NewWriter(os.Stdout)
-		for _, row := range result.Rows {
-			table.Append(row.Columns)
+func (c *Cli) PrintInteractiveError(err error) {
+	fmt.Fprintf(c.OutStream, "ERROR: %s\n", err)
+}
+
+func (c *Cli) PrintBatchError(err error) {
+	fmt.Fprintf(c.ErrStream, "ERROR: %s\n", err)
+}
+
+func (c *Cli) PrintResult(result *Result, mode DisplayMode, withStats bool) {
+	printResult(c.OutStream, result, mode, withStats)
+}
+
+func (c *Cli) PrintProgressingMark() func() {
+	progressMarks := []string{`-`, `\`, `|`, `/`}
+	ticker := time.NewTicker(time.Millisecond * 100)
+	go func() {
+		i := 0
+		for {
+			<-ticker.C
+			mark := progressMarks[i%len(progressMarks)]
+			fmt.Fprintf(c.OutStream, "\r%s", mark)
+			i++
 		}
-		table.SetHeader(result.ColumnNames)
-		if len(result.Rows) > 0 {
-			table.SetAutoFormatHeaders(false)
-			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-			table.SetAlignment(tablewriter.ALIGN_LEFT)
-			table.Render()
-		}
-	} else if mode == DisplayModeVertical {
-		max := 0
-		for _, columnName := range result.ColumnNames {
-			if len(columnName) > max {
-				max = len(columnName)
-			}
-		}
-		format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
-		for i, row := range result.Rows {
-			fmt.Printf("*************************** %d. row ***************************\n", i+1)
-			for j, column := range row.Columns {
-				fmt.Printf(format, result.ColumnNames[j], column)
-			}
-		}
-	} else if mode == DisplayModeTab {
-		if len(result.ColumnNames) > 0 {
-			fmt.Println(strings.Join(result.ColumnNames, "\t"))
-			for _, row := range result.Rows {
-				fmt.Println(strings.Join(row.Columns, "\t"))
-			}
-		}
+	}()
+
+	stop := func() {
+		ticker.Stop()
+		fmt.Fprintf(c.OutStream, "\r") // clear progressing mark
+	}
+	return stop
+}
+
+func (c *Cli) GetInterpolatedPrompt() string {
+	prompt := c.Prompt
+	prompt = promptReProjectId.ReplaceAllString(prompt, c.Session.projectId)
+	prompt = promptReInstanceId.ReplaceAllString(prompt, c.Session.instanceId)
+	prompt = promptReDatabaseId.ReplaceAllString(prompt, c.Session.databaseId)
+
+	if c.Session.InRwTxn() {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
+	} else if c.Session.InRoTxn() {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
+	} else {
+		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
 	}
 
-	if withStats {
-		if result.IsMutation {
-			fmt.Printf("Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
-		} else {
-			if result.Stats.AffectedRows == 0 {
-				fmt.Printf("Empty set (%s)\n", result.Stats.ElapsedTime)
-			} else {
-				fmt.Printf("%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
-			}
-		}
-	}
+	return prompt
 }
 
 type InputStatement struct {
@@ -291,22 +311,51 @@ func separateInput(input string) []InputStatement {
 	return statements
 }
 
-func printProgressingMark() func() {
-	progressMarks := []string{`-`, `\`, `|`, `/`}
-	ticker := time.NewTicker(time.Millisecond * 100)
-	go func() {
-		i := 0
-		for {
-			<-ticker.C
-			mark := progressMarks[i%len(progressMarks)]
-			fmt.Printf("\r%s", mark)
-			i++
+func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool) {
+	if mode == DisplayModeTable {
+		table := tablewriter.NewWriter(out)
+		for _, row := range result.Rows {
+			table.Append(row.Columns)
 		}
-	}()
-
-	stop := func() {
-		ticker.Stop()
-		fmt.Printf("\r") // clear progressing mark
+		table.SetHeader(result.ColumnNames)
+		if len(result.Rows) > 0 {
+			table.SetAutoFormatHeaders(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.Render()
+		}
+	} else if mode == DisplayModeVertical {
+		max := 0
+		for _, columnName := range result.ColumnNames {
+			if len(columnName) > max {
+				max = len(columnName)
+			}
+		}
+		format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
+		for i, row := range result.Rows {
+			fmt.Fprintf(out, "*************************** %d. row ***************************\n", i+1)
+			for j, column := range row.Columns {
+				fmt.Fprintf(out, format, result.ColumnNames[j], column)
+			}
+		}
+	} else if mode == DisplayModeTab {
+		if len(result.ColumnNames) > 0 {
+			fmt.Fprintln(out, strings.Join(result.ColumnNames, "\t"))
+			for _, row := range result.Rows {
+				fmt.Fprintln(out, strings.Join(row.Columns, "\t"))
+			}
+		}
 	}
-	return stop
+
+	if withStats {
+		if result.IsMutation {
+			fmt.Fprintf(out, "Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
+		} else {
+			if result.Stats.AffectedRows == 0 {
+				fmt.Fprintf(out, "Empty set (%s)\n", result.Stats.ElapsedTime)
+			} else {
+				fmt.Fprintf(out, "%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
+			}
+		}
+	}
 }
