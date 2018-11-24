@@ -59,14 +59,7 @@ func TestSeparateInput(t *testing.T) {
 
 func TestPrintResult(t *testing.T) {
 	t.Run("DisplayModeTable", func(t *testing.T) {
-		stdin := &nopCloser{&bytes.Buffer{}}
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		cli, err := NewCli("test", "test", "test", "", stdin, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		out := &bytes.Buffer{}
 		result := &Result{
 			ColumnNames: []string{"foo", "bar"},
 			Rows: []Row{
@@ -76,7 +69,7 @@ func TestPrintResult(t *testing.T) {
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		cli.PrintResult(result, DisplayModeTable, false)
+		printResult(out, result, DisplayModeTable, false)
 
 		expected := strings.TrimPrefix(`
 +-----+-----+
@@ -87,21 +80,14 @@ func TestPrintResult(t *testing.T) {
 +-----+-----+
 `, "\n")
 
-		got := stdout.String()
+		got := out.String()
 		if got != expected {
 			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
 		}
 	})
 
 	t.Run("DisplayModeVertical", func(t *testing.T) {
-		stdin := &nopCloser{&bytes.Buffer{}}
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		cli, err := NewCli("test", "test", "test", "", stdin, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		out := &bytes.Buffer{}
 		result := &Result{
 			ColumnNames: []string{"foo", "bar"},
 			Rows: []Row{
@@ -111,7 +97,7 @@ func TestPrintResult(t *testing.T) {
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		cli.PrintResult(result, DisplayModeVertical, false)
+		printResult(out, result, DisplayModeVertical, false)
 
 		expected := strings.TrimPrefix(`
 *************************** 1. row ***************************
@@ -122,21 +108,14 @@ foo: 3
 bar: 4
 `, "\n")
 
-		got := stdout.String()
+		got := out.String()
 		if got != expected {
 			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
 		}
 	})
 
 	t.Run("DisplayModeTab", func(t *testing.T) {
-		stdin := &nopCloser{&bytes.Buffer{}}
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		cli, err := NewCli("test", "test", "test", "", stdin, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		out := &bytes.Buffer{}
 		result := &Result{
 			ColumnNames: []string{"foo", "bar"},
 			Rows: []Row{
@@ -146,13 +125,13 @@ bar: 4
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		cli.PrintResult(result, DisplayModeTab, false)
+		printResult(out, result, DisplayModeTab, false)
 
 		expected := "foo\tbar\n" +
 			"1\t2\n" +
 			"3\t4\n"
 
-		got := stdout.String()
+		got := out.String()
 		if got != expected {
 			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
 		}

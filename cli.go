@@ -134,7 +134,7 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		// execute
-		stop := c.printProgressingMark()
+		stop := c.PrintProgressingMark()
 		t0 := time.Now()
 		result, err := stmt.Execute(c.Session)
 		elapsed := time.Since(t0).Seconds()
@@ -205,52 +205,27 @@ func (c *Cli) PrintBatchError(err error) {
 }
 
 func (c *Cli) PrintResult(result *Result, mode DisplayMode, withStats bool) {
-	if mode == DisplayModeTable {
-		table := tablewriter.NewWriter(c.OutStream)
-		for _, row := range result.Rows {
-			table.Append(row.Columns)
-		}
-		table.SetHeader(result.ColumnNames)
-		if len(result.Rows) > 0 {
-			table.SetAutoFormatHeaders(false)
-			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-			table.SetAlignment(tablewriter.ALIGN_LEFT)
-			table.Render()
-		}
-	} else if mode == DisplayModeVertical {
-		max := 0
-		for _, columnName := range result.ColumnNames {
-			if len(columnName) > max {
-				max = len(columnName)
-			}
-		}
-		format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
-		for i, row := range result.Rows {
-			fmt.Fprintf(c.OutStream, "*************************** %d. row ***************************\n", i+1)
-			for j, column := range row.Columns {
-				fmt.Fprintf(c.OutStream, format, result.ColumnNames[j], column)
-			}
-		}
-	} else if mode == DisplayModeTab {
-		if len(result.ColumnNames) > 0 {
-			fmt.Fprintln(c.OutStream, strings.Join(result.ColumnNames, "\t"))
-			for _, row := range result.Rows {
-				fmt.Fprintln(c.OutStream, strings.Join(row.Columns, "\t"))
-			}
-		}
-	}
+	printResult(c.OutStream, result, mode, withStats)
+}
 
-	if withStats {
-		if result.IsMutation {
-			fmt.Fprintf(c.OutStream, "Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
-		} else {
-			if result.Stats.AffectedRows == 0 {
-				fmt.Fprintf(c.OutStream, "Empty set (%s)\n", result.Stats.ElapsedTime)
-			} else {
-				fmt.Fprintf(c.OutStream, "%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
-			}
+func (c *Cli) PrintProgressingMark() func() {
+	progressMarks := []string{`-`, `\`, `|`, `/`}
+	ticker := time.NewTicker(time.Millisecond * 100)
+	go func() {
+		i := 0
+		for {
+			<-ticker.C
+			mark := progressMarks[i%len(progressMarks)]
+			fmt.Fprintf(c.OutStream, "\r%s", mark)
+			i++
 		}
+	}()
+
+	stop := func() {
+		ticker.Stop()
+		fmt.Fprintf(c.OutStream, "\r") // clear progressing mark
 	}
+	return stop
 }
 
 func (c *Cli) GetInterpolatedPrompt() string {
@@ -336,22 +311,51 @@ func separateInput(input string) []InputStatement {
 	return statements
 }
 
-func (c *Cli) printProgressingMark() func() {
-	progressMarks := []string{`-`, `\`, `|`, `/`}
-	ticker := time.NewTicker(time.Millisecond * 100)
-	go func() {
-		i := 0
-		for {
-			<-ticker.C
-			mark := progressMarks[i%len(progressMarks)]
-			fmt.Fprintf(c.OutStream, "\r%s", mark)
-			i++
+func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool) {
+	if mode == DisplayModeTable {
+		table := tablewriter.NewWriter(out)
+		for _, row := range result.Rows {
+			table.Append(row.Columns)
 		}
-	}()
-
-	stop := func() {
-		ticker.Stop()
-		fmt.Fprintf(c.OutStream, "\r") // clear progressing mark
+		table.SetHeader(result.ColumnNames)
+		if len(result.Rows) > 0 {
+			table.SetAutoFormatHeaders(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.Render()
+		}
+	} else if mode == DisplayModeVertical {
+		max := 0
+		for _, columnName := range result.ColumnNames {
+			if len(columnName) > max {
+				max = len(columnName)
+			}
+		}
+		format := fmt.Sprintf("%%%ds: %%s\n", max) // for align right
+		for i, row := range result.Rows {
+			fmt.Fprintf(out, "*************************** %d. row ***************************\n", i+1)
+			for j, column := range row.Columns {
+				fmt.Fprintf(out, format, result.ColumnNames[j], column)
+			}
+		}
+	} else if mode == DisplayModeTab {
+		if len(result.ColumnNames) > 0 {
+			fmt.Fprintln(out, strings.Join(result.ColumnNames, "\t"))
+			for _, row := range result.Rows {
+				fmt.Fprintln(out, strings.Join(row.Columns, "\t"))
+			}
+		}
 	}
-	return stop
+
+	if withStats {
+		if result.IsMutation {
+			fmt.Fprintf(out, "Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
+		} else {
+			if result.Stats.AffectedRows == 0 {
+				fmt.Fprintf(out, "Empty set (%s)\n", result.Stats.ElapsedTime)
+			} else {
+				fmt.Fprintf(out, "%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
+			}
+		}
+	}
 }
