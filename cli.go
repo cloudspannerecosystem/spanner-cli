@@ -314,14 +314,16 @@ func separateInput(input string) []InputStatement {
 func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool) {
 	if mode == DisplayModeTable {
 		table := tablewriter.NewWriter(out)
+		table.SetAutoFormatHeaders(false)
+		table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetAutoWrapText(false)
+
 		for _, row := range result.Rows {
 			table.Append(row.Columns)
 		}
 		table.SetHeader(result.ColumnNames)
 		if len(result.Rows) > 0 {
-			table.SetAutoFormatHeaders(false)
-			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-			table.SetAlignment(tablewriter.ALIGN_LEFT)
 			table.Render()
 		}
 	} else if mode == DisplayModeVertical {
