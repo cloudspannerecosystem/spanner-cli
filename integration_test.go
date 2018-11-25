@@ -403,6 +403,45 @@ func TestReadWriteTransaction(t *testing.T) {
 			return nil
 		})
 	})
+
+	t.Run("heartbeat: transaction is not aborted even if the transaction is idle", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+
+		session, tableId, tearDown := setup(t, ctx, []string{
+			"INSERT INTO [[TABLE]] (id, active) VALUES (1, true), (2, false)",
+		})
+		defer tearDown()
+
+		// begin
+		stmt, err := BuildStatement("BEGIN")
+		if err != nil {
+			t.Fatalf("invalid statement: error=%s", err)
+		}
+
+		if _, err := stmt.Execute(session); err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		// first query
+		query := spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s", tableId))
+		iter := session.client.Single().Query(ctx, query)
+		defer iter.Stop()
+		if _, err := iter.Next(); err != nil {
+			t.Fatalf("unexpected error happened: %s", err)
+		}
+
+		// default transaction idle time is 10 secs
+		time.Sleep(10)
+
+		// second query
+		query = spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s", tableId))
+		iter = session.client.Single().Query(ctx, query)
+		defer iter.Stop()
+		if _, err := iter.Next(); err != nil {
+			t.Fatalf("error should not happen: %s", err)
+		}
+	})
 }
 
 func TestReadOnlyTransaction(t *testing.T) {

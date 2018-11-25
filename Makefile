@@ -16,6 +16,7 @@ release: clean cross-compile package
 clean:
 	rm -f spanner-cli
 	rm -rf dist/
+	go clean -testcache
 
 run:
 	./spanner-cli -p ${PROJECT} -i ${INSTANCE} -d ${DATABASE}

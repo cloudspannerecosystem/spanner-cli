@@ -38,7 +38,7 @@ var (
 	selectRe = regexp.MustCompile(`(?is)^SELECT\s.+$`)
 
 	// DDL
-	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s+(.+)$`)
+	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
 	createTableRe    = regexp.MustCompile(`(?is)^CREATE\s+TABLE\s.+$`)
 	alterTableRe     = regexp.MustCompile(`(?is)^ALTER\s+TABLE\s.+$`)
 	dropTableRe      = regexp.MustCompile(`(?is)^DROP\s+TABLE\s.+$`)
@@ -85,45 +85,43 @@ func BuildStatement(input string) (Statement, error) {
 		}
 	} else if selectRe.MatchString(input) {
 		stmt = &SelectStatement{
-			text: input,
+			Query: input,
 		}
 	} else if createDatabaseRe.MatchString(input) {
-		matched := createDatabaseRe.FindStringSubmatch(input)
 		stmt = &CreateDatabaseStatement{
-			text:     input,
-			database: matched[1],
+			CreateStatement: input,
 		}
 	} else if createTableRe.MatchString(input) || alterTableRe.MatchString(input) || dropTableRe.MatchString(input) || createIndexRe.MatchString(input) || dropIndexRe.MatchString(input) {
 		stmt = &DdlStatement{
-			text: input,
+			Ddl: input,
 		}
 	} else if showDatabasesRe.MatchString(input) {
 		stmt = &ShowDatabasesStatement{}
 	} else if showCreateTableRe.MatchString(input) {
 		matched := showCreateTableRe.FindStringSubmatch(input)
 		stmt = &ShowCreateTableStatement{
-			table: matched[1],
+			Table: matched[1],
 		}
 	} else if showTablesRe.MatchString(input) {
 		stmt = &ShowTablesStatement{}
 	} else if explainRe.MatchString(input) {
 		matched := explainRe.FindStringSubmatch(input)
 		stmt = &ExplainStatement{
-			text: matched[1],
+			Explain: matched[1],
 		}
 	} else if showColumnsRe.MatchString(input) {
 		matched := showColumnsRe.FindStringSubmatch(input)
 		stmt = &ShowColumnsStatement{
-			table: matched[1],
+			Table: matched[1],
 		}
 	} else if showIndexRe.MatchString(input) {
 		matched := showIndexRe.FindStringSubmatch(input)
 		stmt = &ShowIndexStatement{
-			table: matched[1],
+			Table: matched[1],
 		}
 	} else if insertRe.MatchString(input) || updateRe.MatchString(input) || deleteRe.MatchString(input) {
 		stmt = &DmlStatement{
-			text: input,
+			Dml: input,
 		}
 	} else if beginRwRe.MatchString(input) {
 		stmt = &BeginRwStatement{}
@@ -135,7 +133,7 @@ func BuildStatement(input string) (Statement, error) {
 			i, err := strconv.Atoi(matched[1])
 			if err == nil {
 				stmt = &BeginRoStatement{
-					staleness: time.Duration(time.Duration(i) * time.Second),
+					Staleness: time.Duration(time.Duration(i) * time.Second),
 				}
 			}
 		}
@@ -155,11 +153,11 @@ func BuildStatement(input string) (Statement, error) {
 }
 
 type SelectStatement struct {
-	text string
+	Query string
 }
 
 func (s *SelectStatement) Execute(session *Session) (*Result, error) {
-	stmt := spanner.NewStatement(s.text)
+	stmt := spanner.NewStatement(s.Query)
 	var iter *spanner.RowIterator
 
 	if session.InRwTxn() {
@@ -210,14 +208,13 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 }
 
 type CreateDatabaseStatement struct {
-	text     string
-	database string
+	CreateStatement string
 }
 
 func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 	op, err := session.adminClient.CreateDatabase(session.ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          session.GetInstancePath(),
-		CreateStatement: s.text,
+		CreateStatement: s.CreateStatement,
 	})
 	if err != nil {
 		return nil, err
@@ -234,13 +231,13 @@ func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 }
 
 type DdlStatement struct {
-	text string
+	Ddl string
 }
 
 func (s *DdlStatement) Execute(session *Session) (*Result, error) {
 	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.GetDatabasePath(),
-		Statements: []string{s.text},
+		Statements: []string{s.Ddl},
 	})
 	if err != nil {
 		return nil, err
@@ -294,7 +291,7 @@ func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
 }
 
 type ShowCreateTableStatement struct {
-	table string
+	Table string
 }
 
 func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
@@ -311,16 +308,16 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 	for _, stmt := range ddlResponse.Statements {
-		if regexp.MustCompile(`(?i)^CREATE TABLE ` + s.table).MatchString(stmt) {
+		if regexp.MustCompile(`(?i)^CREATE TABLE ` + s.Table).MatchString(stmt) {
 			resultRow := Row{
-				Columns: []string{s.table, stmt},
+				Columns: []string{s.Table, stmt},
 			}
 			result.Rows = append(result.Rows, resultRow)
 			break
 		}
 	}
 	if len(result.Rows) == 0 {
-		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.table))
+		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.Table))
 	}
 
 	result.Stats.AffectedRows = len(result.Rows)
@@ -333,7 +330,7 @@ type ShowTablesStatement struct{}
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	query := SelectStatement{
-		text: fmt.Sprintf(`SELECT t.table_name AS %s FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`, alias),
+		Query: fmt.Sprintf(`SELECT t.table_name AS %s FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`, alias),
 	}
 
 	result, err := query.Execute(session)
@@ -345,7 +342,7 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 }
 
 type ExplainStatement struct {
-	text string
+	Explain string
 }
 
 func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
@@ -358,7 +355,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 		},
 	}
 
-	stmt := spanner.NewStatement(s.text)
+	stmt := spanner.NewStatement(s.Explain)
 	queryPlan, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
 	if err != nil {
 		return nil, err
@@ -372,12 +369,12 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 }
 
 type ShowColumnsStatement struct {
-	table string
+	Table string
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 	query := SelectStatement{
-		text: fmt.Sprintf(`SELECT
+		Query: fmt.Sprintf(`SELECT
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
   C.IS_NULLABLE as `+"`NULL`"+`,
@@ -398,7 +395,7 @@ ON
 WHERE
   C.TABLE_NAME = '%s'
 ORDER BY
-  C.ORDINAL_POSITION ASC`, s.table),
+  C.ORDINAL_POSITION ASC`, s.Table),
 	}
 
 	result, err := query.Execute(session)
@@ -407,19 +404,19 @@ ORDER BY
 	}
 
 	if len(result.Rows) == 0 {
-		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.table))
+		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.Table))
 	}
 
 	return result, nil
 }
 
 type ShowIndexStatement struct {
-	table string
+	Table string
 }
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 	query := SelectStatement{
-		text: fmt.Sprintf(`SELECT
+		Query: fmt.Sprintf(`SELECT
   TABLE_NAME as Table,
   PARENT_TABLE_NAME as Parent_table,
   INDEX_NAME as Index_name,
@@ -430,7 +427,7 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 FROM
   INFORMATION_SCHEMA.INDEXES
 WHERE
-  TABLE_NAME = '%s'`, s.table),
+  TABLE_NAME = '%s'`, s.Table),
 	}
 
 	result, err := query.Execute(session)
@@ -439,18 +436,18 @@ WHERE
 	}
 
 	if len(result.Rows) == 0 {
-		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.table))
+		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.Table))
 	}
 
 	return result, nil
 }
 
 type DmlStatement struct {
-	text string
+	Dml string
 }
 
 func (s *DmlStatement) Execute(session *Session) (*Result, error) {
-	stmt := spanner.NewStatement(s.text)
+	stmt := spanner.NewStatement(s.Dml)
 
 	result := &Result{
 		ColumnNames: make([]string, 0),
@@ -500,13 +497,10 @@ type BeginRwStatement struct{}
 
 func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
-		// commit current transaction implicitly like MySQL
-		// cf. https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
-		commit := CommitStatement{}
-		_, err := commit.Execute(session)
-		if err != nil {
-			return nil, err
-		}
+		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
+	}
+	if session.InRoTxn() {
+		return nil, errors.New("You're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
 	txnStarted := make(chan bool)
@@ -607,10 +601,13 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 }
 
 type BeginRoStatement struct {
-	staleness time.Duration
+	Staleness time.Duration
 }
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
+	}
 	if session.InRoTxn() {
 		// close current transaction implicitly
 		close := &CloseStatement{}
@@ -618,8 +615,8 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	txn := session.client.ReadOnlyTransaction()
-	if s.staleness != time.Duration(0) {
-		txn = txn.WithTimestampBound(spanner.ExactStaleness(s.staleness))
+	if s.Staleness != time.Duration(0) {
+		txn = txn.WithTimestampBound(spanner.ExactStaleness(s.Staleness))
 	}
 	session.StartRoTxn(txn)
 
@@ -633,6 +630,10 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 type CloseStatement struct{}
 
 func (s *CloseStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
+	}
+
 	result := &Result{
 		ColumnNames: make([]string, 0),
 		Rows:        make([]Row, 0),

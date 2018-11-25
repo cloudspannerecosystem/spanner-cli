@@ -4,6 +4,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestBuildStatement(t *testing.T) {
@@ -11,58 +14,64 @@ func TestBuildStatement(t *testing.T) {
 		Input    string
 		Expected Statement
 	}{
-		{"SELECT * FROM t1", &SelectStatement{}},
-		{"SELECT\n*\nFROM t1", &SelectStatement{}},
-		{"CREATE DATABASE d1", &CreateDatabaseStatement{}},
-		{"CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)", &DdlStatement{}},
-		{"ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL", &DdlStatement{}},
-		{"DROP TABLE t1", &DdlStatement{}},
-		{"CREATE INDEX idx_name ON t1 (name DESC)", &DdlStatement{}},
-		{"DROP INDEX idx_name", &DdlStatement{}},
-		{"INSERT INTO t1 (id, name) VALUES (1, 'yuki')", &DmlStatement{}},
-		{"UPDATE t1 SET name = hello WHERE id = 1", &DmlStatement{}},
-		{"DELETE FROM t1 WHERE id = 1", &DmlStatement{}},
+		{"SELECT * FROM t1", &SelectStatement{Query: "SELECT * FROM t1"}},
+		{"SELECT\n*\nFROM t1", &SelectStatement{Query: "SELECT\n*\nFROM t1"}},
+		{"CREATE DATABASE d1", &CreateDatabaseStatement{CreateStatement: "CREATE DATABASE d1"}},
+		{"CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)", &DdlStatement{Ddl: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)"}},
+		{"ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL", &DdlStatement{Ddl: "ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL"}},
+		{"DROP TABLE t1", &DdlStatement{Ddl: "DROP TABLE t1"}},
+		{"CREATE INDEX idx_name ON t1 (name DESC)", &DdlStatement{Ddl: "CREATE INDEX idx_name ON t1 (name DESC)"}},
+		{"DROP INDEX idx_name", &DdlStatement{Ddl: "DROP INDEX idx_name"}},
+		{"INSERT INTO t1 (id, name) VALUES (1, 'yuki')", &DmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"}},
+		{"UPDATE t1 SET name = hello WHERE id = 1", &DmlStatement{Dml: "UPDATE t1 SET name = hello WHERE id = 1"}},
+		{"DELETE FROM t1 WHERE id = 1", &DmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"}},
 		{"BEGIN", &BeginRwStatement{}},
 		{"BEGIN RW", &BeginRwStatement{}},
 		{"BEGIN RO", &BeginRoStatement{}},
-		{"BEGIN RO 10", &BeginRoStatement{}},
+		{"BEGIN RO 10", &BeginRoStatement{Staleness: time.Duration(10 * time.Second)}},
 		{"COMMIT", &CommitStatement{}},
 		{"ROLLBACK", &RollbackStatement{}},
 		{"CLOSE", &CloseStatement{}},
 		{"EXIT", &ExitStatement{}},
-		{"USE database2", &UseStatement{}},
+		{"USE database2", &UseStatement{Database: "database2"}},
 		{"SHOW DATABASES", &ShowDatabasesStatement{}},
-		{"SHOW CREATE TABLE t1", &ShowCreateTableStatement{}},
+		{"SHOW CREATE TABLE t1", &ShowCreateTableStatement{Table: "t1"}},
 		{"SHOW TABLES", &ShowTablesStatement{}},
-		{"SHOW COLUMNS FROM t1", &ShowColumnsStatement{}},
-		{"SHOW INDEX FROM t1", &ShowIndexStatement{}},
-		{"SHOW INDEXES FROM t1", &ShowIndexStatement{}},
-		{"SHOW KEYS FROM t1", &ShowIndexStatement{}},
-		{"EXPLAIN t1", &ShowColumnsStatement{}},
-		{"DESCRIBE t1", &ShowColumnsStatement{}},
-		{"DESC t1", &ShowColumnsStatement{}},
-		{"EXPLAIN SELECT * FROM t1", &ExplainStatement{}},
-		{"DESCRIBE SELECT * FROM t1", &ExplainStatement{}},
-		{"DESC SELECT * FROM t1", &ExplainStatement{}},
+		{"SHOW INDEX FROM t1", &ShowIndexStatement{Table: "t1"}},
+		{"SHOW INDEXES FROM t1", &ShowIndexStatement{Table: "t1"}},
+		{"SHOW KEYS FROM t1", &ShowIndexStatement{Table: "t1"}},
+		{"SHOW COLUMNS FROM t1", &ShowColumnsStatement{Table: "t1"}},
+		{"EXPLAIN t1", &ShowColumnsStatement{Table: "t1"}},
+		{"DESCRIBE t1", &ShowColumnsStatement{Table: "t1"}},
+		{"DESC t1", &ShowColumnsStatement{Table: "t1"}},
+		{"EXPLAIN SELECT * FROM t1", &ExplainStatement{Explain: "SELECT * FROM t1"}},
+		{"DESCRIBE SELECT * FROM t1", &ExplainStatement{Explain: "SELECT * FROM t1"}},
+		{"DESC SELECT * FROM t1", &ExplainStatement{Explain: "SELECT * FROM t1"}},
 	}
 
 	for _, test := range validTests {
-		for i := 0; i < 2; i++ {
-			input := test.Input
-			if i == 1 {
-				// check case insensitivility
-				input = strings.ToLower(input)
-			}
-			got, err := BuildStatement(input)
-			if err != nil {
-				t.Fatal(err)
-			}
-			gotType := reflect.TypeOf(got)
-			expectedType := reflect.TypeOf(test.Expected)
+		// try with case-sensitive input
+		input := test.Input
+		expected := test.Expected
+		got, err := BuildStatement(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !cmp.Equal(got, expected) {
+			t.Errorf("diff: %s", cmp.Diff(got, expected))
+		}
 
-			if gotType != expectedType {
-				t.Errorf("invalid statement type: expected = %s, but got = %s", expectedType, gotType)
-			}
+		// try with case-insensitive input
+		input = strings.ToLower(input)
+		got, err = BuildStatement(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// check only type
+		gotType := reflect.TypeOf(got)
+		expectedType := reflect.TypeOf(expected)
+		if gotType != expectedType {
+			t.Errorf("invalid statement type: expected = %s, but got = %s", expectedType, gotType)
 		}
 	}
 
