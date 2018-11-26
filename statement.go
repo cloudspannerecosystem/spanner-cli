@@ -330,7 +330,7 @@ type ShowTablesStatement struct{}
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	query := SelectStatement{
-		Query: fmt.Sprintf(`SELECT t.table_name AS %s FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''`, alias),
+		Query: fmt.Sprintf("SELECT t.table_name AS `%s` FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''", alias),
 	}
 
 	result, err := query.Execute(session)
