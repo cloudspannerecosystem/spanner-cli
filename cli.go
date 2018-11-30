@@ -52,9 +52,17 @@ type Cli struct {
 	ErrStream io.Writer
 }
 
+var defaultClientConfig = spanner.ClientConfig{
+	NumChannels: 1,
+	SessionPoolConfig: spanner.SessionPoolConfig{
+		MaxOpened: 1,
+		MinOpened: 1,
+	},
+}
+
 func NewCli(projectId, instanceId, databaseId string, prompt string, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer) (*Cli, error) {
 	ctx := context.Background()
-	session, err := NewSession(ctx, projectId, instanceId, databaseId, spanner.ClientConfig{})
+	session, err := NewSession(ctx, projectId, instanceId, databaseId, defaultClientConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +119,7 @@ func (c *Cli) RunInteractive() int {
 
 		if s, ok := stmt.(*UseStatement); ok {
 			ctx := context.Background()
-			newSession, err := NewSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, spanner.ClientConfig{})
+			newSession, err := NewSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, defaultClientConfig)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
