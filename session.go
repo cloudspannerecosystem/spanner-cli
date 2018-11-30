@@ -87,6 +87,10 @@ func (s *Session) InRoTxn() bool {
 	return s.roTxn != nil
 }
 
+func (s *Session) GetRoTxnTimestamp() (time.Time, error) {
+	return s.roTxn.Timestamp()
+}
+
 func (s *Session) Close() {
 	s.client.Close()
 	s.adminClient.Close()

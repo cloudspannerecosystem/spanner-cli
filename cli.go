@@ -237,7 +237,11 @@ func (c *Cli) GetInterpolatedPrompt() string {
 	if c.Session.InRwTxn() {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
 	} else if c.Session.InRoTxn() {
-		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
+		timestamp, err := c.Session.GetRoTxnTimestamp()
+		if err != nil {
+			fmt.Println(err)
+		}
+		prompt = promptReInTransaction.ReplaceAllString(prompt, fmt.Sprintf("(ro txn: %s)", timestamp))
 	} else {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
 	}
