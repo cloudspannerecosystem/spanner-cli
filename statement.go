@@ -328,17 +328,17 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 type ShowTablesStatement struct{}
 
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		// because information schema can't used in read-write transaction.
+		// cf. https://cloud.google.com/spanner/docs/information-schema
+		return nil, errors.New(`"SHOW TABLES" can not be used in read-write transaction.`)
+	}
+
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	query := SelectStatement{
-		Query: fmt.Sprintf("SELECT t.table_name AS `%s` FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''", alias),
+		Query: fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias),
 	}
-
-	result, err := query.Execute(session)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return query.Execute(session)
 }
 
 type ExplainStatement struct {
@@ -373,6 +373,12 @@ type ShowColumnsStatement struct {
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		// because information schema can't used in read-write transaction.
+		// cf. https://cloud.google.com/spanner/docs/information-schema
+		return nil, errors.New(`"SHOW COLUMNS" can not be used in read-write transaction.`)
+	}
+
 	query := SelectStatement{
 		Query: fmt.Sprintf(`SELECT
   C.COLUMN_NAME as Field,
@@ -415,6 +421,12 @@ type ShowIndexStatement struct {
 }
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		// because information schema can't used in read-write transaction.
+		// cf. https://cloud.google.com/spanner/docs/information-schema
+		return nil, errors.New(`"SHOW INDEX" can not be used in read-write transaction.`)
+	}
+
 	query := SelectStatement{
 		Query: fmt.Sprintf(`SELECT
   TABLE_NAME as Table,
