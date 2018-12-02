@@ -127,10 +127,12 @@ func (c *Cli) RunInteractive() int {
 
 			exists, err := newSession.DatabaseExists()
 			if err != nil {
+				newSession.Close()
 				c.PrintInteractiveError(err)
 				continue
 			}
 			if !exists {
+				newSession.Close()
 				c.PrintInteractiveError(fmt.Errorf("ERROR: Unknown database '%s'\n", s.Database))
 				continue
 			}
