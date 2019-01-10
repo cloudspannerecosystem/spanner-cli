@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,6 +21,7 @@ type SpannerOptions struct {
 	DatabaseId string `short:"d" long:"database" description:"(required) Cloud Spanner Database ID."`
 	Execute    string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
 	Table      bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
+	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
 }
 
@@ -43,7 +45,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, os.Stdin, os.Stdout, os.Stderr)
+	var credential []byte
+	if opts.Credential != "" {
+		var err error
+		if credential, err = readCredentialFile(opts.Credential); err != nil {
+			fmt.Printf("failed to read the credential file: %s\n", err)
+			os.Exit(1)
+		}
+	}
+
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, credential, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		log.Fatalf("failed to connect to Spanner: %s", err)
 	}
@@ -85,6 +96,14 @@ func readConfigFile(parser *flags.Parser) error {
 	}
 
 	return nil
+}
+
+func readCredentialFile(filepath string) ([]byte, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(file)
 }
 
 func readStdin() (string, error) {

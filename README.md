@@ -35,14 +35,15 @@ Application Options:
   -d, --database= (required) Cloud Spanner Database ID.
   -e, --execute=  Execute SQL statement and quit.
   -t, --table     Display output in table format for batch mode.
+      --credential= Use the specific credential file
       --prompt=   Set the prompt to the specified format
 
 Help Options:
   -h, --help      Show this help message
 ```
 
-This tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
-Please be sure to prepare your credential by `gcloud auth application-default login`.
+Unless you specify a credential file with `--credential` option, this tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
+Please make sure to prepare your credential by `gcloud auth application-default login`.
 
 ## Example
 

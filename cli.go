@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
+	"google.golang.org/api/option"
 )
 
 type Delimiter string
@@ -45,11 +46,12 @@ var (
 )
 
 type Cli struct {
-	Session   *Session
-	Prompt    string
-	InStream  io.ReadCloser
-	OutStream io.Writer
-	ErrStream io.Writer
+	Session    *Session
+	Prompt     string
+	Credential []byte
+	InStream   io.ReadCloser
+	OutStream  io.Writer
+	ErrStream  io.Writer
 }
 
 var defaultClientConfig = spanner.ClientConfig{
@@ -60,9 +62,9 @@ var defaultClientConfig = spanner.ClientConfig{
 	},
 }
 
-func NewCli(projectId, instanceId, databaseId string, prompt string, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer) (*Cli, error) {
 	ctx := context.Background()
-	session, err := NewSession(ctx, projectId, instanceId, databaseId, defaultClientConfig)
+	session, err := createSession(ctx, projectId, instanceId, databaseId, credential)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +74,12 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, inStream io
 	}
 
 	return &Cli{
-		Session:   session,
-		Prompt:    prompt,
-		InStream:  inStream,
-		OutStream: outStream,
-		ErrStream: errStream,
+		Session:    session,
+		Prompt:     prompt,
+		Credential: credential,
+		InStream:   inStream,
+		OutStream:  outStream,
+		ErrStream:  errStream,
 	}, nil
 }
 
@@ -119,7 +122,7 @@ func (c *Cli) RunInteractive() int {
 
 		if s, ok := stmt.(*UseStatement); ok {
 			ctx := context.Background()
-			newSession, err := NewSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, defaultClientConfig)
+			newSession, err := createSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, c.Credential)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -253,6 +256,15 @@ func (c *Cli) GetInterpolatedPrompt() string {
 	}
 
 	return prompt
+}
+
+func createSession(ctx context.Context, projectId string, instanceId string, databaseId string, credential []byte) (*Session, error) {
+	if credential != nil {
+		credentialOption := option.WithCredentialsJSON(credential)
+		return NewSession(ctx, projectId, instanceId, databaseId, defaultClientConfig, credentialOption)
+	} else {
+		return NewSession(ctx, projectId, instanceId, databaseId, defaultClientConfig)
+	}
 }
 
 type InputStatement struct {
