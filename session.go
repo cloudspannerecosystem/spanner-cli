@@ -70,7 +70,12 @@ func (s *Session) StartRwTxn(ctx context.Context, txn *spanner.ReadWriteTransact
 	return finish
 }
 
-func (s *Session) StartRoTxn(txn *spanner.ReadOnlyTransaction) {
+func (s *Session) StartRoTxn(ctx context.Context, txn *spanner.ReadOnlyTransaction) {
+
+	// Warmup of Transaction.
+	// If do not this operation, spanner.ReadOnlyTransaction does not open transaction up to the first query.
+	txn.Query(ctx, spanner.NewStatement("SELECT 1")).Stop()
+
 	s.roTxn = txn
 }
 

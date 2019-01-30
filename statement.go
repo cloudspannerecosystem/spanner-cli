@@ -630,7 +630,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	if s.Staleness != time.Duration(0) {
 		txn = txn.WithTimestampBound(spanner.ExactStaleness(s.Staleness))
 	}
-	session.StartRoTxn(txn)
+	session.StartRoTxn(session.ctx, txn)
 
 	return &Result{
 		ColumnNames: make([]string, 0),
