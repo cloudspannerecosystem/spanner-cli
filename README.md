@@ -13,6 +13,8 @@ You can control your Spanner databases with idiomatic SQL commands like `mysql(1
 This tool is still **ALPHA** quality.  
 Do not use this tool for operating production databases.
 
+Please note that this tool is not an official Google product.
+
 ## Install
 
 You can get the latest binary from [Releases](https://github.com/yfuruyama/spanner-cli/releases).
