@@ -155,11 +155,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	}
 	defer iter.Stop()
 
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  false,
-	}
+	result := &Result{}
 
 	for {
 		row, err := iter.Next()
@@ -210,11 +206,7 @@ func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}, nil
+	return &Result{IsMutation: true}, nil
 }
 
 type DdlStatement struct {
@@ -233,22 +225,14 @@ func (s *DdlStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}, nil
+	return &Result{IsMutation: true}, nil
 }
 
 type ShowDatabasesStatement struct {
 }
 
 func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames: []string{"Database"},
-		Rows:        make([]Row, 0),
-		IsMutation:  false,
-	}
+	result := &Result{ColumnNames: []string{"Database"}}
 
 	dbIter := session.adminClient.ListDatabases(session.ctx, &adminpb.ListDatabasesRequest{
 		Parent: session.InstancePath(),
@@ -282,11 +266,7 @@ type ShowCreateTableStatement struct {
 }
 
 func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames: []string{"Table", "Create Table"},
-		Rows:        make([]Row, 0),
-		IsMutation:  false,
-	}
+	result := &Result{ColumnNames: []string{"Table", "Create Table"}}
 
 	ddlResponse, err := session.adminClient.GetDatabaseDdl(session.ctx, &adminpb.GetDatabaseDdlRequest{
 		Database: session.DatabasePath(),
@@ -336,7 +316,6 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		ColumnNames: []string{"Query_Execution_Plan (EXPERIMENTAL)"},
 		Rows:        make([]Row, 1),
-		IsMutation:  false,
 		Stats: Stats{
 			AffectedRows: 1,
 		},
@@ -448,11 +427,7 @@ type DmlStatement struct {
 func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Dml)
 
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}
+	result := &Result{IsMutation: true}
 
 	var numRows int64
 	var err error
@@ -536,11 +511,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}, nil
+	return &Result{IsMutation: true}, nil
 }
 
 type CommitStatement struct{}
@@ -550,11 +521,7 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}
+	result := &Result{IsMutation: true}
 
 	if !session.InRwTxn() {
 		return result, nil
@@ -576,11 +543,7 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}
+	result := &Result{IsMutation: true}
 
 	if !session.InRwTxn() {
 		return result, nil
@@ -616,11 +579,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	}
 	session.StartRoTxn(txn)
 
-	return &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}, nil
+	return &Result{IsMutation: true}, nil
 }
 
 type CloseStatement struct{}
@@ -630,11 +589,7 @@ func (s *CloseStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
 
-	result := &Result{
-		ColumnNames: make([]string, 0),
-		Rows:        make([]Row, 0),
-		IsMutation:  true,
-	}
+	result := &Result{IsMutation: true}
 
 	if !session.InRoTxn() {
 		return result, nil

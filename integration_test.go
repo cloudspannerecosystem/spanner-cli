@@ -202,7 +202,7 @@ func TestDml(t *testing.T) {
 	query := spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
 	iter := session.client.Single().Query(ctx, query)
 	defer iter.Stop()
-	gotStructs := make([]testTableSchema, 0)
+	var gotStructs []testTableSchema
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -303,7 +303,7 @@ func TestReadWriteTransaction(t *testing.T) {
 		query := spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s ORDER BY id ASC", tableId))
 		iter := session.client.Single().Query(ctx, query)
 		defer iter.Stop()
-		gotStructs := make([]testTableSchema, 0)
+		var gotStructs []testTableSchema
 		for {
 			row, err := iter.Next()
 			if err == iterator.Done {

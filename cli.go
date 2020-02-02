@@ -14,24 +14,18 @@ import (
 	"google.golang.org/api/option"
 )
 
-const (
-	delimiterHorizontal = ";"
-	delimiterVertical   = "\\G"
-)
-
 type DisplayMode int
 
 const (
 	DisplayModeTable DisplayMode = iota
 	DisplayModeVertical
 	DisplayModeTab
-)
 
-const (
+	delimiterHorizontal = ";"
+	delimiterVertical   = "\\G"
+
 	defaultPrompt = `spanner\t> `
-)
 
-const (
 	exitCodeSuccess = 0
 	exitCodeError   = 1
 )
@@ -97,7 +91,7 @@ func (c *Cli) RunInteractive() int {
 	if exists {
 		fmt.Fprintf(c.OutStream, "Connected.\n")
 	} else {
-		return c.ExitOnError(fmt.Errorf("Unknown database '%s'", c.Session.databaseId))
+		return c.ExitOnError(fmt.Errorf("unknown database %q", c.Session.databaseId))
 	}
 
 	for {
@@ -134,7 +128,7 @@ func (c *Cli) RunInteractive() int {
 			}
 			if !exists {
 				newSession.Close()
-				c.PrintInteractiveError(fmt.Errorf("ERROR: Unknown database '%s'\n", s.Database))
+				c.PrintInteractiveError(fmt.Errorf("ERROR: Unknown database %q\n", s.Database))
 				continue
 			}
 
@@ -271,10 +265,10 @@ type inputStatement struct {
 }
 
 func readInteractiveInput(rl *readline.Instance) (string, string, error) {
-	lines := make([]string, 0)
 	origPrompt := rl.Config.Prompt
 	defer rl.SetPrompt(origPrompt)
 
+	var lines []string
 	for {
 		line, err := rl.Readline()
 		if err != nil {
@@ -300,13 +294,13 @@ func readInteractiveInput(rl *readline.Instance) (string, string, error) {
 	}
 }
 
-// separate to each statement
+// Separate input to each statement.
 func separateInput(input string) []inputStatement {
 	input = strings.TrimSpace(input)
-	statements := make([]inputStatement, 0)
 
 	// NOTE: This logic doesn't do syntactic analysis, but just checks the delimiter position,
 	// so it's fragile for the case that delimiters appear in strings.
+	var statements []inputStatement
 	for input != "" {
 		if idx := strings.Index(input, delimiterHorizontal); idx != -1 {
 			statements = append(statements, inputStatement{

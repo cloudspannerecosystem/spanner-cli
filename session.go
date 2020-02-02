@@ -40,7 +40,7 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 		return nil, err
 	}
 
-	session := &Session{
+	return &Session{
 		ctx:           ctx,
 		projectId:     projectId,
 		instanceId:    instanceId,
@@ -49,9 +49,7 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 		adminClient:   adminClient,
 		txnFinished:   make(chan error),
 		committedChan: make(chan bool),
-	}
-
-	return session, nil
+	}, nil
 }
 
 func (s *Session) StartRwTxn(ctx context.Context, txn *spanner.ReadWriteTransaction) func() {

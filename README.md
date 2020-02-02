@@ -1,25 +1,25 @@
 spanner-cli [![CircleCI](https://circleci.com/gh/yfuruyama/spanner-cli.svg?style=svg)](https://circleci.com/gh/yfuruyama/spanner-cli)
 ===
 
-spanner-cli, the Cloud Spanner command line interface.
+Interactive command line tool for Cloud Spanner.
 
 ![gif](https://github.com/yfuruyama/spanner-cli/blob/master/image/spanner_cli.gif)
 
 ## Description
 
-`spanner-cli` is a command line client for [Google Cloud Spanner](https://cloud.google.com/spanner/).  
-You can control your Spanner databases with idiomatic SQL commands like `mysql(1)`.
+`spanner-cli` is an interactive command line tool for [Google Cloud Spanner](https://cloud.google.com/spanner/).  
+You can control your Spanner databases with idiomatic SQL commands. If you're familiar with `mysql(1)` command,
+you can find this tool is similar to that.
 
-This tool is still **ALPHA** quality.  
-Do not use this tool for operating production databases.
+This tool is still **ALPHA** quality. Do not use this tool for production databases.
 
-Please note that this tool is not an official Google product.
+This tool is not an official Google product.
 
 ## Install
 
 You can get the latest binary from [Releases](https://github.com/yfuruyama/spanner-cli/releases).
 
-Or if you have installed `go`, just execute `go get` from your console. It takes a while to install all dependencies.
+Or if you have `go`, just execute `go get` from your console.
 
 ```
 go get -u github.com/yfuruyama/spanner-cli
@@ -44,7 +44,7 @@ Help Options:
   -h, --help      Show this help message
 ```
 
-Unless you specify a credential file with `--credential` option, this tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
+Unless you specify a credential file with `--credential`, this tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
 Please make sure to prepare your credential by `gcloud auth application-default login`.
 
 ## Example
