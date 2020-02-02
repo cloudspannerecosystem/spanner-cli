@@ -52,13 +52,13 @@ func TestDecodeRow(t *testing.T) {
 		{createRow(t, []interface{}{civil.DateOf(time.Unix(1516676400, 0))}), []string{"2018-01-23"}},
 
 		// basic nullable type
-		{createRow(t, []interface{}{spanner.NullBool{true, true}, spanner.NullBool{false, false}}), []string{"true", "NULL"}},
+		{createRow(t, []interface{}{spanner.NullBool{Bool: true, Valid: true}, spanner.NullBool{Bool: false, Valid: false}}), []string{"true", "NULL"}},
 		{createRow(t, []interface{}{[]byte{'a', 'b', 'c'}, []byte(nil)}), []string{"YWJj", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullFloat64{1.23, true}, spanner.NullFloat64{0, false}}), []string{"1.230000", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullInt64{123, true}, spanner.NullInt64{0, false}}), []string{"123", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullString{"foo", true}, spanner.NullString{"", false}}), []string{"foo", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullTime{time.Unix(1516676400, 0), true}, spanner.NullTime{time.Unix(0, 0), false}}), []string{"2018-01-23T03:00:00Z", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullDate{civil.DateOf(time.Unix(1516676400, 0)), true}, spanner.NullDate{civil.DateOf(time.Unix(0, 0)), false}}), []string{"2018-01-23", "NULL"}},
+		{createRow(t, []interface{}{spanner.NullFloat64{Float64: 1.23, Valid: true}, spanner.NullFloat64{Float64: 0, Valid: false}}), []string{"1.230000", "NULL"}},
+		{createRow(t, []interface{}{spanner.NullInt64{Int64: 123, Valid: true}, spanner.NullInt64{Int64: 0, Valid: false}}), []string{"123", "NULL"}},
+		{createRow(t, []interface{}{spanner.NullString{StringVal: "foo", Valid: true}, spanner.NullString{StringVal: "", Valid: false}}), []string{"foo", "NULL"}},
+		{createRow(t, []interface{}{spanner.NullTime{Time: time.Unix(1516676400, 0), Valid: true}, spanner.NullTime{Time: time.Unix(0, 0), Valid: false}}), []string{"2018-01-23T03:00:00Z", "NULL"}},
+		{createRow(t, []interface{}{spanner.NullDate{Date: civil.DateOf(time.Unix(1516676400, 0)), Valid: true}, spanner.NullDate{Date: civil.DateOf(time.Unix(0, 0)), Valid: false}}), []string{"2018-01-23", "NULL"}},
 
 		// array type
 		{createRow(t, []interface{}{[]bool{true, false}}), []string{"[true, false]"}},

@@ -36,8 +36,8 @@ var (
 )
 
 type testTableSchema struct {
-	Id     int64 `spanner: "id"`
-	Active bool  `spanner: "active"`
+	Id     int64 `spanner:"id"`
+	Active bool  `spanner:"active"`
 }
 
 func TestMain(m *testing.M) {

@@ -55,23 +55,23 @@ func TestBuildStatement(t *testing.T) {
 		expected := test.Expected
 		got, err := BuildStatement(input)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("BuildStatement(%q) got error: %v", input, err)
 		}
 		if !cmp.Equal(got, expected) {
-			t.Errorf("diff: %s", cmp.Diff(got, expected))
+			t.Errorf("BuildStatement(%q) = %v, but expected = %v", input, got, expected)
 		}
 
 		// try with case-insensitive input
 		input = strings.ToLower(input)
 		got, err = BuildStatement(input)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("BuildStatement(%q) got error: %v", input, err)
 		}
 		// check only type
 		gotType := reflect.TypeOf(got)
 		expectedType := reflect.TypeOf(expected)
 		if gotType != expectedType {
-			t.Errorf("invalid statement type: expected = %s, but got = %s", expectedType, gotType)
+			t.Errorf("BuildStatement(%q) has invalid statement type: got = %q, but expected = %s", input, gotType, expectedType)
 		}
 	}
 
@@ -86,7 +86,7 @@ func TestBuildStatement(t *testing.T) {
 	for _, test := range invalidTests {
 		got, err := BuildStatement(test.Input)
 		if err == nil {
-			t.Errorf("expected error, but got = %#v", got)
+			t.Errorf("BuildStatement(%q) expected error, but got = %#v", test.Input, got)
 		}
 	}
 }

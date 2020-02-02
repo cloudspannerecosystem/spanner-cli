@@ -14,11 +14,9 @@ import (
 	"google.golang.org/api/option"
 )
 
-type Delimiter string
-
 const (
-	DelimiterHorizontal Delimiter = ";"
-	DelimiterVertical   Delimiter = "\\G"
+	delimiterHorizontal = ";"
+	delimiterVertical   = "\\G"
 )
 
 type DisplayMode int
@@ -30,12 +28,12 @@ const (
 )
 
 const (
-	DefaultPrompt = `spanner\t> `
+	defaultPrompt = `spanner\t> `
 )
 
 const (
-	ExitCodeSuccess = 0
-	ExitCodeError   = 1
+	exitCodeSuccess = 0
+	exitCodeError   = 1
 )
 
 var (
@@ -70,7 +68,7 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, credential 
 	}
 
 	if prompt == "" {
-		prompt = DefaultPrompt
+		prompt = defaultPrompt
 	}
 
 	return &Cli{
@@ -103,7 +101,7 @@ func (c *Cli) RunInteractive() int {
 	}
 
 	for {
-		rl.SetPrompt(c.GetInterpolatedPrompt())
+		rl.SetPrompt(c.getInterpolatedPrompt())
 
 		input, delimiter, err := readInteractiveInput(rl)
 		if err == io.EOF {
@@ -162,7 +160,7 @@ func (c *Cli) RunInteractive() int {
 			result.Stats.ElapsedTime = fmt.Sprintf("%0.2f sec", elapsed)
 		}
 
-		if delimiter == DelimiterHorizontal {
+		if delimiter == delimiterHorizontal {
 			c.PrintResult(result, DisplayModeTable, true)
 		} else {
 			c.PrintResult(result, DisplayModeVertical, true)
@@ -174,39 +172,39 @@ func (c *Cli) RunInteractive() int {
 
 func (c *Cli) RunBatch(input string, displayTable bool) int {
 	for _, separated := range separateInput(input) {
-		stmt, err := BuildStatement(separated.Statement)
+		stmt, err := BuildStatement(separated.statement)
 		if err != nil {
 			c.PrintBatchError(err)
-			return ExitCodeError
+			return exitCodeError
 		}
 
 		result, err := stmt.Execute(c.Session)
 		if err != nil {
 			c.PrintBatchError(err)
-			return ExitCodeError
+			return exitCodeError
 		}
 
 		if displayTable {
 			c.PrintResult(result, DisplayModeTable, false)
-		} else if separated.Delimiter == DelimiterVertical {
+		} else if separated.delimiter == delimiterVertical {
 			c.PrintResult(result, DisplayModeVertical, false)
 		} else {
 			c.PrintResult(result, DisplayModeTab, false)
 		}
 	}
-	return ExitCodeSuccess
+	return exitCodeSuccess
 }
 
 func (c *Cli) Exit() int {
 	c.Session.Close()
 	fmt.Fprintln(c.OutStream, "Bye")
-	return ExitCodeSuccess
+	return exitCodeSuccess
 }
 
 func (c *Cli) ExitOnError(err error) int {
 	c.Session.Close()
 	fmt.Fprintf(c.ErrStream, "ERROR: %s\n", err)
-	return ExitCodeError
+	return exitCodeError
 }
 
 func (c *Cli) PrintInteractiveError(err error) {
@@ -241,7 +239,7 @@ func (c *Cli) PrintProgressingMark() func() {
 	return stop
 }
 
-func (c *Cli) GetInterpolatedPrompt() string {
+func (c *Cli) getInterpolatedPrompt() string {
 	prompt := c.Prompt
 	prompt = promptReProjectId.ReplaceAllString(prompt, c.Session.projectId)
 	prompt = promptReInstanceId.ReplaceAllString(prompt, c.Session.instanceId)
@@ -267,12 +265,12 @@ func createSession(ctx context.Context, projectId string, instanceId string, dat
 	}
 }
 
-type InputStatement struct {
-	Statement string
-	Delimiter Delimiter
+type inputStatement struct {
+	statement string
+	delimiter string
 }
 
-func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
+func readInteractiveInput(rl *readline.Instance) (string, string, error) {
 	lines := make([]string, 0)
 	origPrompt := rl.Config.Prompt
 	defer rl.SetPrompt(origPrompt)
@@ -280,7 +278,7 @@ func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
 	for {
 		line, err := rl.Readline()
 		if err != nil {
-			return "", Delimiter("UNKNOWN"), err
+			return "", "", err
 		}
 
 		line = strings.TrimSpace(line)
@@ -289,11 +287,11 @@ func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
 			if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "--") {
 				continue
 			}
-			for _, delimiter := range []Delimiter{DelimiterHorizontal, DelimiterVertical} {
-				if strings.HasSuffix(line, string(delimiter)) {
-					line = strings.TrimRight(line, string(delimiter))
+			for _, d := range []string{delimiterHorizontal, delimiterVertical} {
+				if strings.HasSuffix(line, d) {
+					line = strings.TrimRight(line, d)
 					lines = append(lines, line)
-					return strings.TrimSpace(strings.Join(lines, " ")), delimiter, nil
+					return strings.TrimSpace(strings.Join(lines, " ")), d, nil
 				}
 			}
 		}
@@ -303,29 +301,29 @@ func readInteractiveInput(rl *readline.Instance) (string, Delimiter, error) {
 }
 
 // separate to each statement
-func separateInput(input string) []InputStatement {
+func separateInput(input string) []inputStatement {
 	input = strings.TrimSpace(input)
-	statements := make([]InputStatement, 0)
+	statements := make([]inputStatement, 0)
 
 	// NOTE: This logic doesn't do syntactic analysis, but just checks the delimiter position,
 	// so it's fragile for the case that delimiters appear in strings.
 	for input != "" {
-		if idx := strings.Index(input, string(DelimiterHorizontal)); idx != -1 {
-			statements = append(statements, InputStatement{
-				Statement: strings.TrimSpace(input[:idx]),
-				Delimiter: DelimiterHorizontal,
+		if idx := strings.Index(input, delimiterHorizontal); idx != -1 {
+			statements = append(statements, inputStatement{
+				statement: strings.TrimSpace(input[:idx]),
+				delimiter: delimiterHorizontal,
 			})
 			input = strings.TrimSpace(input[idx+1:])
-		} else if idx := strings.Index(input, string(DelimiterVertical)); idx != -1 {
-			statements = append(statements, InputStatement{
-				Statement: strings.TrimSpace(input[:idx]),
-				Delimiter: DelimiterVertical,
+		} else if idx := strings.Index(input, delimiterVertical); idx != -1 {
+			statements = append(statements, inputStatement{
+				statement: strings.TrimSpace(input[:idx]),
+				delimiter: delimiterVertical,
 			})
 			input = strings.TrimSpace(input[idx+2:]) // +2 for \ and G
 		} else {
-			statements = append(statements, InputStatement{
-				Statement: strings.TrimSpace(input),
-				Delimiter: DelimiterHorizontal, // default horizontal
+			statements = append(statements, inputStatement{
+				statement: strings.TrimSpace(input),
+				delimiter: delimiterHorizontal, // default horizontal
 			})
 			break
 		}

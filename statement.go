@@ -74,82 +74,68 @@ var (
 )
 
 func BuildStatement(input string) (Statement, error) {
-	var stmt Statement
-
-	if exitRe.MatchString(input) {
-		stmt = &ExitStatement{}
-	} else if useRe.MatchString(input) {
+	switch {
+	case exitRe.MatchString(input):
+		return &ExitStatement{}, nil
+	case useRe.MatchString(input):
 		matched := useRe.FindStringSubmatch(input)
-		stmt = &UseStatement{
-			Database: matched[1],
-		}
-	} else if selectRe.MatchString(input) {
-		stmt = &SelectStatement{
-			Query: input,
-		}
-	} else if createDatabaseRe.MatchString(input) {
-		stmt = &CreateDatabaseStatement{
-			CreateStatement: input,
-		}
-	} else if createTableRe.MatchString(input) || alterTableRe.MatchString(input) || dropTableRe.MatchString(input) || createIndexRe.MatchString(input) || dropIndexRe.MatchString(input) {
-		stmt = &DdlStatement{
-			Ddl: input,
-		}
-	} else if showDatabasesRe.MatchString(input) {
-		stmt = &ShowDatabasesStatement{}
-	} else if showCreateTableRe.MatchString(input) {
+		return &UseStatement{Database: matched[1]}, nil
+	case selectRe.MatchString(input):
+		return &SelectStatement{Query: input}, nil
+	case createDatabaseRe.MatchString(input):
+		return &CreateDatabaseStatement{CreateStatement: input}, nil
+	case createTableRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case alterTableRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case dropTableRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case createIndexRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case dropIndexRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case showDatabasesRe.MatchString(input):
+		return &ShowDatabasesStatement{}, nil
+	case showCreateTableRe.MatchString(input):
 		matched := showCreateTableRe.FindStringSubmatch(input)
-		stmt = &ShowCreateTableStatement{
-			Table: matched[1],
-		}
-	} else if showTablesRe.MatchString(input) {
-		stmt = &ShowTablesStatement{}
-	} else if explainRe.MatchString(input) {
+		return &ShowCreateTableStatement{Table: matched[1]}, nil
+	case showTablesRe.MatchString(input):
+		return &ShowTablesStatement{}, nil
+	case explainRe.MatchString(input):
 		matched := explainRe.FindStringSubmatch(input)
-		stmt = &ExplainStatement{
-			Explain: matched[1],
-		}
-	} else if showColumnsRe.MatchString(input) {
+		return &ExplainStatement{Explain: matched[1]}, nil
+	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
-		stmt = &ShowColumnsStatement{
-			Table: matched[1],
-		}
-	} else if showIndexRe.MatchString(input) {
+		return &ShowColumnsStatement{Table: matched[1]}, nil
+	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
-		stmt = &ShowIndexStatement{
-			Table: matched[1],
-		}
-	} else if insertRe.MatchString(input) || updateRe.MatchString(input) || deleteRe.MatchString(input) {
-		stmt = &DmlStatement{
-			Dml: input,
-		}
-	} else if beginRwRe.MatchString(input) {
-		stmt = &BeginRwStatement{}
-	} else if beginRoRe.MatchString(input) {
+		return &ShowIndexStatement{Table: matched[1]}, nil
+	case insertRe.MatchString(input):
+		return &DmlStatement{Dml: input}, nil
+	case updateRe.MatchString(input):
+		return &DmlStatement{Dml: input}, nil
+	case deleteRe.MatchString(input):
+		return &DmlStatement{Dml: input}, nil
+	case beginRwRe.MatchString(input):
+		return &BeginRwStatement{}, nil
+	case beginRoRe.MatchString(input):
 		matched := beginRoRe.FindStringSubmatch(input)
 		if matched[1] == "" {
-			stmt = &BeginRoStatement{}
+			return &BeginRoStatement{}, nil
 		} else {
-			i, err := strconv.Atoi(matched[1])
-			if err == nil {
-				stmt = &BeginRoStatement{
-					Staleness: time.Duration(time.Duration(i) * time.Second),
-				}
+			if i, err := strconv.Atoi(matched[1]); err == nil {
+				return &BeginRoStatement{Staleness: time.Duration(time.Duration(i) * time.Second)}, nil
 			}
 		}
-	} else if commitRe.MatchString(input) {
-		stmt = &CommitStatement{}
-	} else if rollbackRe.MatchString(input) {
-		stmt = &RollbackStatement{}
-	} else if closeRe.MatchString(input) {
-		stmt = &CloseStatement{}
+	case commitRe.MatchString(input):
+		return &CommitStatement{}, nil
+	case rollbackRe.MatchString(input):
+		return &RollbackStatement{}, nil
+	case closeRe.MatchString(input):
+		return &CloseStatement{}, nil
 	}
 
-	if stmt == nil {
-		return nil, errors.New("invalid statement")
-	}
-
-	return stmt, nil
+	return nil, errors.New("invalid statement")
 }
 
 type SelectStatement struct {

@@ -1,9 +1,9 @@
+// Package main is a command line tool for Cloud Spanner
 package main
 
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/user"
 	"path"
@@ -11,11 +11,11 @@ import (
 	flags "github.com/jessevdk/go-flags"
 )
 
-type GlobalOptions struct {
-	Spanner SpannerOptions `group:"spanner"`
+type globalOptions struct {
+	Spanner spannerOptions `group:"spanner"`
 }
 
-type SpannerOptions struct {
+type spannerOptions struct {
 	ProjectId  string `short:"p" long:"project" description:"(required) GCP Project ID."`
 	InstanceId string `short:"i" long:"instance" description:"(required) Cloud Spanner Instance ID"`
 	DatabaseId string `short:"d" long:"database" description:"(required) Cloud Spanner Database ID."`
@@ -26,42 +26,40 @@ type SpannerOptions struct {
 }
 
 func main() {
-	var gopts GlobalOptions
+	var gopts globalOptions
 	parser := flags.NewParser(&gopts, flags.Default)
 
 	// check config file at first
 	if err := readConfigFile(parser); err != nil {
-		panic("invalid config file format")
+		exitf("invalid config file format\n")
 	}
 
 	// then, parse command line options
 	if _, err := parser.Parse(); err != nil {
-		os.Exit(1)
+		exitf("invalid options\n")
 	}
 
 	opts := gopts.Spanner
 	if opts.ProjectId == "" || opts.InstanceId == "" || opts.DatabaseId == "" {
-		parser.WriteHelp(os.Stderr)
-		os.Exit(1)
+		exitf("missing parameters: -p, -i, -d are required\n")
 	}
 
-	var credential []byte
+	var cred []byte
 	if opts.Credential != "" {
 		var err error
-		if credential, err = readCredentialFile(opts.Credential); err != nil {
-			fmt.Printf("failed to read the credential file: %s\n", err)
-			os.Exit(1)
+		if cred, err = readCredentialFile(opts.Credential); err != nil {
+			exitf("failed to read the credential file: %v\n", err)
 		}
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, credential, os.Stdin, os.Stdout, os.Stderr)
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, cred, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
-		log.Fatalf("failed to connect to Spanner: %s", err)
+		exitf("failed to connect to Spanner: %v", err)
 	}
 
 	stdin, err := readStdin()
 	if err != nil {
-		panic(err)
+		exitf("read from stdin failed: %v", err)
 	}
 
 	var exitCode int
@@ -73,6 +71,11 @@ func main() {
 		exitCode = cli.RunInteractive()
 	}
 	os.Exit(exitCode)
+}
+
+func exitf(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, a...)
+	os.Exit(1)
 }
 
 func readConfigFile(parser *flags.Parser) error {
@@ -99,11 +102,11 @@ func readConfigFile(parser *flags.Parser) error {
 }
 
 func readCredentialFile(filepath string) ([]byte, error) {
-	file, err := os.Open(filepath)
+	f, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(file)
+	return ioutil.ReadAll(f)
 }
 
 func readStdin() (string, error) {

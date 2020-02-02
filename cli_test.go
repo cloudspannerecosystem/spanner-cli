@@ -15,7 +15,7 @@ func (n *nopCloser) Close() error {
 	return nil
 }
 
-func equalInputStatementSlice(a []InputStatement, b []InputStatement) bool {
+func equalInputStatementSlice(a []inputStatement, b []inputStatement) bool {
 	if a == nil || b == nil {
 		return false
 	}
@@ -23,10 +23,10 @@ func equalInputStatementSlice(a []InputStatement, b []InputStatement) bool {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if a[i].Statement != b[i].Statement {
+		if a[i].statement != b[i].statement {
 			return false
 		}
-		if a[i].Delimiter != b[i].Delimiter {
+		if a[i].delimiter != b[i].delimiter {
 			return false
 		}
 	}
@@ -36,16 +36,16 @@ func equalInputStatementSlice(a []InputStatement, b []InputStatement) bool {
 func TestSeparateInput(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Expected []InputStatement
+		Expected []inputStatement
 	}{
-		{`SELECT * FROM t1`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}}},
-		{`SELECT * FROM t1;`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}}},
-		{"SELECT * FROM t1\n", []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}}},
-		{`SELECT * FROM t1\G`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterVertical}}},
-		{`SELECT * FROM t1; SELECT * FROM t2\G`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}, InputStatement{"SELECT * FROM t2", DelimiterVertical}}},
-		{`SELECT * FROM t1\G SELECT * FROM t2`, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterVertical}, InputStatement{"SELECT * FROM t2", DelimiterHorizontal}}},
-		{`SELECT * FROM t1; abcd `, []InputStatement{InputStatement{"SELECT * FROM t1", DelimiterHorizontal}, InputStatement{"abcd", DelimiterHorizontal}}},
-		{"SELECT\n*\nFROM t1;", []InputStatement{InputStatement{"SELECT\n*\nFROM t1", DelimiterHorizontal}}},
+		{`SELECT * FROM t1`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
+		{`SELECT * FROM t1;`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
+		{"SELECT * FROM t1\n", []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
+		{`SELECT * FROM t1\G`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterVertical}}},
+		{`SELECT * FROM t1; SELECT * FROM t2\G`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}, inputStatement{"SELECT * FROM t2", delimiterVertical}}},
+		{`SELECT * FROM t1\G SELECT * FROM t2`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterVertical}, inputStatement{"SELECT * FROM t2", delimiterHorizontal}}},
+		{`SELECT * FROM t1; abcd `, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}, inputStatement{"abcd", delimiterHorizontal}}},
+		{"SELECT\n*\nFROM t1;", []inputStatement{inputStatement{"SELECT\n*\nFROM t1", delimiterHorizontal}}},
 	}
 
 	for _, test := range tests {
