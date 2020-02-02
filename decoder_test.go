@@ -8,16 +8,18 @@ import (
 	"cloud.google.com/go/spanner"
 )
 
-func createRow(t *testing.T, columnValues []interface{}) *spanner.Row {
-	// column names are not matter for this test, so use dummy name
-	columnNames := make([]string, len(columnValues))
-	for i := 0; i < len(columnNames); i++ {
-		columnNames[i] = "dummy"
+func createRow(t *testing.T, values []interface{}) *spanner.Row {
+	t.Helper()
+
+	// column names are not important in this test, so use dummy name
+	names := make([]string, len(values))
+	for i := 0; i < len(names); i++ {
+		names[i] = "dummy"
 	}
 
-	row, err := spanner.NewRow(columnNames, columnValues)
+	row, err := spanner.NewRow(names, values)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatalf("Creating spanner row failed unexpectedly: %v", err)
 	}
 	return row
 }
@@ -77,7 +79,7 @@ func TestDecodeRow(t *testing.T) {
 		}
 
 		if !equalStringSlice(got, test.Expected) {
-			t.Errorf("invalid decode: expected = %v, but got = %v", test.Expected, got)
+			t.Errorf("DecodeRow(%q) = %v, but expected = %v", test.Input, got, test.Expected)
 		}
 	}
 }

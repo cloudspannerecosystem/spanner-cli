@@ -92,11 +92,11 @@ func (s *Session) Close() {
 	s.adminClient.Close()
 }
 
-func (s *Session) GetDatabasePath() string {
+func (s *Session) DatabasePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", s.projectId, s.instanceId, s.databaseId)
 }
 
-func (s *Session) GetInstancePath() string {
+func (s *Session) InstancePath() string {
 	return fmt.Sprintf("projects/%s/instances/%s", s.projectId, s.instanceId)
 }
 
@@ -111,18 +111,20 @@ func (s *Session) DatabaseExists() (bool, error) {
 	_, err := iter.Next()
 	if err == nil {
 		return true, nil
-	} else {
-		if code := spanner.ErrCode(err); code == codes.NotFound || code == codes.InvalidArgument {
-			return false, nil
-		} else {
-			return false, fmt.Errorf("Checking database existence failed: %s", err)
-		}
+	}
+	switch spanner.ErrCode(err) {
+	case codes.NotFound:
+		return false, nil
+	case codes.InvalidArgument:
+		return false, nil
+	default:
+		return false, fmt.Errorf("checking database existence failed: %v", err)
 	}
 }
 
-// Heartbeat for read-write transaction:
-// If no outstanding reads or DMLs happen within 10 seconds,
-// the rw-transaction is considered idle at Spanner server.
+// Start heartbeat for read-write transaction.
+//
+// If no reads or DMLs happen within 10 seconds, the rw-transaction is considered idle at Cloud Spanner server.
 // This "SELECT 1" query prevents the transaction from being considered idle.
 // cf. https://godoc.org/cloud.google.com/go/spanner#hdr-Idle_transactions
 func (s *Session) StartHeartbeat() chan bool {
@@ -136,11 +138,7 @@ func (s *Session) StartHeartbeat() chan bool {
 		for {
 			select {
 			case <-interval.C:
-				stmt := spanner.NewStatement("SELECT 1")
-				iter := s.rwTxn.Query(s.ctx, stmt)
-				defer iter.Stop()
-				_, err := iter.Next()
-				if err != nil {
+				if err := heartbeat(s.ctx, s.rwTxn); err != nil {
 					return
 				}
 			case <-timeout.C:
@@ -151,4 +149,11 @@ func (s *Session) StartHeartbeat() chan bool {
 		}
 	}()
 	return stop
+}
+
+func heartbeat(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+	iter := txn.Query(ctx, spanner.NewStatement("SELECT 1"))
+	defer iter.Stop()
+	_, err := iter.Next()
+	return err
 }

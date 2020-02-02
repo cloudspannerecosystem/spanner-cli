@@ -15,8 +15,7 @@ func DecodeRow(row *spanner.Row) ([]string, error) {
 	columns := make([]string, row.Size())
 	for i := 0; i < row.Size(); i++ {
 		var column spanner.GenericColumnValue
-		err := row.Column(i, &column)
-		if err != nil {
+		if err := row.Column(i, &column); err != nil {
 			return nil, err
 		}
 		decoded, err := DecodeColumn(column)
@@ -29,7 +28,7 @@ func DecodeRow(row *spanner.Row) ([]string, error) {
 }
 
 func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
-	//Allowable types: https://cloud.google.com/spanner/docs/data-types#allowable-types
+	// Allowable types: https://cloud.google.com/spanner/docs/data-types#allowable-types
 	switch column.Type.Code {
 	case sppb.TypeCode_ARRAY:
 		var decoded []string

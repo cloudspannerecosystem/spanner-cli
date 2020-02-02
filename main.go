@@ -31,35 +31,35 @@ func main() {
 
 	// check config file at first
 	if err := readConfigFile(parser); err != nil {
-		exitf("invalid config file format\n")
+		exitf("Invalid config file format\n")
 	}
 
 	// then, parse command line options
 	if _, err := parser.Parse(); err != nil {
-		exitf("invalid options\n")
+		exitf("Invalid options\n")
 	}
 
 	opts := gopts.Spanner
 	if opts.ProjectId == "" || opts.InstanceId == "" || opts.DatabaseId == "" {
-		exitf("missing parameters: -p, -i, -d are required\n")
+		exitf("Missing parameters: -p, -i, -d are required\n")
 	}
 
 	var cred []byte
 	if opts.Credential != "" {
 		var err error
 		if cred, err = readCredentialFile(opts.Credential); err != nil {
-			exitf("failed to read the credential file: %v\n", err)
+			exitf("Failed to read the credential file: %v\n", err)
 		}
 	}
 
 	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, cred, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
-		exitf("failed to connect to Spanner: %v", err)
+		exitf("Failed to connect to Spanner: %v", err)
 	}
 
 	stdin, err := readStdin()
 	if err != nil {
-		exitf("read from stdin failed: %v", err)
+		exitf("Read from stdin failed: %v", err)
 	}
 
 	var exitCode int

@@ -153,6 +153,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	} else {
 		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
 	}
+	defer iter.Stop()
 
 	result := &Result{
 		ColumnNames: make([]string, 0),
@@ -160,7 +161,6 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		IsMutation:  false,
 	}
 
-	defer iter.Stop()
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -171,6 +171,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		}
 
 		if len(result.ColumnNames) == 0 {
+			// Initialize column names.
 			result.ColumnNames = row.ColumnNames()
 		}
 
@@ -199,7 +200,7 @@ type CreateDatabaseStatement struct {
 
 func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 	op, err := session.adminClient.CreateDatabase(session.ctx, &adminpb.CreateDatabaseRequest{
-		Parent:          session.GetInstancePath(),
+		Parent:          session.InstancePath(),
 		CreateStatement: s.CreateStatement,
 	})
 	if err != nil {
@@ -222,7 +223,7 @@ type DdlStatement struct {
 
 func (s *DdlStatement) Execute(session *Session) (*Result, error) {
 	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database:   session.GetDatabasePath(),
+		Database:   session.DatabasePath(),
 		Statements: []string{s.Ddl},
 	})
 	if err != nil {
@@ -250,7 +251,7 @@ func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	dbIter := session.adminClient.ListDatabases(session.ctx, &adminpb.ListDatabasesRequest{
-		Parent: session.GetInstancePath(),
+		Parent: session.InstancePath(),
 	})
 
 	for {
@@ -288,7 +289,7 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	ddlResponse, err := session.adminClient.GetDatabaseDdl(session.ctx, &adminpb.GetDatabaseDdlRequest{
-		Database: session.GetDatabasePath(),
+		Database: session.DatabasePath(),
 	})
 	if err != nil {
 		return nil, err
@@ -303,7 +304,7 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 		}
 	}
 	if len(result.Rows) == 0 {
-		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.Table))
+		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
 	result.Stats.AffectedRows = len(result.Rows)
@@ -317,7 +318,7 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
 		// because information schema can't used in read-write transaction.
 		// cf. https://cloud.google.com/spanner/docs/information-schema
-		return nil, errors.New(`"SHOW TABLES" can not be used in read-write transaction.`)
+		return nil, errors.New(`"SHOW TABLES" can not be used in read-write transaction`)
 	}
 
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
@@ -362,7 +363,7 @@ func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
 		// because information schema can't used in read-write transaction.
 		// cf. https://cloud.google.com/spanner/docs/information-schema
-		return nil, errors.New(`"SHOW COLUMNS" can not be used in read-write transaction.`)
+		return nil, errors.New(`"SHOW COLUMNS" can not be used in read-write transaction`)
 	}
 
 	query := SelectStatement{
@@ -396,7 +397,7 @@ ORDER BY
 	}
 
 	if len(result.Rows) == 0 {
-		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.Table))
+		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
 	return result, nil
@@ -408,9 +409,9 @@ type ShowIndexStatement struct {
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
-		// because information schema can't used in read-write transaction.
+		// Information schema can't be used in read-write transaction.
 		// cf. https://cloud.google.com/spanner/docs/information-schema
-		return nil, errors.New(`"SHOW INDEX" can not be used in read-write transaction.`)
+		return nil, errors.New(`"SHOW INDEX" can not be used in read-write transaction`)
 	}
 
 	query := SelectStatement{
@@ -434,7 +435,7 @@ WHERE
 	}
 
 	if len(result.Rows) == 0 {
-		return nil, errors.New(fmt.Sprintf("Table '%s' doesn't exist", s.Table))
+		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
 	return result, nil
@@ -458,16 +459,15 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
 		numRows, err = session.rwTxn.Update(session.ctx, stmt)
 		if err != nil {
-			// abort transaction
+			// Abort transaction.
 			rollback := &RollbackStatement{}
 			rollback.Execute(session)
-			return nil, fmt.Errorf("error has happend during update, so abort transaction: %s", err)
+			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
 		}
 	} else {
-		// start implicit transaction
+		// Start implicit transaction.
 		begin := BeginRwStatement{}
-		_, err = begin.Execute(session)
-		if err != nil {
+		if _, err = begin.Execute(session); err != nil {
 			return nil, err
 		}
 
@@ -480,8 +480,7 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 		}
 
 		commit := CommitStatement{}
-		_, err = commit.Execute(session)
-		if err != nil {
+		if _, err = commit.Execute(session); err != nil {
 			return nil, err
 		}
 	}
@@ -495,10 +494,10 @@ type BeginRwStatement struct{}
 
 func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
-		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
+		return nil, errors.New("you're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
 	if session.InRoTxn() {
-		return nil, errors.New("You're in read-only transaction. Please finish the transaction by 'CLOSE;'")
+		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
 	txnStarted := make(chan bool)
@@ -517,7 +516,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 
 			txnStarted <- true
 
-			// wait for mutations...
+			// Wait for commit...
 			isCommitted := <-session.committedChan
 
 			if isCommitted {
@@ -533,7 +532,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 	case <-txnStarted:
 		// go
 	case err := <-session.txnFinished:
-		// error happened before starting transaction
+		// Error happened before starting transaction
 		return nil, err
 	}
 
@@ -548,7 +547,7 @@ type CommitStatement struct{}
 
 func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 	if session.InRoTxn() {
-		return nil, errors.New("You're in read-only transaction. Please finish the transaction by 'CLOSE;'")
+		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
 	result := &Result{
@@ -563,8 +562,7 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 
 	session.committedChan <- true
 
-	err := <-session.txnFinished
-	if err != nil {
+	if err := <-session.txnFinished; err != nil {
 		return nil, err
 	}
 
@@ -575,7 +573,7 @@ type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 	if session.InRoTxn() {
-		return nil, errors.New("You're in read-only transaction. Please finish the transaction by 'CLOSE;'")
+		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
 	result := &Result{
