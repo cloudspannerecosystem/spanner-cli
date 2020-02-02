@@ -1,11 +1,13 @@
 version: 2
 jobs:
   build:
-    docker:
-      - image: circleci/golang:1.9
     working_directory: /go/src/github.com/yfuruyama/spanner-cli
+    docker:
+      - image: circleci/golang:1.12
+        environment:
+          GO111MODULE: "on"
     steps:
       - checkout
-      - run: go get -v -t -d ./...
+      - run: go mod download
       - run: go vet ./...
       - run: make test
