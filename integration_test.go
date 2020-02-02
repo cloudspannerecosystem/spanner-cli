@@ -190,8 +190,6 @@ func TestDml(t *testing.T) {
 	}
 
 	compareResult(t, result, &Result{
-		ColumnNames: []string{},
-		Rows:        []Row{},
 		Stats: Stats{
 			AffectedRows: 2,
 		},
@@ -251,8 +249,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 0,
 			},
@@ -271,8 +267,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 2,
 			},
@@ -291,8 +285,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 0,
 			},
@@ -346,8 +338,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 0,
 			},
@@ -366,8 +356,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 2,
 			},
@@ -386,8 +374,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 0,
 			},
@@ -471,8 +457,6 @@ func TestReadOnlyTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 0,
 			},
@@ -514,8 +498,6 @@ func TestReadOnlyTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			ColumnNames: []string{},
-			Rows:        []Row{},
 			Stats: Stats{
 				AffectedRows: 0,
 			},
