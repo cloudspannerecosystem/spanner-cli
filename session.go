@@ -101,7 +101,7 @@ func (s *Session) InstancePath() string {
 func (s *Session) DatabaseExists() (bool, error) {
 	// For users who don't have `spanner.databases.get` IAM permission,
 	// check database existence by running an actual query.
-	// cf. https://github.com/yfuruyama/spanner-cli/issues/10
+	// cf. https://github.com/cloudspannerecosystem/spanner-cli/issues/10
 	stmt := spanner.NewStatement("SELECT 1")
 	iter := s.client.Single().Query(s.ctx, stmt)
 	defer iter.Stop()
