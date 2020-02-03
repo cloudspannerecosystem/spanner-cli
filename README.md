@@ -3,7 +3,7 @@ spanner-cli [![CircleCI](https://circleci.com/gh/cloudspannerecosystem/spanner-c
 
 Interactive command line tool for Cloud Spanner.
 
-![gif](https://github.com/yfuruyama/spanner-cli/blob/master/image/spanner_cli.gif)
+![gif](https://github.com/cloudspannerecosystem/spanner-cli/blob/master/image/spanner_cli.gif)
 
 ## Description
 
@@ -17,12 +17,12 @@ This tool is not an official Google product.
 
 ## Install
 
-You can get the latest binary from [Releases](https://github.com/yfuruyama/spanner-cli/releases).
+You can get the latest binary from [Releases](https://github.com/cloudspannerecosystem/spanner-cli/releases).
 
 Or if you have `go`, just execute `go get` from your console.
 
 ```
-go get -u github.com/yfuruyama/spanner-cli
+go get -u github.com/cloudspannerecosystem/spanner-cli
 ```
 
 ## Usage

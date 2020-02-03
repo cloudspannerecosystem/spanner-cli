@@ -1,4 +1,4 @@
-module github.com/yfuruyama/spanner-cli
+module github.com/cloudspannerecosystem/spanner-cli
 
 go 1.13
 
