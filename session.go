@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -28,14 +30,23 @@ type Session struct {
 	roTxn *spanner.ReadOnlyTransaction
 }
 
-func NewSession(ctx context.Context, projectId string, instanceId string, databaseId string, clientConfig spanner.ClientConfig, clientOptions ...option.ClientOption) (*Session, error) {
+func NewSession(ctx context.Context, projectId string, instanceId string, databaseId string, clientConfig spanner.ClientConfig, opts ...option.ClientOption) (*Session, error) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
-	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, clientOptions...)
+	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	adminClient, err := adminapi.NewDatabaseAdminClient(ctx, clientOptions...)
+	if emulatorAddr := os.Getenv("SPANNER_EMULATOR_HOST"); emulatorAddr != "" {
+		emulatorOpts := []option.ClientOption{
+			option.WithEndpoint(emulatorAddr),
+			option.WithGRPCDialOption(grpc.WithInsecure()),
+			option.WithoutAuthentication(),
+		}
+		opts = append(opts, emulatorOpts...)
+	}
+
+	adminClient, err := adminapi.NewDatabaseAdminClient(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
