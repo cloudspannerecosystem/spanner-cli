@@ -16,6 +16,7 @@ func TestBuildStatement(t *testing.T) {
 	}{
 		{"SELECT * FROM t1", &SelectStatement{Query: "SELECT * FROM t1"}},
 		{"SELECT\n*\nFROM t1", &SelectStatement{Query: "SELECT\n*\nFROM t1"}},
+		{"WITH sub AS (SELECT 1) SELECT * FROM sub", &SelectStatement{Query: "WITH sub AS (SELECT 1) SELECT * FROM sub"}},
 		{"CREATE DATABASE d1", &CreateDatabaseStatement{CreateStatement: "CREATE DATABASE d1"}},
 		{"CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)", &DdlStatement{Ddl: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)"}},
 		{"ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL", &DdlStatement{Ddl: "ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL"}},
