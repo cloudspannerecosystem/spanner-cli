@@ -91,6 +91,10 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 		t.Fatalf("failed to create table: err=%s", err)
 	}
 
+	// Wait until created table becomes visible.
+	// TODO(furuyama): Change to a sophisticated way for checking table creation
+	time.Sleep(10 * time.Second)
+
 	for _, dml := range dmls {
 		dml = strings.Replace(dml, "[[TABLE]]", tableId, -1)
 		stmt := spanner.NewStatement(dml)
