@@ -38,6 +38,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			if err := column.Decode(&vs); err != nil {
 				return "", err
 			}
+			if vs == nil {
+				return "NULL", nil
+			}
 			for _, v := range vs {
 				decoded = append(decoded, nullBoolToString(v))
 			}
@@ -45,6 +48,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			var vs [][]byte
 			if err := column.Decode(&vs); err != nil {
 				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
 			}
 			for _, v := range vs {
 				decoded = append(decoded, nullBytesToString(v))
@@ -54,6 +60,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			if err := column.Decode(&vs); err != nil {
 				return "", err
 			}
+			if vs == nil {
+				return "NULL", nil
+			}
 			for _, v := range vs {
 				decoded = append(decoded, nullFloat64ToString(v))
 			}
@@ -61,6 +70,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			var vs []spanner.NullInt64
 			if err := column.Decode(&vs); err != nil {
 				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
 			}
 			for _, v := range vs {
 				decoded = append(decoded, nullInt64ToString(v))
@@ -70,6 +82,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			if err := column.Decode(&vs); err != nil {
 				return "", err
 			}
+			if vs == nil {
+				return "NULL", nil
+			}
 			for _, v := range vs {
 				decoded = append(decoded, nullStringToString(v))
 			}
@@ -78,6 +93,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			if err := column.Decode(&vs); err != nil {
 				return "", err
 			}
+			if vs == nil {
+				return "NULL", nil
+			}
 			for _, v := range vs {
 				decoded = append(decoded, nullTimeToString(v))
 			}
@@ -85,6 +103,9 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			var vs []spanner.NullDate
 			if err := column.Decode(&vs); err != nil {
 				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
 			}
 			for _, v := range vs {
 				decoded = append(decoded, nullDateToString(v))

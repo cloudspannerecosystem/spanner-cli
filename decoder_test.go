@@ -63,6 +63,7 @@ func TestDecodeRow(t *testing.T) {
 		{createRow(t, []interface{}{spanner.NullDate{Date: civil.DateOf(time.Unix(1516676400, 0)), Valid: true}, spanner.NullDate{Date: civil.DateOf(time.Unix(0, 0)), Valid: false}}), []string{"2018-01-23", "NULL"}},
 
 		// array type
+		{createRow(t, []interface{}{[]string{}}), []string{"[]"}},
 		{createRow(t, []interface{}{[]bool{true, false}}), []string{"[true, false]"}},
 		{createRow(t, []interface{}{[][]byte{{'a', 'b', 'c'}, []byte{'e', 'f', 'g'}}}), []string{"[YWJj, ZWZn]"}},
 		{createRow(t, []interface{}{[]float64{1.23, 2.45}}), []string{"[1.230000, 2.450000]"}},
@@ -70,6 +71,15 @@ func TestDecodeRow(t *testing.T) {
 		{createRow(t, []interface{}{[]string{"foo", "bar"}}), []string{"[foo, bar]"}},
 		{createRow(t, []interface{}{[]time.Time{time.Unix(1516676400, 0), time.Unix(1516680000, 0)}}), []string{"[2018-01-23T03:00:00Z, 2018-01-23T04:00:00Z]"}},
 		{createRow(t, []interface{}{[]civil.Date{civil.DateOf(time.Unix(1516676400, 0)), civil.DateOf(time.Unix(1516762800, 0))}}), []string{"[2018-01-23, 2018-01-24]"}},
+
+		// array nullable type
+		{createRow(t, []interface{}{[]bool(nil)}), []string{"NULL"}},
+		{createRow(t, []interface{}{[]byte(nil)}), []string{"NULL"}},
+		{createRow(t, []interface{}{[]float64(nil)}), []string{"NULL"}},
+		{createRow(t, []interface{}{[]int64(nil)}), []string{"NULL"}},
+		{createRow(t, []interface{}{[]string(nil)}), []string{"NULL"}},
+		{createRow(t, []interface{}{[]time.Time(nil)}), []string{"NULL"}},
+		{createRow(t, []interface{}{[]civil.Date(nil)}), []string{"NULL"}},
 	}
 
 	for _, test := range validTests {
