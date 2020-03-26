@@ -8,22 +8,17 @@ Interactive command line tool for Cloud Spanner.
 ## Description
 
 `spanner-cli` is an interactive command line tool for [Google Cloud Spanner](https://cloud.google.com/spanner/).  
-You can control your Spanner databases with idiomatic SQL commands. If you're familiar with `mysql(1)` command,
-you can find this tool is similar to that.
-
-This tool is still **ALPHA** quality. Do not use this tool for production databases.
-
-This tool is not an official Google product.
+You can control your Spanner databases with idiomatic SQL commands.
 
 ## Install
 
-You can get the latest binary from [Releases](https://github.com/cloudspannerecosystem/spanner-cli/releases).
-
-Or if you have `go`, just execute `go get` from your console.
+If you have `go`, you can install using `go get`.
 
 ```
 go get -u github.com/cloudspannerecosystem/spanner-cli
 ```
+
+Otherwise, you can download the binary from the [releases page](https://github.com/cloudspannerecosystem/spanner-cli/releases).
 
 ## Usage
 
@@ -110,7 +105,7 @@ Bye
 
 ### Batch mode
 
-By passing SQL from standard input, `spanner-cli` runs in batch mode
+By passing SQL from standard input, `spanner-cli` runs in batch mode.
 
 ```
 $ echo 'SELECT * FROM users;' | spanner-cli -p myproject -i myinstance -d mydb
@@ -119,7 +114,7 @@ id      name    active
 2       bar     false
 ```
 
-You can also pass SQL from command line option `-e`
+You can also pass SQL with command line option `-e`.
 
 ```
 $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;'
@@ -128,7 +123,7 @@ id      name    active
 2       bar     false
 ```
 
-With `-t` option, results are displayed in table format
+With `-t` option, results are displayed in table format.
 
 ```
 $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;' -t
@@ -208,7 +203,7 @@ The default prompt is `spanner\t> `.
 
 ## Config file
 
-This tool supports a configuration file called `spanner_cli.cnf` like `my.cnf`.  
+This tool supports a configuration file called `spanner_cli.cnf`, similar to `my.cnf`.  
 The config file path must be `~/.spanner_cli.cnf`.  
 In the config file, you can set default option values for command line options.
 
@@ -223,13 +218,13 @@ prompt = "[\\p:\\i:\\d]\\t> "
 
 ## How to develop
 
-Run unit tests
+Run unit tests.
 
 ```
 $ make test
 ```
 
-Run unit tests and integration tests, which connects to real Cloud Spanner database.
+Run integration tests, which connects to real Cloud Spanner database.
 
 ```
 $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTIAL=${CREDENTIAL} make test
@@ -237,5 +232,12 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 
 ## TODO
 
-* STRUCT data type
-* show secondary index by "SHOW CREATE TABLE"
+* Support `STRUCT` data type
+* Support `DROP DATABASE`
+* Show secondary index by "SHOW CREATE TABLE"
+
+## Disclaimer
+
+Do not use this tool for production databases as the tool is still alpha quality.
+
+This tool is not an official Google product.
