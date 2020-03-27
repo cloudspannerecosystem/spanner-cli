@@ -24,6 +24,18 @@ func createRow(t *testing.T, values []interface{}) *spanner.Row {
 	return row
 }
 
+func createColumnValue(t *testing.T, value interface{}) spanner.GenericColumnValue {
+	t.Helper()
+
+	row := createRow(t, []interface{}{value})
+	var cv spanner.GenericColumnValue
+	if err := row.Column(0, &cv); err != nil {
+		t.Fatalf("Creating spanner column value failed unexpectedly: %v", err)
+	}
+
+	return cv
+}
+
 func equalStringSlice(a []string, b []string) bool {
 	if a == nil || b == nil {
 		return false
@@ -39,57 +51,218 @@ func equalStringSlice(a []string, b []string) bool {
 	return true
 }
 
-func TestDecodeRow(t *testing.T) {
-	validTests := []struct {
-		Input    *spanner.Row
-		Expected []string
+func TestDecodeColumn(t *testing.T) {
+	tests := []struct {
+		desc  string
+		value interface{}
+		want  string
 	}{
-		// basic type
-		{createRow(t, []interface{}{true}), []string{"true"}},
-		{createRow(t, []interface{}{[]byte{'a', 'b', 'c'}}), []string{"YWJj"}}, // base64 encode of 'abc'
-		{createRow(t, []interface{}{1.23}), []string{"1.230000"}},
-		{createRow(t, []interface{}{123}), []string{"123"}},
-		{createRow(t, []interface{}{"foo"}), []string{"foo"}},
-		{createRow(t, []interface{}{time.Unix(1516676400, 0)}), []string{"2018-01-23T03:00:00Z"}},
-		{createRow(t, []interface{}{civil.DateOf(time.Unix(1516676400, 0))}), []string{"2018-01-23"}},
+		// non-nullable
+		{
+			desc:  "bool",
+			value:  true,
+			want:  "true",
+		},
+		{
+			desc:  "bytes",
+			value: []byte{'a', 'b', 'c'},
+			want:  "YWJj", // base64 encoded 'abc'
+		},
+		{
+			desc:  "float64",
+			value: 1.23,
+			want:  "1.230000",
+		},
+		{
+			desc:  "int64",
+			value: 123,
+			want:  "123",
+		},
+		{
+			desc:  "string",
+			value: "foo",
+			want:  "foo",
+		},
+		{
+			desc:  "timestamp",
+			value: time.Unix(1516676400, 0),
+			want:  "2018-01-23T03:00:00Z",
+		},
+		{
+			desc:  "date",
+			value: civil.DateOf(time.Unix(1516676400, 0)),
+			want:  "2018-01-23",
+		},
 
-		// basic nullable type
-		{createRow(t, []interface{}{spanner.NullBool{Bool: true, Valid: true}, spanner.NullBool{Bool: false, Valid: false}}), []string{"true", "NULL"}},
-		{createRow(t, []interface{}{[]byte{'a', 'b', 'c'}, []byte(nil)}), []string{"YWJj", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullFloat64{Float64: 1.23, Valid: true}, spanner.NullFloat64{Float64: 0, Valid: false}}), []string{"1.230000", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullInt64{Int64: 123, Valid: true}, spanner.NullInt64{Int64: 0, Valid: false}}), []string{"123", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullString{StringVal: "foo", Valid: true}, spanner.NullString{StringVal: "", Valid: false}}), []string{"foo", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullTime{Time: time.Unix(1516676400, 0), Valid: true}, spanner.NullTime{Time: time.Unix(0, 0), Valid: false}}), []string{"2018-01-23T03:00:00Z", "NULL"}},
-		{createRow(t, []interface{}{spanner.NullDate{Date: civil.DateOf(time.Unix(1516676400, 0)), Valid: true}, spanner.NullDate{Date: civil.DateOf(time.Unix(0, 0)), Valid: false}}), []string{"2018-01-23", "NULL"}},
+		// nullable
+		{
+			desc:  "null bool",
+			value: spanner.NullBool{Bool: false, Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null bytes",
+			value: []byte(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null float64",
+			value: spanner.NullFloat64{Float64: 0, Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null int64",
+			value: spanner.NullInt64{Int64: 0, Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null string",
+			value: spanner.NullString{StringVal: "", Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null time",
+			value: spanner.NullTime{Time: time.Unix(0, 0), Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null date",
+			value: spanner.NullDate{Date: civil.DateOf(time.Unix(0, 0)), Valid: false},
+			want:  "NULL",
+		},
 
-		// array type
-		{createRow(t, []interface{}{[]string{}}), []string{"[]"}},
-		{createRow(t, []interface{}{[]bool{true, false}}), []string{"[true, false]"}},
-		{createRow(t, []interface{}{[][]byte{{'a', 'b', 'c'}, []byte{'e', 'f', 'g'}}}), []string{"[YWJj, ZWZn]"}},
-		{createRow(t, []interface{}{[]float64{1.23, 2.45}}), []string{"[1.230000, 2.450000]"}},
-		{createRow(t, []interface{}{[]int64{123, 456}}), []string{"[123, 456]"}},
-		{createRow(t, []interface{}{[]string{"foo", "bar"}}), []string{"[foo, bar]"}},
-		{createRow(t, []interface{}{[]time.Time{time.Unix(1516676400, 0), time.Unix(1516680000, 0)}}), []string{"[2018-01-23T03:00:00Z, 2018-01-23T04:00:00Z]"}},
-		{createRow(t, []interface{}{[]civil.Date{civil.DateOf(time.Unix(1516676400, 0)), civil.DateOf(time.Unix(1516762800, 0))}}), []string{"[2018-01-23, 2018-01-24]"}},
+		// array non-nullable
+		{
+			desc:  "empty array",
+			value: []bool{},
+			want:  "[]",
+		},
+		{
+			desc:  "array bool",
+			value: []bool{true, false},
+			want:  "[true, false]",
+		},
+		{
+			desc:  "array bytes",
+			value: [][]byte{{'a', 'b', 'c'}, {'e', 'f', 'g'}},
+			want:  "[YWJj, ZWZn]",
+		},
+		{
+			desc:  "array float64",
+			value: []float64{1.23, 2.45},
+			want:  "[1.230000, 2.450000]",
+		},
+		{
+			desc:  "array int64",
+			value: []int64{123, 456},
+			want:  "[123, 456]",
+		},
+		{
+			desc:  "array string",
+			value: []string{"foo", "bar"},
+			want:  "[foo, bar]",
+		},
+		{
+			desc:  "array timestamp",
+			value: []time.Time{time.Unix(1516676400, 0), time.Unix(1516680000, 0)},
+			want:  "[2018-01-23T03:00:00Z, 2018-01-23T04:00:00Z]",
+		},
+		{
+			desc:  "array date",
+			value: []civil.Date{civil.DateOf(time.Unix(1516676400, 0)), civil.DateOf(time.Unix(1516762800, 0))},
+			want:  "[2018-01-23, 2018-01-24]",
+		},
+		{
+			desc: "array struct",
+			value: []struct{
+				X int64
+				Y string
+			}{
+				{
+					X: 10,
+					Y: "Hello",
+				},
+			},
+			want: "[[10, Hello]]",
+		},
 
-		// array nullable type
-		{createRow(t, []interface{}{[]bool(nil)}), []string{"NULL"}},
-		{createRow(t, []interface{}{[]byte(nil)}), []string{"NULL"}},
-		{createRow(t, []interface{}{[]float64(nil)}), []string{"NULL"}},
-		{createRow(t, []interface{}{[]int64(nil)}), []string{"NULL"}},
-		{createRow(t, []interface{}{[]string(nil)}), []string{"NULL"}},
-		{createRow(t, []interface{}{[]time.Time(nil)}), []string{"NULL"}},
-		{createRow(t, []interface{}{[]civil.Date(nil)}), []string{"NULL"}},
+		// array nullable
+		{
+			desc:  "null array bool",
+			value: []bool(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array bytes",
+			value: [][]byte(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "nul array float64",
+			value: []float64(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array int64",
+			value: []int64(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array string",
+			value: []string(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array timestamp",
+			value: []time.Time(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array date",
+			value: []civil.Date(nil),
+			want:  "NULL",
+		},
 	}
 
-	for _, test := range validTests {
-		got, err := DecodeRow(test.Input)
-		if err != nil {
-			t.Error(err)
-		}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			got, err := DecodeColumn(createColumnValue(t, test.value))
+			if err != nil {
+				t.Error(err)
+			}
+			if got != test.want {
+				t.Errorf("DecodeColumn(%v) = %v, want = %v", test.value, got, test.want)
+			}
+		})
+	}
+}
 
-		if !equalStringSlice(got, test.Expected) {
-			t.Errorf("DecodeRow(%q) = %v, but expected = %v", test.Input, got, test.Expected)
-		}
+func TestDecodeRow(t *testing.T) {
+	tests := []struct {
+		desc  string
+		values    []interface{}
+		want []string
+	}{
+		{
+			desc:  "non-null columns",
+			values:  []interface{}{"foo", 123},
+			want:  []string{"foo", "123"},
+		},
+		{
+			desc:  "non-null column and null column",
+			values:  []interface{}{"foo", spanner.NullString{StringVal: "", Valid: false}},
+			want:  []string{"foo", "NULL"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			got, err := DecodeRow(createRow(t, test.values))
+			if err != nil {
+				t.Error(err)
+			}
+			if !equalStringSlice(got, test.want) {
+				t.Errorf("DecodeRow(%v) = %v, want = %v", test.values, got, test.want)
+			}
+		})
 	}
 }
