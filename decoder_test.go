@@ -176,14 +176,18 @@ func TestDecodeColumn(t *testing.T) {
 			desc: "array struct",
 			value: []struct{
 				X int64
-				Y string
+				Y spanner.NullString
 			}{
 				{
 					X: 10,
-					Y: "Hello",
+					Y: spanner.NullString{StringVal: "Hello", Valid: true},
+				},
+				{
+					X: 20,
+					Y: spanner.NullString{StringVal: "", Valid: false},
 				},
 			},
-			want: "[[10, Hello]]",
+			want: "[[10, Hello], [20, NULL]]",
 		},
 
 		// array nullable

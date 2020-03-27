@@ -110,6 +110,8 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 				decoded = append(decoded, nullDateToString(v))
 			}
 		case sppb.TypeCode_STRUCT:
+			// STRUCT is only allowed in an ARRAY
+			// https://cloud.google.com/spanner/docs/structs#returning_struct_objects_in_sql_query_results
 			var vs []spanner.NullRow
 			if err := column.Decode(&vs); err != nil {
 				return "", err
