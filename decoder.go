@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -111,7 +110,20 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 				decoded = append(decoded, nullDateToString(v))
 			}
 		case sppb.TypeCode_STRUCT:
-			return "", errors.New("STRUCT data type is not supported yet.")
+			var vs []spanner.NullRow
+			if err := column.Decode(&vs); err != nil {
+				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
+			}
+			for _, v := range vs {
+				columns, err := DecodeRow(&v.Row)
+				if err != nil {
+					return "", err
+				}
+				decoded = append(decoded, fmt.Sprintf("[%s]", strings.Join(columns, ", ")))
+			}
 		}
 		return fmt.Sprintf("[%s]", strings.Join(decoded, ", ")), nil
 	case sppb.TypeCode_BOOL:
