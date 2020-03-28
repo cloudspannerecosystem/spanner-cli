@@ -20,6 +20,7 @@ type spannerOptions struct {
 	InstanceId string `short:"i" long:"instance" description:"(required) Cloud Spanner Instance ID"`
 	DatabaseId string `short:"d" long:"database" description:"(required) Cloud Spanner Database ID."`
 	Execute    string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
+	Batch      bool   `short:"b" long:"batch" description:"Batch execute DDL statements."`
 	Table      bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
 	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
@@ -64,7 +65,11 @@ func main() {
 
 	var exitCode int
 	if opts.Execute != "" {
-		exitCode = cli.RunBatch(opts.Execute, opts.Table)
+		if opts.Batch {
+			exitCode = cli.RunDdlBatch(opts.Execute, opts.Table)
+		} else {
+			exitCode = cli.RunBatch(opts.Execute, opts.Table)
+		}
 	} else if stdin != "" {
 		exitCode = cli.RunBatch(stdin, opts.Table)
 	} else {

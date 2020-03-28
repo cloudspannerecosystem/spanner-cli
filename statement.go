@@ -615,3 +615,22 @@ type UseStatement struct {
 	Database string
 	NopStatement
 }
+
+func DdlBatchExecute(session *Session, ddlStatements []*DdlStatement) (*Result, error) {
+	var rawStatements []string
+	for _, ddlStatement := range ddlStatements {
+		rawStatements = append(rawStatements, ddlStatement.Ddl)
+	}
+	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
+		Database:   session.DatabasePath(),
+		Statements: rawStatements,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := op.Wait(session.ctx); err != nil {
+		return nil, err
+	}
+
+	return &Result{IsMutation: true}, nil
+}

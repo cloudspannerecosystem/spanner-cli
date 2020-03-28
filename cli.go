@@ -189,6 +189,37 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 	return exitCodeSuccess
 }
 
+func (c *Cli) RunDdlBatch(input string, displayTable bool) int {
+	var ddls []*DdlStatement
+	for _, separated := range separateInput(input) {
+		stmt, err := BuildStatement(separated.statement)
+		if err != nil {
+			c.PrintBatchError(err)
+			return exitCodeError
+		}
+
+		if ddl, ok := stmt.(*DdlStatement); ok {
+			ddls = append(ddls, ddl)
+		} else {
+			c.PrintBatchError(fmt.Errorf("statement is not DDL: %s", separated.statement))
+			return exitCodeError
+		}
+	}
+
+	result, err := DdlBatchExecute(c.Session, ddls)
+	if err != nil {
+		c.PrintBatchError(err)
+		return exitCodeError
+	}
+
+	if displayTable {
+		c.PrintResult(result, DisplayModeTable, false)
+	} else {
+		c.PrintResult(result, DisplayModeTab, false)
+	}
+	return exitCodeSuccess
+}
+
 func (c *Cli) Exit() int {
 	c.Session.Close()
 	fmt.Fprintln(c.OutStream, "Bye")
