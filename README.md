@@ -26,17 +26,18 @@ Otherwise, you can download the binary from the [releases page](https://github.c
 Usage:
   spanner-cli [OPTIONS]
 
-Application Options:
-  -p, --project=  (required) GCP Project ID.
-  -i, --instance= (required) Cloud Spanner Instance ID
-  -d, --database= (required) Cloud Spanner Database ID.
-  -e, --execute=  Execute SQL statement and quit.
-  -t, --table     Display output in table format for batch mode.
+spanner:
+  -p, --project=    (required) GCP Project ID.
+  -i, --instance=   (required) Cloud Spanner Instance ID
+  -d, --database=   (required) Cloud Spanner Database ID.
+  -e, --execute=    Execute SQL statement and quit.
+  -f, --file=       Execute SQL statement from file and quit.
+  -t, --table       Display output in table format for batch mode.
       --credential= Use the specific credential file
-      --prompt=   Set the prompt to the specified format
+      --prompt=     Set the prompt to the specified format
 
 Help Options:
-  -h, --help      Show this help message
+  -h, --help        Show this help message
 ```
 
 Unless you specify a credential file with `--credential`, this tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
