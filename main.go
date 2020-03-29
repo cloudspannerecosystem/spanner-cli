@@ -68,7 +68,7 @@ func main() {
 
 	if opts.Execute != "" {
 		input = opts.Execute
-	} else if opts.File != "" {
+	} else if opts.File != "" && opts.File != "-" {
 		b, err := ioutil.ReadFile(opts.File)
 		if err != nil {
 			exitf("Read from file %v failed: %v", opts.File, err)
