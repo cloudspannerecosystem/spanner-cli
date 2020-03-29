@@ -214,9 +214,21 @@ type DdlStatement struct {
 }
 
 func (s *DdlStatement) Execute(session *Session) (*Result, error) {
+	return executeDdlStatements(session, []string{s.Ddl})
+}
+
+type DdlStatements struct {
+	Ddls []string
+}
+
+func (s *DdlStatements) Execute(session *Session) (*Result, error) {
+	return executeDdlStatements(session, s.Ddls)
+}
+
+func executeDdlStatements(session *Session, ddls []string) (*Result, error) {
 	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.DatabasePath(),
-		Statements: []string{s.Ddl},
+		Statements: ddls,
 	})
 	if err != nil {
 		return nil, err
