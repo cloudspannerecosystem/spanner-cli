@@ -211,13 +211,9 @@ type DdlStatements struct {
 }
 
 func (s *DdlStatements) Execute(session *Session) (*Result, error) {
-	var stmts []string
-	for _, stmt := range s.Ddls {
-		stmts = append(stmts, stmt)
-	}
 	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.DatabasePath(),
-		Statements: stmts,
+		Statements: s.Ddls,
 	})
 	if err != nil {
 		return nil, err
