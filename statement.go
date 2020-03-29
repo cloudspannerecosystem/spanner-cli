@@ -84,13 +84,16 @@ func BuildStatement(input string) (Statement, error) {
 		return &SelectStatement{Query: input}, nil
 	case createDatabaseRe.MatchString(input):
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
-	case
-		createTableRe.MatchString(input),
-		alterTableRe.MatchString(input),
-		dropTableRe.MatchString(input),
-		createIndexRe.MatchString(input),
-		dropIndexRe.MatchString(input):
-		return &DdlStatements{Ddls: []string{input}}, nil
+	case createTableRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case alterTableRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case dropTableRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case createIndexRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case dropIndexRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
 	case showDatabasesRe.MatchString(input):
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):
@@ -206,14 +209,26 @@ func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 	return &Result{IsMutation: true}, nil
 }
 
+type DdlStatement struct {
+	Ddl string
+}
+
+func (s *DdlStatement) Execute(session *Session) (*Result, error) {
+	return executeDdlStatements(session, []string{s.Ddl})
+}
+
 type DdlStatements struct {
 	Ddls []string
 }
 
 func (s *DdlStatements) Execute(session *Session) (*Result, error) {
+	return executeDdlStatements(session, s.Ddls)
+}
+
+func executeDdlStatements(session *Session, ddls []string) (*Result, error) {
 	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.DatabasePath(),
-		Statements: s.Ddls,
+		Statements: ddls,
 	})
 	if err != nil {
 		return nil, err

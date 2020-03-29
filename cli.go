@@ -401,10 +401,13 @@ func buildDdlStatements(input string) Statement {
 			return nil
 		}
 
-		if ddl, ok := stmt.(*DdlStatements); !ok {
-			return nil
-		} else {
+		switch ddl := stmt.(type) {
+		case *DdlStatements:
 			ddls = append(ddls, ddl.Ddls...)
+		case *DdlStatement:
+			ddls = append(ddls, ddl.Ddl)
+		default:
+			return nil
 		}
 	}
 	return &DdlStatements{ddls}
