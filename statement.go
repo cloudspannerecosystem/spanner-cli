@@ -84,16 +84,13 @@ func BuildStatement(input string) (Statement, error) {
 		return &SelectStatement{Query: input}, nil
 	case createDatabaseRe.MatchString(input):
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
-	case createTableRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case alterTableRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case dropTableRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case createIndexRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case dropIndexRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
+	case
+		createTableRe.MatchString(input),
+		alterTableRe.MatchString(input),
+		dropTableRe.MatchString(input),
+		createIndexRe.MatchString(input),
+		dropIndexRe.MatchString(input):
+		return &DdlStatements{Ddls: []string{input}}, nil
 	case showDatabasesRe.MatchString(input):
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):
@@ -209,14 +206,18 @@ func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 	return &Result{IsMutation: true}, nil
 }
 
-type DdlStatement struct {
-	Ddl string
+type DdlStatements struct {
+	Ddls []string
 }
 
-func (s *DdlStatement) Execute(session *Session) (*Result, error) {
+func (s *DdlStatements) Execute(session *Session) (*Result, error) {
+	var stmts []string
+	for _, stmt := range s.Ddls {
+		stmts = append(stmts, stmt)
+	}
 	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.DatabasePath(),
-		Statements: []string{s.Ddl},
+		Statements: stmts,
 	})
 	if err != nil {
 		return nil, err
@@ -611,23 +612,4 @@ type ExitStatement struct {
 type UseStatement struct {
 	Database string
 	NopStatement
-}
-
-func DdlBatchExecute(session *Session, ddlStatements []*DdlStatement) (*Result, error) {
-	var rawStatements []string
-	for _, ddlStatement := range ddlStatements {
-		rawStatements = append(rawStatements, ddlStatement.Ddl)
-	}
-	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database:   session.DatabasePath(),
-		Statements: rawStatements,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if err := op.Wait(session.ctx); err != nil {
-		return nil, err
-	}
-
-	return &Result{IsMutation: true}, nil
 }
