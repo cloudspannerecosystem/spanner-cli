@@ -20,6 +20,7 @@ type spannerOptions struct {
 	InstanceId string `short:"i" long:"instance" description:"(required) Cloud Spanner Instance ID"`
 	DatabaseId string `short:"d" long:"database" description:"(required) Cloud Spanner Database ID."`
 	Execute    string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
+	File       string `short:"f" long:"file" description:"Execute SQL statement from file and quit."`
 	Table      bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
 	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
@@ -44,6 +45,9 @@ func main() {
 		exitf("Missing parameters: -p, -i, -d are required\n")
 	}
 
+	if opts.File != "" && opts.Execute != "" {
+		exitf("Invalid combination: -e, -f are exclusive\n")
+	}
 	var cred []byte
 	if opts.Credential != "" {
 		var err error
@@ -57,16 +61,24 @@ func main() {
 		exitf("Failed to connect to Spanner: %v", err)
 	}
 
-	stdin, err := readStdin()
+	input, err := readStdin()
 	if err != nil {
 		exitf("Read from stdin failed: %v", err)
 	}
 
-	var exitCode int
 	if opts.Execute != "" {
-		exitCode = cli.RunBatch(opts.Execute, opts.Table)
-	} else if stdin != "" {
-		exitCode = cli.RunBatch(stdin, opts.Table)
+		input = opts.Execute
+	} else if opts.File != "" {
+		b, err := ioutil.ReadFile(opts.File)
+		if err != nil {
+			exitf("Read from file %v failed: %v", opts.File, err)
+		}
+		input = string(b)
+	}
+
+	var exitCode int
+	if input != "" {
+		exitCode = cli.RunBatch(input, opts.Table)
 	} else {
 		exitCode = cli.RunInteractive()
 	}
