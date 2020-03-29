@@ -44,6 +44,7 @@ type Cli struct {
 	InStream   io.ReadCloser
 	OutStream  io.Writer
 	ErrStream  io.Writer
+	Verbose bool
 }
 
 var defaultClientConfig = spanner.ClientConfig{
@@ -54,7 +55,7 @@ var defaultClientConfig = spanner.ClientConfig{
 	},
 }
 
-func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool) (*Cli, error) {
 	ctx := context.Background()
 	session, err := createSession(ctx, projectId, instanceId, databaseId, credential)
 	if err != nil {
@@ -72,6 +73,7 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, credential 
 		InStream:   inStream,
 		OutStream:  outStream,
 		ErrStream:  errStream,
+		Verbose: verbose,
 	}, nil
 }
 
@@ -368,9 +370,9 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 			fmt.Fprintf(out, "Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
 		} else {
 			if result.Stats.AffectedRows == 0 {
-				fmt.Fprintf(out, "Empty set (%s)\n", result.Stats.ElapsedTime)
+				fmt.Fprintf(out, "Empty set (%s), readTimestamp(%v)\n", result.Stats.ElapsedTime, result.Timestamp)
 			} else {
-				fmt.Fprintf(out, "%d rows in set (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
+				fmt.Fprintf(out, "%d rows in set (%s), readTimestamp(%v)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, result.Timestamp)
 			}
 		}
 	}

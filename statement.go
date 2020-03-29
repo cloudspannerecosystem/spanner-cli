@@ -22,6 +22,7 @@ type Result struct {
 	Rows        []Row
 	Stats       Stats
 	IsMutation  bool
+	Timestamp time.Time
 }
 
 type Row struct {
@@ -146,16 +147,26 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
 	var iter *spanner.RowIterator
 
+	result := &Result{}
+
 	if session.InRwTxn() {
 		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
 	} else if session.InRoTxn() {
 		iter = session.roTxn.QueryWithStats(session.ctx, stmt)
+		ts, err := session.roTxn.Timestamp()
+		if err == nil {
+			result.Timestamp = ts
+		}
 	} else {
-		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
+		single := session.client.Single()
+		iter = single.QueryWithStats(session.ctx, stmt)
+		ts, err := single.Timestamp()
+		if err != nil {
+			return nil, err
+		}
+		result.Timestamp = ts
 	}
 	defer iter.Stop()
-
-	result := &Result{}
 
 	for {
 		row, err := iter.Next()
