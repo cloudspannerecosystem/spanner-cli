@@ -63,10 +63,9 @@ func TestBuildDdlStatements(t *testing.T) {
 	tests := []struct {
 		Input    string
 		Expected Statement
-		Ok       bool
 	}{
-		{`SELECT * FROM t1;`, nil, false},
-		{`CREATE TABLE t1;`, &DdlStatements{[]string{"CREATE TABLE t1"}}, true},
+		{`SELECT * FROM t1;`, nil},
+		{`CREATE TABLE t1;`, &DdlStatements{[]string{"CREATE TABLE t1"}}},
 		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
 			&DdlStatements{[]string{
 				"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)",
@@ -74,9 +73,8 @@ func TestBuildDdlStatements(t *testing.T) {
 				"CREATE INDEX i1 ON t1(col)",
 				"DROP INDEX i1",
 				"DROP TABLE t1",
-			}}, true},
-		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); SELECT * FROM t1;`,
-			nil, false},
+			}}},
+		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); SELECT * FROM t1;`, nil},
 	}
 
 	for _, test := range tests {
