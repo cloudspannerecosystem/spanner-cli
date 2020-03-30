@@ -586,7 +586,11 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	}
 	session.StartRoTxn(txn)
 
-	return &Result{IsMutation: true}, nil
+	// readTimestamp is not obtained until query is emitted
+	_ = txn.Query(context.Background(), spanner.NewStatement("SELECT 1"))
+	readTimestamp, _ := txn.Timestamp()
+
+	return &Result{IsMutation: true, Timestamp: readTimestamp}, nil
 }
 
 type CloseStatement struct{}
