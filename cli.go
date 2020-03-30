@@ -366,17 +366,17 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 	}
 
 	if withStats {
-		var readTimestampStr string
+		var timestampStr string
 		if verbose && !result.Timestamp.IsZero() {
-			readTimestampStr = fmt.Sprintf(" timestamp(%v)", result.Timestamp)
+			timestampStr = fmt.Sprintf(" timestamp(%v)", result.Timestamp)
 		}
 		if result.IsMutation {
-			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, readTimestampStr)
+			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
 		} else {
 			if result.Stats.AffectedRows == 0 {
-				fmt.Fprintf(out, "Empty set (%s)%v\n", result.Stats.ElapsedTime, readTimestampStr)
+				fmt.Fprintf(out, "Empty set (%s)%v\n", result.Stats.ElapsedTime, timestampStr)
 			} else {
-				fmt.Fprintf(out, "%d rows in set (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, readTimestampStr)
+				fmt.Fprintf(out, "%d rows in set (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
 			}
 		}
 	}
