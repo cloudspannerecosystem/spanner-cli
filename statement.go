@@ -191,7 +191,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		ElapsedTime:  elapsedTime,
 	}
 
-	// ReadOnlyTransaction.Timestamp() is valid after read.
+	// ReadOnlyTransaction.Timestamp() is invalid until read.
 	if targetRoTxn != nil {
 		result.Timestamp, _ = targetRoTxn.Timestamp()
 	}
