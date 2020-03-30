@@ -155,6 +155,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		iter = session.roTxn.QueryWithStats(session.ctx, stmt)
 		result.Timestamp, _ = session.roTxn.Timestamp()
 	} else {
+		// Use ReadOnlyTransaction because Single does't obtain read timestamp
 		txn := session.client.ReadOnlyTransaction()
 		defer txn.Close()
 		iter = txn.QueryWithStats(session.ctx, stmt)
