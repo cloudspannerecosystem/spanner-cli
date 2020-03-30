@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-type TxnFinishResponse struct {
+type txnFinishResult struct {
 	Err             error
 	CommitTimestamp time.Time
 }
@@ -28,7 +28,7 @@ type Session struct {
 
 	// for read-write transaction
 	rwTxn         *spanner.ReadWriteTransaction
-	txnFinished   chan TxnFinishResponse
+	txnFinished   chan txnFinishResult
 	committedChan chan bool
 
 	// for read-only transaction
@@ -63,7 +63,7 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 		databaseId:    databaseId,
 		client:        client,
 		adminClient:   adminClient,
-		txnFinished:   make(chan TxnFinishResponse),
+		txnFinished:   make(chan txnFinishResult),
 		committedChan: make(chan bool),
 	}, nil
 }

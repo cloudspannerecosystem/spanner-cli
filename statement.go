@@ -510,7 +510,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 				return rollbackError
 			}
 		})
-		session.txnFinished <- TxnFinishResponse{Err: err, CommitTimestamp: commitTimestamp}
+		session.txnFinished <- txnFinishResult{Err: err, CommitTimestamp: commitTimestamp}
 	}()
 
 	select {
@@ -539,12 +539,12 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 
 	session.committedChan <- true
 
-	txnFinishResult := <-session.txnFinished
-	if txnFinishResult.Err != nil {
-		return nil, txnFinishResult.Err
+	txnFinishRes := <-session.txnFinished
+	if txnFinishRes.Err != nil {
+		return nil, txnFinishRes.Err
 	}
 
-	result.Timestamp = txnFinishResult.CommitTimestamp
+	result.Timestamp = txnFinishRes.CommitTimestamp
 	return result, nil
 }
 
