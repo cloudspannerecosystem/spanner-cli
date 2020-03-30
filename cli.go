@@ -371,12 +371,12 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 			timestampStr = fmt.Sprintf(" timestamp(%s)", result.Timestamp.Format(time.RFC3339Nano))
 		}
 		if result.IsMutation {
-			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
+			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%s\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
 		} else {
 			if result.Stats.AffectedRows == 0 {
-				fmt.Fprintf(out, "Empty set (%s)%v\n", result.Stats.ElapsedTime, timestampStr)
+				fmt.Fprintf(out, "Empty set (%s)%s\n", result.Stats.ElapsedTime, timestampStr)
 			} else {
-				fmt.Fprintf(out, "%d rows in set (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
+				fmt.Fprintf(out, "%d rows in set (%s)%s\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
 			}
 		}
 	}
