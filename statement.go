@@ -51,11 +51,13 @@ var (
 	deleteRe = regexp.MustCompile(`(?is)^DELETE\s+.+$`)
 
 	// Transaction
-	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
-	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+(\d+))?$`)
-	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
-	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
-	closeRe    = regexp.MustCompile(`(?is)^CLOSE$`)
+	beginRwRe                 = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
+	beginRoRe                 = regexp.MustCompile(`(?is)^BEGIN\s+RO$`)
+	beginRoExactStalenessRe   = regexp.MustCompile(`(?is)^BEGIN\s+RO\s+([^\s]+)$`)
+	beginRoBoundedStalenessRe = regexp.MustCompile(`(?is)^BEGIN\s+RO\s+BOUNDED\s+([^\s]+)$`)
+	commitRe                  = regexp.MustCompile(`(?is)^COMMIT$`)
+	rollbackRe                = regexp.MustCompile(`(?is)^ROLLBACK$`)
+	closeRe                   = regexp.MustCompile(`(?is)^CLOSE$`)
 
 	// Other
 	exitRe            = regexp.MustCompile(`(?is)^EXIT$`)
@@ -118,15 +120,42 @@ func BuildStatement(input string) (Statement, error) {
 		return &DmlStatement{Dml: input}, nil
 	case beginRwRe.MatchString(input):
 		return &BeginRwStatement{}, nil
-	case beginRoRe.MatchString(input):
-		matched := beginRoRe.FindStringSubmatch(input)
-		if matched[1] == "" {
-			return &BeginRoStatement{}, nil
-		} else {
-			if i, err := strconv.Atoi(matched[1]); err == nil {
-				return &BeginRoStatement{Staleness: time.Duration(time.Duration(i) * time.Second)}, nil
-			}
+	case beginRoBoundedStalenessRe.MatchString(input):
+		matched := beginRoBoundedStalenessRe.FindStringSubmatch(input)
+		if len(matched) != 2 {
+			break
 		}
+		if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
+			return &BeginRoStatement{
+				TimestampBoundType: minReadTimestamp,
+				Timestamp: t,
+			}, nil
+		}
+		if i, err := strconv.Atoi(matched[1]); err == nil {
+			return &BeginRoStatement{
+				TimestampBoundType: maxStaleness,
+				Staleness: time.Duration(time.Duration(i) * time.Second),
+			}, nil
+		}
+	case beginRoExactStalenessRe.MatchString(input):
+		matched := beginRoExactStalenessRe.FindStringSubmatch(input)
+		if len(matched) != 2 {
+			break
+		}
+		if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
+			return &BeginRoStatement{
+				TimestampBoundType: readTimestamp,
+				Timestamp: t,
+			}, nil
+		}
+		if i, err := strconv.Atoi(matched[1]); err == nil {
+			return &BeginRoStatement{
+				TimestampBoundType: exactStaleness,
+				Staleness: time.Duration(time.Duration(i) * time.Second),
+			}, nil
+		}
+	case beginRoRe.MatchString(input):
+		return &BeginRoStatement{}, nil
 	case commitRe.MatchString(input):
 		return &CommitStatement{}, nil
 	case rollbackRe.MatchString(input):
@@ -568,8 +597,20 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 	return result, nil
 }
 
+type timestampBoundType int
+
+const (
+	strong timestampBoundType = iota
+	exactStaleness
+	maxStaleness
+	minReadTimestamp
+	readTimestamp
+)
+
 type BeginRoStatement struct {
+	TimestampBoundType timestampBoundType
 	Staleness time.Duration
+	Timestamp time.Time
 }
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
