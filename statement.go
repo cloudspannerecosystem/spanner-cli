@@ -153,18 +153,12 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
 	} else if session.InRoTxn() {
 		iter = session.roTxn.QueryWithStats(session.ctx, stmt)
-		ts, err := session.roTxn.Timestamp()
-		if err == nil {
-			result.Timestamp = ts
-		}
+		result.Timestamp, _ = session.roTxn.Timestamp()
 	} else {
 		txn := session.client.ReadOnlyTransaction()
 		defer txn.Close()
 		iter = txn.QueryWithStats(session.ctx, stmt)
-		ts, err := txn.Timestamp()
-		if err == nil {
-			result.Timestamp = ts
-		}
+		result.Timestamp, _ = txn.Timestamp()
 	}
 	defer iter.Stop()
 
@@ -489,7 +483,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 
 	go func() {
 		txnExecuted := false
-		commitTimestamp, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		ts, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			// ReadWriteTransaction might retry this function, but retry is not allowed in this tool.
 			if txnExecuted {
 				return txnRetryError
@@ -510,7 +504,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 				return rollbackError
 			}
 		})
-		session.txnFinished <- txnFinishResult{Err: err, CommitTimestamp: commitTimestamp}
+		session.txnFinished <- txnFinishResult{CommitTimestamp: ts, Err: err}
 	}()
 
 	select {
@@ -540,8 +534,9 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 	session.committedChan <- true
 
 	txnFinishRes := <-session.txnFinished
-	if txnFinishRes.Err != nil {
-		return nil, txnFinishRes.Err
+	err := txnFinishRes.Err
+	if err != nil {
+		return nil, err
 	}
 
 	result.Timestamp = txnFinishRes.CommitTimestamp

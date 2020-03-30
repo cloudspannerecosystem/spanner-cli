@@ -14,8 +14,8 @@ import (
 )
 
 type txnFinishResult struct {
-	Err             error
 	CommitTimestamp time.Time
+	Err             error
 }
 
 type Session struct {
