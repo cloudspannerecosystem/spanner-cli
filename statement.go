@@ -535,8 +535,7 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 	session.committedChan <- true
 
 	txnFinishRes := <-session.txnFinished
-	err := txnFinishRes.Err
-	if err != nil {
+	if err := txnFinishRes.Err; err != nil {
 		return nil, err
 	}
 
@@ -560,8 +559,7 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 	session.committedChan <- false
 
 	txnFinishRes := <-session.txnFinished
-	err := txnFinishRes.Err
-	if err != nil && err != rollbackError {
+	if err := txnFinishRes.Err; err != nil && err != rollbackError {
 		return nil, err
 	}
 
