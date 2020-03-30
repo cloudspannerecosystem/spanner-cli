@@ -44,7 +44,7 @@ type Cli struct {
 	InStream   io.ReadCloser
 	OutStream  io.Writer
 	ErrStream  io.Writer
-	Verbose bool
+	Verbose    bool
 }
 
 var defaultClientConfig = spanner.ClientConfig{
@@ -73,7 +73,7 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, credential 
 		InStream:   inStream,
 		OutStream:  outStream,
 		ErrStream:  errStream,
-		Verbose: verbose,
+		Verbose:    verbose,
 	}, nil
 }
 
@@ -212,7 +212,7 @@ func (c *Cli) PrintBatchError(err error) {
 }
 
 func (c *Cli) PrintResult(result *Result, mode DisplayMode, withStats bool) {
-	printResult(c.OutStream, result, mode, withStats)
+	printResult(c.OutStream, result, mode, withStats, c.Verbose)
 }
 
 func (c *Cli) PrintProgressingMark() func() {
@@ -327,7 +327,7 @@ func separateInput(input string) []inputStatement {
 	return statements
 }
 
-func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool) {
+func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool, verbose bool) {
 	if mode == DisplayModeTable {
 		table := tablewriter.NewWriter(out)
 		table.SetAutoFormatHeaders(false)
@@ -366,13 +366,17 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 	}
 
 	if withStats {
+		var readTimestampStr string
+		if verbose && !result.Timestamp.IsZero() {
+			readTimestampStr = fmt.Sprintf(" timestamp(%v)", result.Timestamp)
+		}
 		if result.IsMutation {
-			fmt.Fprintf(out, "Query OK, %d rows affected (%s)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime)
+			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, readTimestampStr)
 		} else {
 			if result.Stats.AffectedRows == 0 {
-				fmt.Fprintf(out, "Empty set (%s), readTimestamp(%v)\n", result.Stats.ElapsedTime, result.Timestamp)
+				fmt.Fprintf(out, "Empty set (%s)%v\n", result.Stats.ElapsedTime, readTimestampStr)
 			} else {
-				fmt.Fprintf(out, "%d rows in set (%s), readTimestamp(%v)\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, result.Timestamp)
+				fmt.Fprintf(out, "%d rows in set (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, readTimestampStr)
 			}
 		}
 	}

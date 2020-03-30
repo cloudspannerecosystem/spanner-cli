@@ -22,7 +22,7 @@ type Result struct {
 	Rows        []Row
 	Stats       Stats
 	IsMutation  bool
-	Timestamp time.Time
+	Timestamp   time.Time
 }
 
 type Row struct {
@@ -158,13 +158,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 			result.Timestamp = ts
 		}
 	} else {
-		single := session.client.Single()
-		iter = single.QueryWithStats(session.ctx, stmt)
-		ts, err := single.Timestamp()
-		if err != nil {
-			return nil, err
-		}
-		result.Timestamp = ts
+		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
 	}
 	defer iter.Stop()
 
@@ -463,9 +457,11 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 		}
 
 		commit := CommitStatement{}
-		if _, err = commit.Execute(session); err != nil {
+		txnResult, err := commit.Execute(session)
+		if err != nil {
 			return nil, err
 		}
+		result.Timestamp = txnResult.Timestamp
 	}
 
 	result.Stats.AffectedRows = int(numRows)
@@ -487,7 +483,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 
 	go func() {
 		txnExecuted := false
-		_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		commitTimestamp, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			// ReadWriteTransaction might retry this function, but retry is not allowed in this tool.
 			if txnExecuted {
 				return txnRetryError
@@ -508,15 +504,15 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 				return rollbackError
 			}
 		})
-		session.txnFinished <- err
+		session.txnFinished <- TxnFinishResponse{Err: err, CommitTimestamp: commitTimestamp}
 	}()
 
 	select {
 	case <-txnStarted:
 		// go
-	case err := <-session.txnFinished:
+	case txnFinishRes := <-session.txnFinished:
 		// Error happened before starting transaction
-		return nil, err
+		return nil, txnFinishRes.Err
 	}
 
 	return &Result{IsMutation: true}, nil
@@ -537,10 +533,12 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 
 	session.committedChan <- true
 
-	if err := <-session.txnFinished; err != nil {
-		return nil, err
+	txnFinishResult := <-session.txnFinished
+	if txnFinishResult.Err != nil {
+		return nil, txnFinishResult.Err
 	}
 
+	result.Timestamp = txnFinishResult.CommitTimestamp
 	return result, nil
 }
 
@@ -559,7 +557,8 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 
 	session.committedChan <- false
 
-	err := <-session.txnFinished
+	txnFinishRes := <-session.txnFinished
+	err := txnFinishRes.Err
 	if err != nil && err != rollbackError {
 		return nil, err
 	}

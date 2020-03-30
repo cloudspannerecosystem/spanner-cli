@@ -69,7 +69,7 @@ func TestPrintResult(t *testing.T) {
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		printResult(out, result, DisplayModeTable, false)
+		printResult(out, result, DisplayModeTable, false, false)
 
 		expected := strings.TrimPrefix(`
 +-----+-----+
@@ -97,7 +97,7 @@ func TestPrintResult(t *testing.T) {
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		printResult(out, result, DisplayModeVertical, false)
+		printResult(out, result, DisplayModeVertical, false, false)
 
 		expected := strings.TrimPrefix(`
 *************************** 1. row ***************************

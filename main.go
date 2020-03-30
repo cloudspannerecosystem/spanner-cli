@@ -21,7 +21,7 @@ type spannerOptions struct {
 	DatabaseId string `short:"d" long:"database" description:"(required) Cloud Spanner Database ID."`
 	Execute    string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
 	Table      bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
-	Verbose      bool   `short:"v" long:"verbose" description:"Display verbose output."`
+	Verbose    bool   `short:"v" long:"verbose" description:"Display verbose output."`
 	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
 }
