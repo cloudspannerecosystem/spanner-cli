@@ -158,7 +158,13 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 			result.Timestamp = ts
 		}
 	} else {
-		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
+		txn := session.client.ReadOnlyTransaction()
+		defer txn.Close()
+		iter = txn.QueryWithStats(session.ctx, stmt)
+		ts, err := txn.Timestamp()
+		if err == nil {
+			result.Timestamp = ts
+		}
 	}
 	defer iter.Stop()
 
