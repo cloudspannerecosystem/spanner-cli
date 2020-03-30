@@ -368,7 +368,7 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 	if withStats {
 		var timestampStr string
 		if verbose && !result.Timestamp.IsZero() {
-			timestampStr = fmt.Sprintf(" timestamp(%v)", result.Timestamp.Format(time.RFC3339Nano))
+			timestampStr = fmt.Sprintf(" timestamp(%s)", result.Timestamp.Format(time.RFC3339Nano))
 		}
 		if result.IsMutation {
 			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%v\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
