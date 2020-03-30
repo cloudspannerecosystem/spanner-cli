@@ -147,21 +147,19 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
 	var iter *spanner.RowIterator
 
-	result := &Result{}
-
+	var targetRoTxn *spanner.ReadOnlyTransaction
 	if session.InRwTxn() {
 		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
 	} else if session.InRoTxn() {
-		iter = session.roTxn.QueryWithStats(session.ctx, stmt)
-		result.Timestamp, _ = session.roTxn.Timestamp()
+		targetRoTxn = session.roTxn
+		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
 	} else {
-		// Use ReadOnlyTransaction because Single does't obtain read timestamp
-		txn := session.client.ReadOnlyTransaction()
-		defer txn.Close()
-		iter = txn.QueryWithStats(session.ctx, stmt)
-		result.Timestamp, _ = txn.Timestamp()
+		targetRoTxn = session.client.Single()
+		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
 	}
 	defer iter.Stop()
+
+	result := &Result{}
 
 	for {
 		row, err := iter.Next()
@@ -191,6 +189,11 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	result.Stats = Stats{
 		AffectedRows: rowsReturned,
 		ElapsedTime:  elapsedTime,
+	}
+
+	// ReadOnlyTransaction.Timestamp() is valid after read.
+	if targetRoTxn != nil {
+		result.Timestamp, _ = targetRoTxn.Timestamp()
 	}
 
 	return result, nil
