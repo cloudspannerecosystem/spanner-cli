@@ -233,7 +233,6 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 
 ## TODO
 
-* Support `STRUCT` data type
 * Support `DROP DATABASE`
 * Show secondary index by "SHOW CREATE TABLE"
 
