@@ -61,19 +61,26 @@ func main() {
 		exitf("Failed to connect to Spanner: %v", err)
 	}
 
-	input, err := readStdin()
-	if err != nil {
-		exitf("Read from stdin failed: %v", err)
-	}
-
+	var input string
 	if opts.Execute != "" {
 		input = opts.Execute
-	} else if opts.File != "" && opts.File != "-" {
+	} else if opts.File == "-" {
+		b, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			exitf("Read from stdin failed: %v", err)
+		}
+		input = string(b)
+	} else if opts.File != "" {
 		b, err := ioutil.ReadFile(opts.File)
 		if err != nil {
 			exitf("Read from file %v failed: %v", opts.File, err)
 		}
 		input = string(b)
+	} else {
+		input, err = readStdin()
+		if err != nil {
+			exitf("Read from stdin failed: %v", err)
+		}
 	}
 
 	var exitCode int
