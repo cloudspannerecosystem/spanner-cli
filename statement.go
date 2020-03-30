@@ -155,7 +155,9 @@ func BuildStatement(input string) (Statement, error) {
 			}, nil
 		}
 	case beginRoRe.MatchString(input):
-		return &BeginRoStatement{}, nil
+		return &BeginRoStatement{
+			TimestampBoundType: strong,
+		}, nil
 	case commitRe.MatchString(input):
 		return &CommitStatement{}, nil
 	case rollbackRe.MatchString(input):
@@ -624,8 +626,17 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	txn := session.client.ReadOnlyTransaction()
-	if s.Staleness != time.Duration(0) {
+	switch s.TimestampBoundType {
+	case strong:
+		txn = txn.WithTimestampBound(spanner.StrongRead())
+	case exactStaleness:
 		txn = txn.WithTimestampBound(spanner.ExactStaleness(s.Staleness))
+	case readTimestamp:
+		txn = txn.WithTimestampBound(spanner.ReadTimestamp(s.Timestamp))
+	case maxStaleness:
+		txn = txn.WithTimestampBound(spanner.MaxStaleness(s.Staleness))
+	case minReadTimestamp:
+		txn = txn.WithTimestampBound(spanner.MinReadTimestamp(s.Timestamp))
 	}
 	session.StartRoTxn(txn)
 
