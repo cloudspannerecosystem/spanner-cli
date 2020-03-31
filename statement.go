@@ -22,6 +22,7 @@ type Result struct {
 	Rows        []Row
 	Stats       Stats
 	IsMutation  bool
+	Timestamp   time.Time
 }
 
 type Row struct {
@@ -146,12 +147,15 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
 	var iter *spanner.RowIterator
 
+	var targetRoTxn *spanner.ReadOnlyTransaction
 	if session.InRwTxn() {
 		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
 	} else if session.InRoTxn() {
-		iter = session.roTxn.QueryWithStats(session.ctx, stmt)
+		targetRoTxn = session.roTxn
+		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
 	} else {
-		iter = session.client.Single().QueryWithStats(session.ctx, stmt)
+		targetRoTxn = session.client.Single()
+		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
 	}
 	defer iter.Stop()
 
@@ -185,6 +189,11 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	result.Stats = Stats{
 		AffectedRows: rowsReturned,
 		ElapsedTime:  elapsedTime,
+	}
+
+	// ReadOnlyTransaction.Timestamp() is invalid until read.
+	if targetRoTxn != nil {
+		result.Timestamp, _ = targetRoTxn.Timestamp()
 	}
 
 	return result, nil
@@ -464,9 +473,11 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 		}
 
 		commit := CommitStatement{}
-		if _, err = commit.Execute(session); err != nil {
+		txnResult, err := commit.Execute(session)
+		if err != nil {
 			return nil, err
 		}
+		result.Timestamp = txnResult.Timestamp
 	}
 
 	result.Stats.AffectedRows = int(numRows)
@@ -488,7 +499,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 
 	go func() {
 		txnExecuted := false
-		_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		ts, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			// ReadWriteTransaction might retry this function, but retry is not allowed in this tool.
 			if txnExecuted {
 				return txnRetryError
@@ -509,15 +520,15 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 				return rollbackError
 			}
 		})
-		session.txnFinished <- err
+		session.txnFinished <- txnFinishResult{CommitTimestamp: ts, Err: err}
 	}()
 
 	select {
 	case <-txnStarted:
 		// go
-	case err := <-session.txnFinished:
+	case txnFinishRes := <-session.txnFinished:
 		// Error happened before starting transaction
-		return nil, err
+		return nil, txnFinishRes.Err
 	}
 
 	return &Result{IsMutation: true}, nil
@@ -538,10 +549,12 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 
 	session.committedChan <- true
 
-	if err := <-session.txnFinished; err != nil {
+	txnFinishRes := <-session.txnFinished
+	if err := txnFinishRes.Err; err != nil {
 		return nil, err
 	}
 
+	result.Timestamp = txnFinishRes.CommitTimestamp
 	return result, nil
 }
 
@@ -560,8 +573,8 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 
 	session.committedChan <- false
 
-	err := <-session.txnFinished
-	if err != nil && err != rollbackError {
+	txnFinishRes := <-session.txnFinished
+	if err := txnFinishRes.Err; err != nil && err != rollbackError {
 		return nil, err
 	}
 
@@ -588,7 +601,19 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	}
 	session.StartRoTxn(txn)
 
-	return &Result{IsMutation: true}, nil
+	return &Result{
+		IsMutation: true,
+		Timestamp:  determineReadTimestamp(session.ctx, txn),
+	}, nil
+}
+
+// determineReadTimestamp ensures BeginTransaction RPC is called
+// and returns the read timestamp of the read only transaction
+func determineReadTimestamp(ctx context.Context, txn *spanner.ReadOnlyTransaction) time.Time {
+	iter := txn.Query(ctx, spanner.NewStatement("SELECT 1"))
+	defer iter.Stop()
+	ts, _ := txn.Timestamp()
+	return ts
 }
 
 type CloseStatement struct{}

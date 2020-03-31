@@ -98,7 +98,7 @@ func TestPrintResult(t *testing.T) {
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		printResult(out, result, DisplayModeTable, false)
+		printResult(out, result, DisplayModeTable, false, false)
 
 		expected := strings.TrimPrefix(`
 +-----+-----+
@@ -126,7 +126,7 @@ func TestPrintResult(t *testing.T) {
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		printResult(out, result, DisplayModeVertical, false)
+		printResult(out, result, DisplayModeVertical, false, false)
 
 		expected := strings.TrimPrefix(`
 *************************** 1. row ***************************
@@ -154,7 +154,7 @@ bar: 4
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		printResult(out, result, DisplayModeTab, false)
+		printResult(out, result, DisplayModeTab, false, false)
 
 		expected := "foo\tbar\n" +
 			"1\t2\n" +

@@ -22,6 +22,7 @@ type spannerOptions struct {
 	Execute    string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
 	File       string `short:"f" long:"file" description:"Execute SQL statement from file and quit."`
 	Table      bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
+	Verbose    bool   `short:"v" long:"verbose" description:"Display verbose output."`
 	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
 }
@@ -56,7 +57,7 @@ func main() {
 		}
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, cred, os.Stdin, os.Stdout, os.Stderr)
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose)
 	if err != nil {
 		exitf("Failed to connect to Spanner: %v", err)
 	}
