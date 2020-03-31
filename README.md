@@ -164,7 +164,8 @@ The syntax is case-insensitive.
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO;` | |
-| Start Read-Only Transaction (Stale Read) | `BEGIN RO <seconds>;` | |
+| Start Read-Only Transaction (Exact Staleness) | `BEGIN RO <seconds>;` | |
+| Start Read-Only Transaction (Read Timestamp) | `BEGIN RO <RFC3339-formatted time>;` | See [RFC3339](https://tools.ietf.org/html/rfc3339) (ISO 8601) |
 | End Read-Only Transaction | `CLOSE;` | |
 | Exit CLI | `EXIT;` | |
 
