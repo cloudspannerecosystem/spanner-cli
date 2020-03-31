@@ -589,7 +589,19 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 	}
 	session.StartRoTxn(txn)
 
-	return &Result{IsMutation: true}, nil
+	return &Result{
+		IsMutation: true,
+		Timestamp: determineReadTimestamp(session.ctx, txn),
+	}, nil
+}
+
+// determineReadTimestamp ensures BeginTransaction RPC is called
+// and returns the read timestamp of the read only transaction
+func determineReadTimestamp(ctx context.Context, txn *spanner.ReadOnlyTransaction) time.Time {
+	iter := txn.Query(ctx, spanner.NewStatement("SELECT 1"))
+	defer iter.Stop()
+	ts, _ := txn.Timestamp()
+	return ts
 }
 
 type CloseStatement struct{}
