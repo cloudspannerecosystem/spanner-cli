@@ -119,23 +119,8 @@ func BuildStatement(input string) (Statement, error) {
 	case beginRwRe.MatchString(input):
 		return &BeginRwStatement{}, nil
 	case beginRoRe.MatchString(input):
-		matched := beginRoRe.FindStringSubmatch(input)
-		if matched[1] == "" {
-			return &BeginRoStatement{
-				TimestampBoundType: strong,
-			}, nil
-		}
-		if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
-			return &BeginRoStatement{
-				TimestampBoundType: readTimestamp,
-				Timestamp: t,
-			}, nil
-		}
-		if i, err := strconv.Atoi(matched[1]); err == nil {
-			return &BeginRoStatement{
-				TimestampBoundType: exactStaleness,
-				Staleness: time.Duration(time.Duration(i) * time.Second),
-			}, nil
+		if s := newBeginRoStatement(input); s != nil {
+			return s, nil
 		}
 	case commitRe.MatchString(input):
 		return &CommitStatement{}, nil
@@ -590,6 +575,28 @@ type BeginRoStatement struct {
 	TimestampBoundType timestampBoundType
 	Staleness time.Duration
 	Timestamp time.Time
+}
+
+func newBeginRoStatement(input string) *BeginRoStatement {
+	matched := beginRoRe.FindStringSubmatch(input)
+	if matched[1] == "" {
+		return &BeginRoStatement{
+			TimestampBoundType: strong,
+		}
+	}
+	if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
+		return &BeginRoStatement{
+			TimestampBoundType: readTimestamp,
+			Timestamp: t,
+		}
+	}
+	if i, err := strconv.Atoi(matched[1]); err == nil {
+		return &BeginRoStatement{
+			TimestampBoundType: exactStaleness,
+			Staleness: time.Duration(time.Duration(i) * time.Second),
+		}
+	}
+	return nil
 }
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
