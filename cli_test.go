@@ -125,7 +125,7 @@ bar: 4
 			Stats:      Stats{},
 			IsMutation: false,
 		}
-		printResult(out, result, DisplayModeTab, false)
+		printResult(out, result, DisplayModeTab, false, false)
 
 		expected := "foo\tbar\n" +
 			"1\t2\n" +
