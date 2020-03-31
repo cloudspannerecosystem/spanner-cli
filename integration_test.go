@@ -124,6 +124,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 func compareResult(t *testing.T, got *Result, expected *Result) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Stats{}, "ElapsedTime"),
+		cmpopts.IgnoreFields(Result{}, "Timestamp"),
 	}
 	if !cmp.Equal(got, expected, opts...) {
 		t.Errorf("diff: %s", cmp.Diff(got, expected, opts...))
