@@ -591,7 +591,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 
 	return &Result{
 		IsMutation: true,
-		Timestamp: determineReadTimestamp(session.ctx, txn),
+		Timestamp:  determineReadTimestamp(session.ctx, txn),
 	}, nil
 }
 
