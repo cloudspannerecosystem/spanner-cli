@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strings"
 )
 
@@ -23,7 +22,26 @@ func (s *separator) consumeRawString() {
 	s.str = s.str[1:]
 
 	delim := s.consumeStringDelimiter()
+	s.consumeStringContent(delim, true)
+}
+
+func (s *separator) consumeBytesString() {
+	// consume 'b' or 'B'
+	s.sb.WriteRune(s.str[0])
+	s.str = s.str[1:]
+
+	delim := s.consumeStringDelimiter()
 	s.consumeStringContent(delim, false)
+}
+
+func (s *separator) consumeRawBytesString() {
+	// consume 'rb', 'Rb', 'rB', or 'RB'
+	s.sb.WriteRune(s.str[0])
+	s.sb.WriteRune(s.str[1])
+	s.str = s.str[2:]
+
+	delim := s.consumeStringDelimiter()
+	s.consumeStringContent(delim, true)
 }
 
 func (s *separator) consumeString() {
@@ -31,25 +49,19 @@ func (s *separator) consumeString() {
 	s.consumeStringContent(delim, false)
 }
 
-func (s *separator) consumeStringContent(delim string, raw bool) error {
+func (s *separator) consumeStringContent(delim string, raw bool) {
 	var i int
 	for i < len(s.str) {
+		// end of string
 		if strings.HasPrefix(string(s.str[i:]), delim) {
-			log.Printf("close: remained %s", string(s.str))
 			i += len(delim)
 			s.str = s.str[i:]
-			log.Printf("after close: remained %s", string(s.str))
 			s.sb.WriteString(delim)
-			return nil
+			return
 		}
 
 		// escape character
 		if s.str[i] == '\\' {
-			i++
-			if i >= len(s.str) {
-				// TODO
-			}
-
 			if raw {
 				// raw string treats escape character as backslash
 				s.sb.WriteRune('\\')
@@ -57,14 +69,22 @@ func (s *separator) consumeStringContent(delim string, raw bool) error {
 				continue
 			}
 
-			s.sb.WriteRune('"')
+			i++
+			if i >= len(s.str) {
+				s.sb.WriteRune('\\')
+				return
+			}
+
+			s.sb.WriteRune('\\')
+			s.sb.WriteRune(s.str[i])
 			i++
 			continue
 		}
 		s.sb.WriteRune(s.str[i])
 		i++
 	}
-	return nil
+	s.str = s.str[i:]
+	return
 }
 
 func (s *separator) consumeStringDelimiter() string {
@@ -81,29 +101,37 @@ func (s *separator) consumeStringDelimiter() string {
 }
 
 // separate separates input string into multiple Spanner statements.
+// This does not validate syntax of statements.
 //
 // Logic for parsing a statement is mostly taken from spansql.
 // https://github.com/googleapis/google-cloud-go/blob/master/spanner/spansql/parser.go
-func (s *separator) separate() ([]inputStatement, error) {
+func (s *separator) separate() []inputStatement {
 	var statements []inputStatement
 	for len(s.str) > 0 {
 		switch s.str[0] {
 		// string literal
 		case '"', '\'', 'r', 'R', 'b', 'B':
 			// valid prefix: "b", "B", "r", "R", "br", "bR", "Br", "BR"
-			raw := false
+			raw, bytes := false, false
 			for i := 0; i < 3 && i < len(s.str); i++ {
 				switch {
 				case !raw && (s.str[i] == 'r' || s.str[i] == 'R'):
 					raw = true
 					continue
+				case !bytes && (s.str[i] == 'b' || s.str[i] == 'B'):
+					bytes = true
+					continue
 				case s.str[i] == '"' || s.str[i] == '\'':
-					if raw {
-						s.consumeRawString()
-					} else {
-						s.consumeString()
-						log.Printf("consumed: remained %s", string(s.str))
-					}
+				switch {
+				case raw && bytes:
+					s.consumeRawBytesString()
+				case raw:
+					s.consumeRawString()
+				case bytes:
+					s.consumeBytesString()
+				default:
+					s.consumeString()
+				}
 				default:
 					s.sb.WriteRune(s.str[0])
 					s.str = s.str[1:]
@@ -111,7 +139,6 @@ func (s *separator) separate() ([]inputStatement, error) {
 				break
 			}
 		case ';':
-			log.Printf("delimiter found: remained %s", string(s.str))
 			statements = append(statements, inputStatement{
 				statement: strings.TrimSpace(s.sb.String()),
 				delimiter: delimiterHorizontal,
@@ -126,9 +153,10 @@ func (s *separator) separate() ([]inputStatement, error) {
 				})
 				s.sb.Reset()
 				s.str = s.str[2:]
-			} else {
-				// TODO
+				continue
 			}
+			s.sb.WriteRune(s.str[0])
+			s.str = s.str[1:]
 		default:
 			s.sb.WriteRune(s.str[0])
 			s.str = s.str[1:]
@@ -143,5 +171,5 @@ func (s *separator) separate() ([]inputStatement, error) {
 		})
 		s.sb.Reset()
 	}
-	return statements, nil
+	return statements
 }

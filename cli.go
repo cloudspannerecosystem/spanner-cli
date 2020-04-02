@@ -183,7 +183,7 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 		return exitCodeSuccess
 	}
 
-	for _, separated := range separateInput(input) {
+	for _, separated := range newSeparator(input).separate() {
 		stmt, err := BuildStatement(separated.statement)
 		if err != nil {
 			c.PrintBatchError(err)
@@ -312,16 +312,6 @@ func readInteractiveInput(rl *readline.Instance) (string, string, error) {
 	}
 }
 
-// separateInput separates input to each statement.
-func separateInput(input string) []inputStatement {
-	s := newSeparator(input)
-	separated, err := s.separate()
-	if err != nil {
-		// TODO
-	}
-	return separated
-}
-
 func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool, verbose bool) {
 	if mode == DisplayModeTable {
 		table := tablewriter.NewWriter(out)
@@ -380,7 +370,7 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 // buildDdlStatements build batched statement only if all statements are DDL statements
 func buildDdlStatements(input string) Statement {
 	var ddls []string
-	for _, separated := range separateInput(input) {
+	for _, separated := range newSeparator(input).separate() {
 		stmt, err := BuildStatement(separated.statement)
 		if err != nil {
 			return nil

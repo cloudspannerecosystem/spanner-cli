@@ -17,48 +17,6 @@ func (n *nopCloser) Close() error {
 	return nil
 }
 
-func equalInputStatementSlice(a []inputStatement, b []inputStatement) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i].statement != b[i].statement {
-			return false
-		}
-		if a[i].delimiter != b[i].delimiter {
-			return false
-		}
-	}
-	return true
-}
-
-func TestSeparateInput(t *testing.T) {
-	tests := []struct {
-		Input    string
-		Expected []inputStatement
-	}{
-		{`SELECT * FROM t1`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
-		{`SELECT * FROM t1;`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
-		{"SELECT * FROM t1\n", []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
-		{`SELECT * FROM t1\G`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterVertical}}},
-		{`SELECT * FROM t1; SELECT * FROM t2\G`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}, inputStatement{"SELECT * FROM t2", delimiterVertical}}},
-		{`SELECT * FROM t1\G SELECT * FROM t2`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterVertical}, inputStatement{"SELECT * FROM t2", delimiterHorizontal}}},
-		{`SELECT * FROM t1; abcd `, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}, inputStatement{"abcd", delimiterHorizontal}}},
-		{"SELECT\n*\nFROM t1;", []inputStatement{inputStatement{"SELECT\n*\nFROM t1", delimiterHorizontal}}},
-	}
-
-	for _, test := range tests {
-		got := separateInput(test.Input)
-
-		if !equalInputStatementSlice(got, test.Expected) {
-			t.Errorf("invalid separation: expected = %v, but got = %v", test.Expected, got)
-		}
-	}
-}
-
 func TestBuildDdlStatements(t *testing.T) {
 	tests := []struct {
 		Input    string
