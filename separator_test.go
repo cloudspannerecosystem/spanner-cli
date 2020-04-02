@@ -205,7 +205,21 @@ func TestSeparator(t *testing.T) {
 			},
 		},
 		{
-			desc: `second query ends with middle of string`,
+			desc: `query has new line just before delimiter`,
+			input: "SELECT '123'\n; SELECT '456'\n\\G",
+			want: []inputStatement{
+				{
+					statement: `SELECT '123'`,
+					delimiter: delimiterHorizontal,
+				},
+				{
+					statement: `SELECT '456'`,
+					delimiter: delimiterVertical,
+				},
+			},
+		},
+		{
+			desc: `second query ends in the middle of string`,
 			input: `SELECT "123"; SELECT "45`,
 			want: []inputStatement{
 				{
