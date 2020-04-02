@@ -312,35 +312,14 @@ func readInteractiveInput(rl *readline.Instance) (string, string, error) {
 	}
 }
 
-// Separate input to each statement.
+// separateInput separates input to each statement.
 func separateInput(input string) []inputStatement {
-	input = strings.TrimSpace(input)
-
-	// NOTE: This logic doesn't do syntactic analysis, but just checks the delimiter position,
-	// so it's fragile for the case that delimiters appear in strings.
-	var statements []inputStatement
-	for input != "" {
-		if idx := strings.Index(input, delimiterHorizontal); idx != -1 {
-			statements = append(statements, inputStatement{
-				statement: strings.TrimSpace(input[:idx]),
-				delimiter: delimiterHorizontal,
-			})
-			input = strings.TrimSpace(input[idx+1:])
-		} else if idx := strings.Index(input, delimiterVertical); idx != -1 {
-			statements = append(statements, inputStatement{
-				statement: strings.TrimSpace(input[:idx]),
-				delimiter: delimiterVertical,
-			})
-			input = strings.TrimSpace(input[idx+2:]) // +2 for \ and G
-		} else {
-			statements = append(statements, inputStatement{
-				statement: strings.TrimSpace(input),
-				delimiter: delimiterHorizontal, // default horizontal
-			})
-			break
-		}
+	s := newSeparator(input)
+	separated, err := s.separate()
+	if err != nil {
+		// TODO
 	}
-	return statements
+	return separated
 }
 
 func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool, verbose bool) {
