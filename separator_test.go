@@ -233,15 +233,15 @@ func TestSeparator(t *testing.T) {
 			},
 		},
 		{
-			desc: `second query ends in the middle of string`,
-			input: `SELECT "123"; SELECT "45`,
+			desc: `escaped quote in string`,
+			input: `SELECT "1\"2\"3"; SELECT '4\'5\'6'`,
 			want: []inputStatement{
 				{
-					statement: `SELECT "123"`,
+					statement: `SELECT "1\"2\"3"`,
 					delimiter: delimiterHorizontal,
 				},
 				{
-					statement: `SELECT "45`,
+					statement: `SELECT '4\'5\'6'`,
 					delimiter: delimiterHorizontal,
 				},
 			},
@@ -252,6 +252,20 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: "CREATE t1 (\nId INT64 NOT NULL\n) PRIMARY KEY (Id)",
+					delimiter: delimiterHorizontal,
+				},
+			},
+		},
+		{
+			desc: `second query ends in the middle of string`,
+			input: `SELECT "123"; SELECT "45`,
+			want: []inputStatement{
+				{
+					statement: `SELECT "123"`,
+					delimiter: delimiterHorizontal,
+				},
+				{
+					statement: `SELECT "45`,
 					delimiter: delimiterHorizontal,
 				},
 			},

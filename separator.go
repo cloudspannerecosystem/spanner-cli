@@ -146,6 +146,7 @@ func (s *separator) separate() []inputStatement {
 						s.consumeString()
 					}
 				}
+				break
 			}
 			if !str {
 				s.sb.WriteRune(s.str[0])
