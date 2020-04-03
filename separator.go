@@ -4,6 +4,10 @@ import (
 	"strings"
 )
 
+func separateInput(input string) []inputStatement {
+	return newSeparator(input).separate()
+}
+
 type separator struct {
 	str []rune // remaining input
 	sb  *strings.Builder

@@ -183,7 +183,7 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 		return exitCodeSuccess
 	}
 
-	for _, separated := range newSeparator(input).separate() {
+	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.statement)
 		if err != nil {
 			c.PrintBatchError(err)
@@ -370,7 +370,7 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 // buildDdlStatements build batched statement only if all statements are DDL statements
 func buildDdlStatements(input string) Statement {
 	var ddls []string
-	for _, separated := range newSeparator(input).separate() {
+	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.statement)
 		if err != nil {
 			return nil
