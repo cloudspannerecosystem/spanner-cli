@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 
+	"github.com/chzyer/readline"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -41,6 +43,65 @@ func TestBuildDdlStatements(t *testing.T) {
 		if !cmp.Equal(got, test.Expected) {
 			t.Errorf("invalid result: %v", cmp.Diff(test.Expected, got))
 		}
+	}
+}
+
+func TestReadInteractiveInput(t *testing.T) {
+	for _, tt := range []struct {
+		desc  string
+		input string
+		want  *inputStatement
+		wantError bool
+	}{
+		{
+			desc:  "single line",
+			input: "SELECT 1;\n",
+			want: &inputStatement{
+				statement: "SELECT 1",
+				delim:     delimiterHorizontal,
+			},
+		},
+		{
+			desc:  "multi lines",
+			input: "SELECT\n* FROM\n t1\n;\n",
+			want: &inputStatement{
+				statement: "SELECT\n* FROM\n t1",
+				delim:     delimiterHorizontal,
+			},
+		},
+		{
+			desc:  "multi lines with vertical delimiter",
+			input: "SELECT\n* FROM\n t1\n\\G",
+			want: &inputStatement{
+				statement: "SELECT\n* FROM\n t1",
+				delim:     delimiterVertical,
+			},
+		},
+		{
+			desc:  "multiple statements",
+			input: "SELECT 1; SELECT 2;",
+			want: nil,
+			wantError: true,
+		},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			rl, err := readline.NewEx(&readline.Config{
+				Stdin:  ioutil.NopCloser(strings.NewReader(tt.input)),
+				Stdout: ioutil.Discard,
+				Stderr: ioutil.Discard,
+			})
+			if err != nil {
+				t.Fatalf("unexpected readline.NewEx() error: %v", err)
+			}
+
+			got, err := readInteractiveInput(rl, "")
+			if err != nil && !tt.wantError {
+				t.Errorf("readInteractiveInput(%q) got error: %v", tt.input, err)
+			}
+			if diff := cmp.Diff(tt.want, got, cmp.AllowUnexported(inputStatement{})); diff != "" {
+				t.Errorf("difference in statement: (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

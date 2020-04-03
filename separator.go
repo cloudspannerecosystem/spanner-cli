@@ -4,6 +4,31 @@ import (
 	"strings"
 )
 
+type delimiter int
+
+const (
+	delimiterUndefined delimiter = iota
+	delimiterHorizontal
+	delimiterVertical
+)
+
+type inputStatement struct {
+	statement string
+	delim     delimiter
+}
+
+func (d delimiter) String() string {
+	switch d {
+	case delimiterUndefined:
+		return ""
+	case delimiterHorizontal:
+		return ";"
+	case delimiterVertical:
+		return `\G`
+	}
+	return ""
+}
+
 func separateInput(input string) []inputStatement {
 	return newSeparator(input).separate()
 }
@@ -58,12 +83,12 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 	for i < len(s.str) {
 		// check end of string
 		switch {
-		// check single-quoted delimiter
+		// check single-quoted delim
 		case len(delim) == 1 && string(s.str[i]) == delim:
 			s.str = s.str[i+1:]
 			s.sb.WriteString(delim)
 			return
-		// check triple-quoted delimiter
+		// check triple-quoted delim
 		case len(delim) == 3 && len(s.str) >= i+3 && string(s.str[i:i+3]) == delim:
 			s.str = s.str[i+3:]
 			s.sb.WriteString(delim)
@@ -87,7 +112,7 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 
 			s.sb.WriteRune('\\')
 			s.sb.WriteRune(s.str[i+1])
-			i+=2
+			i += 2
 			continue
 		}
 		s.sb.WriteRune(s.str[i])
@@ -99,7 +124,7 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 
 func (s *separator) consumeStringDelimiter() string {
 	c := s.str[0]
-	// check triple-quoted delimiter
+	// check triple-quoted delim
 	if len(s.str) >= 3 && s.str[1] == c && s.str[2] == c {
 		delim := strings.Repeat(string(c), 3)
 		s.sb.WriteString(delim)
@@ -157,20 +182,20 @@ func (s *separator) separate() []inputStatement {
 			s.sb.WriteRune(s.str[0])
 			s.str = s.str[1:]
 			s.consumeStringContent("`", false)
-		// horizontal delimiter
+		// horizontal delim
 		case ';':
 			statements = append(statements, inputStatement{
 				statement: strings.TrimSpace(s.sb.String()),
-				delimiter: delimiterHorizontal,
+				delim:     delimiterHorizontal,
 			})
 			s.sb.Reset()
 			s.str = s.str[1:]
-		// possibly vertical delimiter
+		// possibly vertical delim
 		case '\\':
 			if len(s.str) >= 2 && s.str[1] == 'G' {
 				statements = append(statements, inputStatement{
 					statement: strings.TrimSpace(s.sb.String()),
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				})
 				s.sb.Reset()
 				s.str = s.str[2:]
@@ -187,10 +212,9 @@ func (s *separator) separate() []inputStatement {
 	// flush remained
 	if s.sb.Len() > 0 {
 		if str := strings.TrimSpace(s.sb.String()); len(str) > 0 {
-			// use horizontal delimiter for the statement without explicit delimiter
 			statements = append(statements, inputStatement{
 				statement: str,
-				delimiter: delimiterHorizontal,
+				delim:     delimiterUndefined,
 			})
 			s.sb.Reset()
 		}

@@ -18,7 +18,7 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT "123"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -28,11 +28,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT "123"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT "456"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -42,11 +42,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT """123"""`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT '''456'''`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -56,11 +56,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: "SELECT \"\"\"1\n2\n3\"\"\"",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: "SELECT '''4\n5\n6'''",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -70,11 +70,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT r"123\a\n"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT R"456\\"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -84,11 +84,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT b"123"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT b'\x12\x34'`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -98,11 +98,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT rb"123\a"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT RB'\x12\x34\a'`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -112,39 +112,39 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: "SELECT `1`, `2`",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: "SELECT `3`, `4`",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
 		{
-			desc: "vertical delimiter",
+			desc: "vertical delim",
 			input: `SELECT "123"\G`,
 			want: []inputStatement{
 				{
 					statement: `SELECT "123"`,
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				},
 			},
 		},
 		{
-			desc: "mixed delimiter",
+			desc: "mixed delim",
 			input: `SELECT "123"; SELECT "456"\G SELECT "789";`,
 			want: []inputStatement{
 				{
 					statement: `SELECT "123"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT "456"`,
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				},
 				{
 					statement: `SELECT "789"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -154,11 +154,11 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT * FROM t1 WHERE id = "123" AND "456"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `DELETE FROM t2 WHERE true`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -168,109 +168,109 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT 1`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: ``,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
 		{
-			desc: "new line just after delimiter",
+			desc: "new line just after delim",
 			input: "SELECT 1;\n SELECT 2\\G\n",
 			want: []inputStatement{
 				{
 					statement: `SELECT 1`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT 2`,
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				},
 			},
 		},
 		{
-			desc: "horizontal delimiter in string",
+			desc: "horizontal delim in string",
 			input: `SELECT "1;2;3"; SELECT 'TL;DR';`,
 			want: []inputStatement{
 				{
 					statement: `SELECT "1;2;3"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT 'TL;DR'`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
 		{
-			desc: `vertical delimiter in string`,
+			desc: `vertical delim in string`,
 			input: `SELECT r"1\G2\G3"\G SELECT r'4\G5\G6'\G`,
 			want: []inputStatement{
 				{
 					statement: `SELECT r"1\G2\G3"`,
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				},
 				{
 					statement: `SELECT r'4\G5\G6'`,
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				},
 			},
 		},
 		{
-			desc: "delimiter in quoted identifier",
+			desc: "delim in quoted identifier",
 			input: "SELECT `1;2`; SELECT `3;4`;",
 			want: []inputStatement{
 				{
 					statement: "SELECT `1;2`",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: "SELECT `3;4`",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
 		{
 			desc: `multi-byte character in string`,
-			input: `SELECT "テスト"; SELECT '世界'`,
+			input: `SELECT "テスト"; SELECT '世界';`,
 			want: []inputStatement{
 				{
 					statement: `SELECT "テスト"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT '世界'`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
 		{
-			desc: `query has new line just before delimiter`,
+			desc: `query has new line just before delim`,
 			input: "SELECT '123'\n; SELECT '456'\n\\G",
 			want: []inputStatement{
 				{
 					statement: `SELECT '123'`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT '456'`,
-					delimiter: delimiterVertical,
+					delim:     delimiterVertical,
 				},
 			},
 		},
 		{
 			desc: `escaped quote in string`,
-			input: `SELECT "1\"2\"3"; SELECT '4\'5\'6'`,
+			input: `SELECT "1\"2\"3"; SELECT '4\'5\'6';`,
 			want: []inputStatement{
 				{
 					statement: `SELECT "1\"2\"3"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT '4\'5\'6'`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -280,7 +280,7 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: "CREATE t1 (\nId INT64 NOT NULL\n) PRIMARY KEY (Id)",
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 			},
 		},
@@ -290,21 +290,21 @@ func TestSeparator(t *testing.T) {
 			want: []inputStatement{
 				{
 					statement: `SELECT "123"`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterHorizontal,
 				},
 				{
 					statement: `SELECT "45`,
-					delimiter: delimiterHorizontal,
+					delim:     delimiterUndefined,
 				},
 			},
 		},
 		{
 			desc: `totally incorrect query`,
-			input: `a"""""""""'''''''''b;`,
+			input: `a"""""""""'''''''''b`,
 			want: []inputStatement{
 				{
-					statement: `a"""""""""'''''''''b;`,
-					delimiter: delimiterHorizontal,
+					statement: `a"""""""""'''''''''b`,
+					delim:     delimiterUndefined,
 				},
 			},
 		},
