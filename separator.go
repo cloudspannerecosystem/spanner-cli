@@ -58,12 +58,12 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 	for i < len(s.str) {
 		// check end of string
 		switch {
-		// delimiter is `"` or `'`
+		// check single-quoted delimiter
 		case len(delim) == 1 && string(s.str[i]) == delim:
 			s.str = s.str[i+1:]
 			s.sb.WriteString(delim)
 			return
-		// delimiter is `"""` or `'''`
+		// check triple-quoted delimiter
 		case len(delim) == 3 && len(s.str) >= i+3 && string(s.str[i:i+3]) == delim:
 			s.str = s.str[i+3:]
 			s.sb.WriteString(delim)
@@ -152,6 +152,11 @@ func (s *separator) separate() []inputStatement {
 				s.sb.WriteRune(s.str[0])
 				s.str = s.str[1:]
 			}
+		// quoted identifier
+		case '`':
+			s.sb.WriteRune(s.str[0])
+			s.str = s.str[1:]
+			s.consumeStringContent("`", false)
 		// horizontal delimiter
 		case ';':
 			statements = append(statements, inputStatement{

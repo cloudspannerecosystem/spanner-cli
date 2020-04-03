@@ -107,6 +107,20 @@ func TestSeparator(t *testing.T) {
 			},
 		},
 		{
+			desc: "quoted identifier",
+			input: "SELECT `1`, `2`; SELECT `3`, `4`;",
+			want: []inputStatement{
+				{
+					statement: "SELECT `1`, `2`",
+					delimiter: delimiterHorizontal,
+				},
+				{
+					statement: "SELECT `3`, `4`",
+					delimiter: delimiterHorizontal,
+				},
+			},
+		},
+		{
 			desc: "vertical delimiter",
 			input: `SELECT "123"\G`,
 			want: []inputStatement{
@@ -201,6 +215,20 @@ func TestSeparator(t *testing.T) {
 				{
 					statement: `SELECT r'4\G5\G6'`,
 					delimiter: delimiterVertical,
+				},
+			},
+		},
+		{
+			desc: "delimiter in quoted identifier",
+			input: "SELECT `1;2`; SELECT `3;4`;",
+			want: []inputStatement{
+				{
+					statement: "SELECT `1;2`",
+					delimiter: delimiterHorizontal,
+				},
+				{
+					statement: "SELECT `3;4`",
+					delimiter: delimiterHorizontal,
 				},
 			},
 		},
