@@ -163,6 +163,20 @@ func TestSeparator(t *testing.T) {
 			},
 		},
 		{
+			desc: "new line just after delimiter",
+			input: "SELECT 1;\n SELECT 2\\G\n",
+			want: []inputStatement{
+				{
+					statement: `SELECT 1`,
+					delimiter: delimiterHorizontal,
+				},
+				{
+					statement: `SELECT 2`,
+					delimiter: delimiterVertical,
+				},
+			},
+		},
+		{
 			desc: "horizontal delimiter in string",
 			input: `SELECT "1;2;3"; SELECT 'TL;DR';`,
 			want: []inputStatement{
@@ -228,6 +242,16 @@ func TestSeparator(t *testing.T) {
 				},
 				{
 					statement: `SELECT "45`,
+					delimiter: delimiterHorizontal,
+				},
+			},
+		},
+		{
+			desc: `DDL`,
+			input: "CREATE t1 (\nId INT64 NOT NULL\n) PRIMARY KEY (Id);",
+			want: []inputStatement{
+				{
+					statement: "CREATE t1 (\nId INT64 NOT NULL\n) PRIMARY KEY (Id)",
 					delimiter: delimiterHorizontal,
 				},
 			},

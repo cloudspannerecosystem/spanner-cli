@@ -163,13 +163,15 @@ func (s *separator) separate() []inputStatement {
 		}
 	}
 
+	// flush remained
 	if s.sb.Len() > 0 {
-		// flush remained
-		statements = append(statements, inputStatement{
-			statement: strings.TrimSpace(s.sb.String()),
-			delimiter: delimiterHorizontal,
-		})
-		s.sb.Reset()
+		if str := strings.TrimSpace(s.sb.String()); len(str) > 0 {
+			statements = append(statements, inputStatement{
+				statement: str,
+				delimiter: delimiterHorizontal,
+			})
+			s.sb.Reset()
+		}
 	}
 	return statements
 }
