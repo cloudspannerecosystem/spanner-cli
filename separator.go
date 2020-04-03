@@ -56,10 +56,16 @@ func (s *separator) consumeString() {
 func (s *separator) consumeStringContent(delim string, raw bool) {
 	var i int
 	for i < len(s.str) {
-		// end of string
-		if strings.HasPrefix(string(s.str[i:]), delim) {
-			i += len(delim)
-			s.str = s.str[i:]
+		// check end of string
+		switch {
+		// delimiter is `"` or `'`
+		case len(delim) == 1 && string(s.str[i]) == delim:
+			s.str = s.str[i+1:]
+			s.sb.WriteString(delim)
+			return
+		// delimiter is `"""` or `'''`
+		case len(delim) == 3 && len(s.str) >= i+3 && string(s.str[i:i+3]) == delim:
+			s.str = s.str[i+3:]
 			s.sb.WriteString(delim)
 			return
 		}
@@ -126,16 +132,16 @@ func (s *separator) separate() []inputStatement {
 					bytes = true
 					continue
 				case s.str[i] == '"' || s.str[i] == '\'':
-				switch {
-				case raw && bytes:
-					s.consumeRawBytesString()
-				case raw:
-					s.consumeRawString()
-				case bytes:
-					s.consumeBytesString()
-				default:
-					s.consumeString()
-				}
+					switch {
+					case raw && bytes:
+						s.consumeRawBytesString()
+					case raw:
+						s.consumeRawString()
+					case bytes:
+						s.consumeBytesString()
+					default:
+						s.consumeString()
+					}
 				default:
 					s.sb.WriteRune(s.str[0])
 					s.str = s.str[1:]
@@ -150,7 +156,7 @@ func (s *separator) separate() []inputStatement {
 			s.sb.Reset()
 			s.str = s.str[1:]
 		case '\\':
-			if strings.HasPrefix(string(s.str), `\G`) {
+			if len(s.str) >= 2 && s.str[1] == 'G' {
 				statements = append(statements, inputStatement{
 					statement: strings.TrimSpace(s.sb.String()),
 					delimiter: delimiterVertical,
