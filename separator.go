@@ -70,7 +70,7 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 			return
 		}
 
-		// escape character
+		// escape sequence
 		if s.str[i] == '\\' {
 			if raw {
 				// raw string treats escape character as backslash
@@ -79,15 +79,15 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 				continue
 			}
 
-			i++
-			if i >= len(s.str) {
+			// invalid escape sequence
+			if i+1 >= len(s.str) {
 				s.sb.WriteRune('\\')
 				return
 			}
 
 			s.sb.WriteRune('\\')
-			s.sb.WriteRune(s.str[i])
-			i++
+			s.sb.WriteRune(s.str[i+1])
+			i+=2
 			continue
 		}
 		s.sb.WriteRune(s.str[i])
@@ -99,6 +99,7 @@ func (s *separator) consumeStringContent(delim string, raw bool) {
 
 func (s *separator) consumeStringDelimiter() string {
 	c := s.str[0]
+	// check triple-quoted delimiter
 	if len(s.str) >= 3 && s.str[1] == c && s.str[2] == c {
 		delim := strings.Repeat(string(c), 3)
 		s.sb.WriteString(delim)
@@ -113,16 +114,17 @@ func (s *separator) consumeStringDelimiter() string {
 // separate separates input string into multiple Spanner statements.
 // This does not validate syntax of statements.
 //
-// Logic for parsing a statement is mostly taken from spansql.
+// NOTE: Logic for parsing a statement is mostly taken from spansql.
 // https://github.com/googleapis/google-cloud-go/blob/master/spanner/spansql/parser.go
 func (s *separator) separate() []inputStatement {
 	var statements []inputStatement
 	for len(s.str) > 0 {
 		switch s.str[0] {
-		// string literal
+		// possibly string literal
 		case '"', '\'', 'r', 'R', 'b', 'B':
-			// valid prefix: "b", "B", "r", "R", "br", "bR", "Br", "BR"
-			raw, bytes := false, false
+			// valid string prefix: "b", "B", "r", "R", "br", "bR", "Br", "BR"
+			// https://cloud.google.com/spanner/docs/lexical#string_and_bytes_literals
+			raw, bytes, str := false, false, false
 			for i := 0; i < 3 && i < len(s.str); i++ {
 				switch {
 				case !raw && (s.str[i] == 'r' || s.str[i] == 'R'):
@@ -132,6 +134,7 @@ func (s *separator) separate() []inputStatement {
 					bytes = true
 					continue
 				case s.str[i] == '"' || s.str[i] == '\'':
+					str = true
 					switch {
 					case raw && bytes:
 						s.consumeRawBytesString()
@@ -142,12 +145,13 @@ func (s *separator) separate() []inputStatement {
 					default:
 						s.consumeString()
 					}
-				default:
-					s.sb.WriteRune(s.str[0])
-					s.str = s.str[1:]
 				}
-				break
 			}
+			if !str {
+				s.sb.WriteRune(s.str[0])
+				s.str = s.str[1:]
+			}
+		// horizontal delimiter
 		case ';':
 			statements = append(statements, inputStatement{
 				statement: strings.TrimSpace(s.sb.String()),
@@ -155,6 +159,7 @@ func (s *separator) separate() []inputStatement {
 			})
 			s.sb.Reset()
 			s.str = s.str[1:]
+		// possibly vertical delimiter
 		case '\\':
 			if len(s.str) >= 2 && s.str[1] == 'G' {
 				statements = append(statements, inputStatement{
@@ -176,6 +181,7 @@ func (s *separator) separate() []inputStatement {
 	// flush remained
 	if s.sb.Len() > 0 {
 		if str := strings.TrimSpace(s.sb.String()); len(str) > 0 {
+			// use horizontal delimiter for the statement without explicit delimiter
 			statements = append(statements, inputStatement{
 				statement: str,
 				delimiter: delimiterHorizontal,
