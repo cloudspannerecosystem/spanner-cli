@@ -136,6 +136,61 @@ func (s *separator) consumeStringDelimiter() string {
 	return string(c)
 }
 
+func (s *separator) skipComments() {
+	var i int
+	for i < len(s.str) {
+		var terminate string
+		if s.str[i] == '#' {
+			// single line comment "#"
+			terminate = "\n"
+			i++
+		} else if i+1 < len(s.str) && s.str[i] == '-' && s.str[i+1] == '-' {
+			// single line comment "--"
+			terminate = "\n"
+			i += 2
+		} else if i+1 < len(s.str) && s.str[i] == '/' && s.str[i+1] == '*' {
+			// multi line comments "/* */"
+			// NOTE: Nested multiline comments are not supported in Spanner.
+			// https://cloud.google.com/spanner/docs/lexical#multiline_comments
+			terminate = "*/"
+			i += 2
+		}
+
+		// no comment found
+		if terminate == "" {
+			return
+		}
+
+		// not terminated, but end of string
+		if i >= len(s.str) {
+			s.str = s.str[len(s.str):]
+			return
+		}
+
+		for ; i < len(s.str); i++ {
+			if l := len(terminate); l == 1 {
+				if string(s.str[i]) == terminate {
+					s.str = s.str[i+1:]
+					i = 0
+					break
+				}
+			} else if l == 2 {
+				if i+1 < len(s.str) && string(s.str[i:i+2]) == terminate {
+					s.str = s.str[i+2:]
+					i = 0
+					break
+				}
+			}
+		}
+
+		// not terminated, but end of string
+		if i >= len(s.str) {
+			s.str = s.str[len(s.str):]
+			return
+		}
+	}
+}
+
 // separate separates input string into multiple Spanner statements.
 // This does not validate syntax of statements.
 //
@@ -144,6 +199,11 @@ func (s *separator) consumeStringDelimiter() string {
 func (s *separator) separate() []inputStatement {
 	var statements []inputStatement
 	for len(s.str) > 0 {
+		s.skipComments()
+		if len(s.str) == 0 {
+			break
+		}
+
 		switch s.str[0] {
 		// possibly string literal
 		case '"', '\'', 'r', 'R', 'b', 'B':

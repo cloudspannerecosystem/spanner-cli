@@ -586,8 +586,8 @@ const (
 
 type BeginRoStatement struct {
 	TimestampBoundType timestampBoundType
-	Staleness time.Duration
-	Timestamp time.Time
+	Staleness          time.Duration
+	Timestamp          time.Time
 }
 
 func newBeginRoStatement(input string) *BeginRoStatement {
@@ -600,13 +600,13 @@ func newBeginRoStatement(input string) *BeginRoStatement {
 	if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
 		return &BeginRoStatement{
 			TimestampBoundType: readTimestamp,
-			Timestamp: t,
+			Timestamp:          t,
 		}
 	}
 	if i, err := strconv.Atoi(matched[1]); err == nil {
 		return &BeginRoStatement{
 			TimestampBoundType: exactStaleness,
-			Staleness: time.Duration(time.Duration(i) * time.Second),
+			Staleness:          time.Duration(time.Duration(i) * time.Second),
 		}
 	}
 	return nil
