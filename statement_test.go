@@ -38,6 +38,12 @@ func TestBuildStatement(t *testing.T) {
 			want: &SelectStatement{Query: "WITH sub AS (SELECT 1) SELECT * FROM sub"},
 		},
 		{
+			// https://cloud.google.com/spanner/docs/query-syntax#statement-hints
+			desc: "SELECT statement with statement hint",
+			input: "@{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT * FROM t1",
+			want: &SelectStatement{Query: "@{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT * FROM t1"},
+		},
+		{
 			desc: "CREATE DATABASE statement",
 			input: "CREATE DATABASE d1",
 			want: &CreateDatabaseStatement{CreateStatement: "CREATE DATABASE d1"},
