@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 
+	"github.com/chzyer/readline"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -15,48 +17,6 @@ type nopCloser struct {
 
 func (n *nopCloser) Close() error {
 	return nil
-}
-
-func equalInputStatementSlice(a []inputStatement, b []inputStatement) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i].statement != b[i].statement {
-			return false
-		}
-		if a[i].delimiter != b[i].delimiter {
-			return false
-		}
-	}
-	return true
-}
-
-func TestSeparateInput(t *testing.T) {
-	tests := []struct {
-		Input    string
-		Expected []inputStatement
-	}{
-		{`SELECT * FROM t1`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
-		{`SELECT * FROM t1;`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
-		{"SELECT * FROM t1\n", []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}}},
-		{`SELECT * FROM t1\G`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterVertical}}},
-		{`SELECT * FROM t1; SELECT * FROM t2\G`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}, inputStatement{"SELECT * FROM t2", delimiterVertical}}},
-		{`SELECT * FROM t1\G SELECT * FROM t2`, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterVertical}, inputStatement{"SELECT * FROM t2", delimiterHorizontal}}},
-		{`SELECT * FROM t1; abcd `, []inputStatement{inputStatement{"SELECT * FROM t1", delimiterHorizontal}, inputStatement{"abcd", delimiterHorizontal}}},
-		{"SELECT\n*\nFROM t1;", []inputStatement{inputStatement{"SELECT\n*\nFROM t1", delimiterHorizontal}}},
-	}
-
-	for _, test := range tests {
-		got := separateInput(test.Input)
-
-		if !equalInputStatementSlice(got, test.Expected) {
-			t.Errorf("invalid separation: expected = %v, but got = %v", test.Expected, got)
-		}
-	}
 }
 
 func TestBuildDdlStatements(t *testing.T) {
@@ -83,6 +43,73 @@ func TestBuildDdlStatements(t *testing.T) {
 		if !cmp.Equal(got, test.Expected) {
 			t.Errorf("invalid result: %v", cmp.Diff(test.Expected, got))
 		}
+	}
+}
+
+func TestReadInteractiveInput(t *testing.T) {
+	for _, tt := range []struct {
+		desc  string
+		input string
+		want  *inputStatement
+		wantError bool
+	}{
+		{
+			desc:  "single line",
+			input: "SELECT 1;\n",
+			want: &inputStatement{
+				statement: "SELECT 1",
+				delim:     delimiterHorizontal,
+			},
+		},
+		{
+			desc:  "multi lines",
+			input: "SELECT\n* FROM\n t1\n;\n",
+			want: &inputStatement{
+				statement: "SELECT\n* FROM\n t1",
+				delim:     delimiterHorizontal,
+			},
+		},
+		{
+			desc:  "multi lines with vertical delimiter",
+			input: "SELECT\n* FROM\n t1\\G\n",
+			want: &inputStatement{
+				statement: "SELECT\n* FROM\n t1",
+				delim:     delimiterVertical,
+			},
+		},
+		{
+			desc:  "multi lines with multiple comments",
+			input: "SELECT\n/* comment */1,\n# comment\n2;\n",
+			want: &inputStatement{
+				statement: "SELECT\n1,\n2",
+				delim:     delimiterHorizontal,
+			},
+		},
+		{
+			desc:  "multiple statements",
+			input: "SELECT 1; SELECT 2;",
+			want: nil,
+			wantError: true,
+		},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			rl, err := readline.NewEx(&readline.Config{
+				Stdin:  ioutil.NopCloser(strings.NewReader(tt.input)),
+				Stdout: ioutil.Discard,
+				Stderr: ioutil.Discard,
+			})
+			if err != nil {
+				t.Fatalf("unexpected readline.NewEx() error: %v", err)
+			}
+
+			got, err := readInteractiveInput(rl, "")
+			if err != nil && !tt.wantError {
+				t.Errorf("readInteractiveInput(%q) got error: %v", tt.input, err)
+			}
+			if diff := cmp.Diff(tt.want, got, cmp.AllowUnexported(inputStatement{})); diff != "" {
+				t.Errorf("difference in statement: (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

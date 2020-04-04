@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -20,9 +21,6 @@ const (
 	DisplayModeTable DisplayMode = iota
 	DisplayModeVertical
 	DisplayModeTab
-
-	delimiterHorizontal = ";"
-	delimiterVertical   = "\\G"
 
 	defaultPrompt = `spanner\t> `
 
@@ -97,14 +95,19 @@ func (c *Cli) RunInteractive() int {
 	}
 
 	for {
-		rl.SetPrompt(c.getInterpolatedPrompt())
+		prompt := c.getInterpolatedPrompt()
+		rl.SetPrompt(prompt)
 
-		input, delimiter, err := readInteractiveInput(rl)
+		input, err := readInteractiveInput(rl, prompt)
 		if err == io.EOF {
 			return c.Exit()
 		}
+		if err != nil {
+			c.PrintInteractiveError(err)
+			continue
+		}
 
-		stmt, err := BuildStatement(input)
+		stmt, err := BuildStatement(input.statement)
 		if err != nil {
 			c.PrintInteractiveError(err)
 			continue
@@ -156,7 +159,7 @@ func (c *Cli) RunInteractive() int {
 			result.Stats.ElapsedTime = fmt.Sprintf("%0.2f sec", elapsed)
 		}
 
-		if delimiter == delimiterHorizontal {
+		if input.delim == delimiterHorizontal {
 			c.PrintResult(result, DisplayModeTable, true)
 		} else {
 			c.PrintResult(result, DisplayModeVertical, true)
@@ -198,7 +201,7 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 
 		if displayTable {
 			c.PrintResult(result, DisplayModeTable, false)
-		} else if separated.delimiter == delimiterVertical {
+		} else if separated.delim == delimiterVertical {
 			c.PrintResult(result, DisplayModeVertical, false)
 		} else {
 			c.PrintResult(result, DisplayModeTab, false)
@@ -277,70 +280,37 @@ func createSession(ctx context.Context, projectId string, instanceId string, dat
 	}
 }
 
-type inputStatement struct {
-	statement string
-	delimiter string
-}
+func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {
+	defer rl.SetPrompt(prompt)
 
-func readInteractiveInput(rl *readline.Instance) (string, string, error) {
-	origPrompt := rl.Config.Prompt
-	defer rl.SetPrompt(origPrompt)
-
-	var lines []string
+	var input string
 	for {
 		line, err := rl.Readline()
 		if err != nil {
-			return "", "", err
+			return nil, err
 		}
+		input += line + "\n"
 
-		line = strings.TrimSpace(line)
-		if len(line) != 0 {
-			// check comment literal
-			if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "--") {
-				continue
+		statements := separateInput(input)
+		switch len(statements) {
+		case 0:
+			// read next input
+		case 1:
+			if statements[0].delim != delimiterUndefined {
+				return &statements[0], nil
 			}
-			for _, d := range []string{delimiterHorizontal, delimiterVertical} {
-				if strings.HasSuffix(line, d) {
-					line = strings.TrimRight(line, d)
-					lines = append(lines, line)
-					return strings.TrimSpace(strings.Join(lines, " ")), d, nil
-				}
-			}
+			// read next input
+		default:
+			return nil, errors.New("sql queries are limited to single statements")
 		}
-		lines = append(lines, line)
-		rl.SetPrompt("      -> ") // same length to original prompt
-	}
-}
 
-// Separate input to each statement.
-func separateInput(input string) []inputStatement {
-	input = strings.TrimSpace(input)
-
-	// NOTE: This logic doesn't do syntactic analysis, but just checks the delimiter position,
-	// so it's fragile for the case that delimiters appear in strings.
-	var statements []inputStatement
-	for input != "" {
-		if idx := strings.Index(input, delimiterHorizontal); idx != -1 {
-			statements = append(statements, inputStatement{
-				statement: strings.TrimSpace(input[:idx]),
-				delimiter: delimiterHorizontal,
-			})
-			input = strings.TrimSpace(input[idx+1:])
-		} else if idx := strings.Index(input, delimiterVertical); idx != -1 {
-			statements = append(statements, inputStatement{
-				statement: strings.TrimSpace(input[:idx]),
-				delimiter: delimiterVertical,
-			})
-			input = strings.TrimSpace(input[idx+2:]) // +2 for \ and G
-		} else {
-			statements = append(statements, inputStatement{
-				statement: strings.TrimSpace(input),
-				delimiter: delimiterHorizontal, // default horizontal
-			})
-			break
+		// show prompt to urge next input
+		var margin string
+		if l := len(prompt); l >= 3 {
+			margin = strings.Repeat(" ", l - 3)
 		}
+		rl.SetPrompt(margin + "-> ")
 	}
-	return statements
 }
 
 func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool, verbose bool) {
