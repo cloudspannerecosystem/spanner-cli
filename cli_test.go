@@ -19,7 +19,7 @@ func (n *nopCloser) Close() error {
 	return nil
 }
 
-func TestBuildDdlStatements(t *testing.T) {
+func TestBuildStatementsWithFlag(t *testing.T) {
 	tests := []struct {
 		Input    string
 		Expected []*statementWithFlag
