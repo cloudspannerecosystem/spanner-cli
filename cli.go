@@ -45,7 +45,7 @@ type Cli struct {
 	Verbose    bool
 }
 
-type statementWithFlag struct {
+type command struct {
 	Stmt     Statement
 	Vertical bool
 }
@@ -175,7 +175,7 @@ func (c *Cli) RunInteractive() int {
 }
 
 func (c *Cli) RunBatch(input string, displayTable bool) int {
-	stmts, err := buildStatementsWithFlag(input)
+	stmts, err := buildCommands(input)
 	if err != nil {
 		c.PrintBatchError(err)
 		return exitCodeError
@@ -358,8 +358,8 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 	}
 }
 
-func buildStatementsWithFlag(input string) ([]*statementWithFlag, error) {
-	var stmts []*statementWithFlag
+func buildCommands(input string) ([]*command, error) {
+	var stmts []*command
 	var pendingDdls []string
 	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.statement)
@@ -373,16 +373,16 @@ func buildStatementsWithFlag(input string) ([]*statementWithFlag, error) {
 
 		// Flush pending DDLs
 		if len(pendingDdls) > 0 {
-			stmts = append(stmts, &statementWithFlag{&BulkDdlStatement{pendingDdls}, false})
+			stmts = append(stmts, &command{&BulkDdlStatement{pendingDdls}, false})
 			pendingDdls = nil
 		}
 
-		stmts = append(stmts, &statementWithFlag{stmt, separated.delim == delimiterVertical})
+		stmts = append(stmts, &command{stmt, separated.delim == delimiterVertical})
 	}
 
 	// Flush pending DDLs
 	if len(pendingDdls) > 0 {
-		stmts = append(stmts, &statementWithFlag{&BulkDdlStatement{pendingDdls}, false})
+		stmts = append(stmts, &command{&BulkDdlStatement{pendingDdls}, false})
 	}
 
 	return stmts, nil
