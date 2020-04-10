@@ -34,11 +34,19 @@ func TestBuildDdlStatements(t *testing.T) {
 				"DROP INDEX i1",
 				"DROP TABLE t1",
 			}}, false}}},
-		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); CREATE TABLE t2(pk INT64) PRIMARY KEY(pk); SELECT * FROM t1\G DROP TABLE t1`,
+		{`
+CREATE TABLE t1(pk INT64) PRIMARY KEY(pk);
+CREATE TABLE t2(pk INT64) PRIMARY KEY(pk);
+SELECT * FROM t1\G
+DROP TABLE t1;
+DROP TABLE t2;
+SELECT 1;
+`,
 			[]*statementWithFlag{
 				{&DdlStatements{[]string{"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)", "CREATE TABLE t2(pk INT64) PRIMARY KEY(pk)"}}, false},
 				{&SelectStatement{"SELECT * FROM t1"}, true},
-				{&DdlStatements{[]string{"DROP TABLE t1"}}, false},
+				{&DdlStatements{[]string{"DROP TABLE t1", "DROP TABLE t2"}}, false},
+				{&SelectStatement{"SELECT 1"}, false},
 			}},
 	}
 
