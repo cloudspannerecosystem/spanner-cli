@@ -19,26 +19,40 @@ func (n *nopCloser) Close() error {
 	return nil
 }
 
-func TestBuildDdlStatements(t *testing.T) {
+func TestBuildCommands(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Expected Statement
+		Expected []*command
 	}{
-		{`SELECT * FROM t1;`, nil},
-		{`CREATE TABLE t1;`, &DdlStatements{[]string{"CREATE TABLE t1"}}},
+		{`SELECT * FROM t1;`, []*command{{&SelectStatement{"SELECT * FROM t1"}, false}}},
+		{`CREATE TABLE t1;`, []*command{{&BulkDdlStatement{[]string{"CREATE TABLE t1"}}, false}}},
 		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
-			&DdlStatements{[]string{
+			[]*command{{&BulkDdlStatement{[]string{
 				"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)",
 				"ALTER TABLE t1 ADD COLUMN col INT64",
 				"CREATE INDEX i1 ON t1(col)",
 				"DROP INDEX i1",
 				"DROP TABLE t1",
-			}}},
-		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); SELECT * FROM t1;`, nil},
+			}}, false}}},
+		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk);
+                CREATE TABLE t2(pk INT64) PRIMARY KEY(pk);
+                SELECT * FROM t1\G
+                DROP TABLE t1;
+                DROP TABLE t2;
+                SELECT 1;`,
+			[]*command{
+				{&BulkDdlStatement{[]string{"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)", "CREATE TABLE t2(pk INT64) PRIMARY KEY(pk)"}}, false},
+				{&SelectStatement{"SELECT * FROM t1"}, true},
+				{&BulkDdlStatement{[]string{"DROP TABLE t1", "DROP TABLE t2"}}, false},
+				{&SelectStatement{"SELECT 1"}, false},
+			}},
 	}
 
 	for _, test := range tests {
-		got := buildDdlStatements(test.Input)
+		got, err := buildCommands(test.Input)
+		if err != nil {
+			t.Errorf("err: %v, input: %v", err, test.Input)
+		}
 
 		if !cmp.Equal(got, test.Expected) {
 			t.Errorf("invalid result: %v", cmp.Diff(test.Expected, got))
