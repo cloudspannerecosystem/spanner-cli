@@ -359,7 +359,7 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 }
 
 func buildCommands(input string) ([]*command, error) {
-	var stmts []*command
+	var cmds []*command
 	var pendingDdls []string
 	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.statement)
@@ -373,17 +373,17 @@ func buildCommands(input string) ([]*command, error) {
 
 		// Flush pending DDLs
 		if len(pendingDdls) > 0 {
-			stmts = append(stmts, &command{&BulkDdlStatement{pendingDdls}, false})
+			cmds = append(cmds, &command{&BulkDdlStatement{pendingDdls}, false})
 			pendingDdls = nil
 		}
 
-		stmts = append(stmts, &command{stmt, separated.delim == delimiterVertical})
+		cmds = append(cmds, &command{stmt, separated.delim == delimiterVertical})
 	}
 
 	// Flush pending DDLs
 	if len(pendingDdls) > 0 {
-		stmts = append(stmts, &command{&BulkDdlStatement{pendingDdls}, false})
+		cmds = append(cmds, &command{&BulkDdlStatement{pendingDdls}, false})
 	}
 
-	return stmts, nil
+	return cmds, nil
 }
