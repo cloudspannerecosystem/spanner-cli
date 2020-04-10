@@ -175,14 +175,14 @@ func (c *Cli) RunInteractive() int {
 }
 
 func (c *Cli) RunBatch(input string, displayTable bool) int {
-	stmts, err := buildCommands(input)
+	cmds, err := buildCommands(input)
 	if err != nil {
 		c.PrintBatchError(err)
 		return exitCodeError
 	}
 
-	for _, stmt := range stmts {
-		result, err := stmt.Stmt.Execute(c.Session)
+	for _, cmd := range cmds {
+		result, err := cmd.Stmt.Execute(c.Session)
 		if err != nil {
 			c.PrintBatchError(err)
 			return exitCodeError
@@ -190,7 +190,7 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 
 		if displayTable {
 			c.PrintResult(result, DisplayModeTable, false)
-		} else if stmt.Vertical {
+		} else if cmd.Vertical {
 			c.PrintResult(result, DisplayModeVertical, false)
 		} else {
 			c.PrintResult(result, DisplayModeTab, false)
