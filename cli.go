@@ -45,6 +45,11 @@ type Cli struct {
 	Verbose    bool
 }
 
+type statementWithFlag struct {
+	Stmt     Statement
+	Vertical bool
+}
+
 var defaultClientConfig = spanner.ClientConfig{
 	NumChannels: 1,
 	SessionPoolConfig: spanner.SessionPoolConfig{
@@ -170,30 +175,14 @@ func (c *Cli) RunInteractive() int {
 }
 
 func (c *Cli) RunBatch(input string, displayTable bool) int {
-	// execute batched only if all statements are DDL statements
-	if stmts := buildDdlStatements(input); stmts != nil {
-		result, err := stmts.Execute(c.Session)
-		if err != nil {
-			c.PrintBatchError(err)
-			return exitCodeError
-		}
-
-		if displayTable {
-			c.PrintResult(result, DisplayModeTable, false)
-		} else {
-			c.PrintResult(result, DisplayModeTab, false)
-		}
-		return exitCodeSuccess
+	stmts, err := buildStatementsWithFlag(input)
+	if err != nil {
+		c.PrintBatchError(err)
+		return exitCodeError
 	}
 
-	for _, separated := range separateInput(input) {
-		stmt, err := BuildStatement(separated.statement)
-		if err != nil {
-			c.PrintBatchError(err)
-			return exitCodeError
-		}
-
-		result, err := stmt.Execute(c.Session)
+	for _, stmt := range stmts {
+		result, err := stmt.Stmt.Execute(c.Session)
 		if err != nil {
 			c.PrintBatchError(err)
 			return exitCodeError
@@ -201,12 +190,13 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 
 		if displayTable {
 			c.PrintResult(result, DisplayModeTable, false)
-		} else if separated.delim == delimiterVertical {
+		} else if stmt.Vertical {
 			c.PrintResult(result, DisplayModeVertical, false)
 		} else {
 			c.PrintResult(result, DisplayModeTab, false)
 		}
 	}
+
 	return exitCodeSuccess
 }
 
@@ -368,20 +358,35 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 	}
 }
 
-// buildDdlStatements build batched statement only if all statements are DDL statements
-func buildDdlStatements(input string) Statement {
-	var ddls []string
+func buildStatementsWithFlag(input string) ([]*statementWithFlag, error) {
+	var stmts []*statementWithFlag
+	var pendingDdls []string
 	for _, separated := range separateInput(input) {
 		stmt, err := BuildStatement(separated.statement)
 		if err != nil {
-			return nil
+			return nil, err
+		}
+		if ddl, ok := stmt.(*DdlStatement); ok {
+			pendingDdls = append(pendingDdls, ddl.Ddl)
+			continue
 		}
 
-		if ddl, ok := stmt.(*DdlStatement); ok {
-			ddls = append(ddls, ddl.Ddl)
-		} else {
-			return nil
-		}
+		// Flush pending DDLs
+		stmts = append(stmts, buildStatementWithFlagFromDdls(pendingDdls)...)
+		pendingDdls = nil
+
+		stmts = append(stmts, &statementWithFlag{stmt, separated.delim == delimiterVertical})
 	}
-	return &DdlStatements{ddls}
+
+	// Flush pending DDLs
+	stmts = append(stmts, buildStatementWithFlagFromDdls(pendingDdls)...)
+
+	return stmts, nil
+}
+
+func buildStatementWithFlagFromDdls(ddls []string) []*statementWithFlag {
+	if len(ddls) == 0 {
+		return nil
+	}
+	return []*statementWithFlag{{&DdlStatements{ddls}, false}}
 }

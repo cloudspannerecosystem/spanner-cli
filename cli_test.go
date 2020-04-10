@@ -22,23 +22,31 @@ func (n *nopCloser) Close() error {
 func TestBuildDdlStatements(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Expected Statement
+		Expected []*statementWithFlag
 	}{
-		{`SELECT * FROM t1;`, nil},
-		{`CREATE TABLE t1;`, &DdlStatements{[]string{"CREATE TABLE t1"}}},
+		{`SELECT * FROM t1;`, []*statementWithFlag{{&SelectStatement{"SELECT * FROM t1"}, false}}},
+		{`CREATE TABLE t1;`, []*statementWithFlag{{&DdlStatements{[]string{"CREATE TABLE t1"}}, false}}},
 		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
-			&DdlStatements{[]string{
+			[]*statementWithFlag{{&DdlStatements{[]string{
 				"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)",
 				"ALTER TABLE t1 ADD COLUMN col INT64",
 				"CREATE INDEX i1 ON t1(col)",
 				"DROP INDEX i1",
 				"DROP TABLE t1",
-			}}},
-		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); SELECT * FROM t1;`, nil},
+			}}, false}}},
+		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); CREATE TABLE t2(pk INT64) PRIMARY KEY(pk); SELECT * FROM t1\G DROP TABLE t1`,
+			[]*statementWithFlag{
+				{&DdlStatements{[]string{"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)", "CREATE TABLE t2(pk INT64) PRIMARY KEY(pk)"}}, false},
+				{&SelectStatement{"SELECT * FROM t1"}, true},
+				{&DdlStatements{[]string{"DROP TABLE t1"}}, false},
+			}},
 	}
 
 	for _, test := range tests {
-		got := buildDdlStatements(test.Input)
+		got, err := buildStatementsWithFlag(test.Input)
+		if err != nil {
+			t.Errorf("err: %v, input: %v", err, test.Input)
+		}
 
 		if !cmp.Equal(got, test.Expected) {
 			t.Errorf("invalid result: %v", cmp.Diff(test.Expected, got))
