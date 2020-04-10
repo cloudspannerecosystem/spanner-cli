@@ -372,21 +372,18 @@ func buildStatementsWithFlag(input string) ([]*statementWithFlag, error) {
 		}
 
 		// Flush pending DDLs
-		stmts = append(stmts, buildStatementWithFlagFromDdls(pendingDdls)...)
-		pendingDdls = nil
+		if len(pendingDdls) > 0 {
+			stmts = append(stmts, &statementWithFlag{&DdlStatements{pendingDdls}, false})
+			pendingDdls = nil
+		}
 
 		stmts = append(stmts, &statementWithFlag{stmt, separated.delim == delimiterVertical})
 	}
 
 	// Flush pending DDLs
-	stmts = append(stmts, buildStatementWithFlagFromDdls(pendingDdls)...)
+	if len(pendingDdls) == 0 {
+		stmts = append(stmts, &statementWithFlag{&DdlStatements{pendingDdls}, false})
+	}
 
 	return stmts, nil
-}
-
-func buildStatementWithFlagFromDdls(ddls []string) []*statementWithFlag {
-	if len(ddls) == 0 {
-		return nil
-	}
-	return []*statementWithFlag{{&DdlStatements{ddls}, false}}
 }
