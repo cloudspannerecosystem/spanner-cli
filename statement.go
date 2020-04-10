@@ -221,11 +221,11 @@ func (s *DdlStatement) Execute(session *Session) (*Result, error) {
 	return executeDdlStatements(session, []string{s.Ddl})
 }
 
-type DdlStatements struct {
+type BulkDdlStatement struct {
 	Ddls []string
 }
 
-func (s *DdlStatements) Execute(session *Session) (*Result, error) {
+func (s *BulkDdlStatement) Execute(session *Session) (*Result, error) {
 	return executeDdlStatements(session, s.Ddls)
 }
 
