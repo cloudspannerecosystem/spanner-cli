@@ -381,7 +381,7 @@ func buildStatementsWithFlag(input string) ([]*statementWithFlag, error) {
 	}
 
 	// Flush pending DDLs
-	if len(pendingDdls) == 0 {
+	if len(pendingDdls) > 0 {
 		stmts = append(stmts, &statementWithFlag{&BulkDdlStatement{pendingDdls}, false})
 	}
 
