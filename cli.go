@@ -297,7 +297,7 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 		// show prompt to urge next input
 		var margin string
 		if l := len(prompt); l >= 3 {
-			margin = strings.Repeat(" ", l - 3)
+			margin = strings.Repeat(" ", l-3)
 		}
 		rl.SetPrompt(margin + "-> ")
 	}

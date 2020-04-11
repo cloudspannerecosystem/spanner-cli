@@ -234,7 +234,6 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 
 ## TODO
 
-* Support `DROP DATABASE`
 * Show secondary index by "SHOW CREATE TABLE"
 
 ## Disclaimer
