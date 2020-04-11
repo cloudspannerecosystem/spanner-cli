@@ -223,10 +223,6 @@ type DropDatabaseStatement struct {
 }
 
 func (s *DropDatabaseStatement) Execute(session *Session) (*Result, error) {
-	if session.databaseId == s.DatabaseId {
-		return nil, fmt.Errorf("database %q is currently used, it can not be dropped", s.DatabaseId)
-	}
-
 	if err := session.adminClient.DropDatabase(session.ctx, &adminpb.DropDatabaseRequest{
 		Database: fmt.Sprintf("projects/%s/instances/%s/databases/%s", session.projectId, session.instanceId, s.DatabaseId),
 	}); err != nil {
