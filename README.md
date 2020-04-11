@@ -146,7 +146,7 @@ The syntax is case-insensitive.
 | List databases | `SHOW DATABASES;` | |
 | Switch database | `USE <database>;` | |
 | Create database | `CREATE DATABSE <database>;` | |
-| Drop database |  | Not supported yet |
+| Drop database | `DROP DATABASE <database>;` | |
 | List tables | `SHOW TABLES;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
 | Show columns | `SHOW COLUMNS FROM <table>;` | |
