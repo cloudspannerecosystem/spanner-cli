@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -146,6 +148,17 @@ func (c *Cli) RunInteractive() int {
 			c.Session = newSession
 			fmt.Fprintf(c.OutStream, "Database changed")
 			continue
+		}
+
+		if s, ok := stmt.(*DropDatabaseStatement); ok {
+			if c.Session.databaseId == s.DatabaseId {
+				c.PrintInteractiveError(fmt.Errorf("database %q is currently used, it can not be dropped", s.DatabaseId))
+				continue
+			}
+
+			if !confirm(c.OutStream, fmt.Sprintf("Database %q will be dropped.\nDo you want to continue?", s.DatabaseId)) {
+				continue
+			}
 		}
 
 		// execute
@@ -297,7 +310,7 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 		// show prompt to urge next input
 		var margin string
 		if l := len(prompt); l >= 3 {
-			margin = strings.Repeat(" ", l - 3)
+			margin = strings.Repeat(" ", l-3)
 		}
 		rl.SetPrompt(margin + "-> ")
 	}
@@ -386,4 +399,21 @@ func buildCommands(input string) ([]*command, error) {
 	}
 
 	return cmds, nil
+}
+
+func confirm(out io.Writer, msg string) bool {
+	fmt.Fprintf(out, "%s [yes/no] ", msg)
+
+	s := bufio.NewScanner(os.Stdin)
+	for {
+		s.Scan()
+		switch strings.ToLower(s.Text()) {
+		case "yes":
+			return true
+		case "no":
+			return false
+		default:
+			fmt.Fprint(out, "Please answer yes or no: ")
+		}
+	}
 }
