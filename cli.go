@@ -156,8 +156,7 @@ func (c *Cli) RunInteractive() int {
 				continue
 			}
 
-			msg := fmt.Sprintf("Database %q will be dropped.\nDo you want to continue?", s.DatabaseId)
-			if ok := confirm(c.OutStream, msg); !ok {
+			if !confirm(c.OutStream, fmt.Sprintf("Database %q will be dropped.\nDo you want to continue?", s.DatabaseId)) {
 				continue
 			}
 		}
