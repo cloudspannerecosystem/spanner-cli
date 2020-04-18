@@ -49,6 +49,16 @@ func TestBuildStatement(t *testing.T) {
 			want:  &CreateDatabaseStatement{CreateStatement: "CREATE DATABASE d1"},
 		},
 		{
+			desc:  "DROP DATABASE statement",
+			input: "DROP DATABASE d1",
+			want:  &DropDatabaseStatement{DatabaseId: "d1"},
+		},
+		{
+			desc:  "DROP DATABASE statement with escaped database name",
+			input: "DROP DATABASE `TABLE`",
+			want:  &DropDatabaseStatement{DatabaseId: "TABLE"},
+		},
+		{
 			desc:  "CREATE TABLE statement",
 			input: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)",
 			want:  &DdlStatement{Ddl: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)"},

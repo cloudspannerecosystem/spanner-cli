@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/spanner"
@@ -40,6 +41,7 @@ var (
 
 	// DDL
 	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
+	dropDatabaseRe   = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
 	createTableRe    = regexp.MustCompile(`(?is)^CREATE\s+TABLE\s.+$`)
 	alterTableRe     = regexp.MustCompile(`(?is)^ALTER\s+TABLE\s.+$`)
 	dropTableRe      = regexp.MustCompile(`(?is)^DROP\s+TABLE\s.+$`)
@@ -85,6 +87,9 @@ func BuildStatement(input string) (Statement, error) {
 		return &SelectStatement{Query: input}, nil
 	case createDatabaseRe.MatchString(input):
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
+	case dropDatabaseRe.MatchString(input):
+		matched := dropDatabaseRe.FindStringSubmatch(input)
+		return &DropDatabaseStatement{DatabaseId: strings.Trim(matched[1], "`")}, nil
 	case createTableRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case alterTableRe.MatchString(input):
@@ -207,6 +212,20 @@ func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 	if _, err := op.Wait(session.ctx); err != nil {
+		return nil, err
+	}
+
+	return &Result{IsMutation: true}, nil
+}
+
+type DropDatabaseStatement struct {
+	DatabaseId string
+}
+
+func (s *DropDatabaseStatement) Execute(session *Session) (*Result, error) {
+	if err := session.adminClient.DropDatabase(session.ctx, &adminpb.DropDatabaseRequest{
+		Database: fmt.Sprintf("projects/%s/instances/%s/databases/%s", session.projectId, session.instanceId, s.DatabaseId),
+	}); err != nil {
 		return nil, err
 	}
 
