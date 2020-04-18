@@ -205,6 +205,16 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
 		},
 		{
+			desc:  "EXPLAIN SELECT statement with statement hint",
+			input: "EXPLAIN @{OPTIMIZER_VERSION=latest} SELECT * FROM t1",
+			want:  &ExplainStatement{Explain: "@{OPTIMIZER_VERSION=latest} SELECT * FROM t1"},
+		},
+		{
+			desc:  "EXPLAIN SELECT statement with WITH",
+			input: "EXPLAIN WITH t1 AS (SELECT 1) SELECT * FROM t1",
+			want:  &ExplainStatement{Explain: "WITH t1 AS (SELECT 1) SELECT * FROM t1"},
+		},
+		{
 			desc:  "DESCRIBE SELECT statement",
 			input: "DESCRIBE SELECT * FROM t1",
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
