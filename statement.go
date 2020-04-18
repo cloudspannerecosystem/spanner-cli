@@ -19,20 +19,27 @@ type Statement interface {
 }
 
 type Result struct {
-	ColumnNames []string
-	Rows        []Row
-	Stats       Stats
-	IsMutation  bool
-	Timestamp   time.Time
+	ColumnNames  []string
+	Rows         []Row
+	AffectedRows int
+	Stats        QueryStats
+	IsMutation   bool
+	Timestamp    time.Time
 }
 
 type Row struct {
 	Columns []string
 }
 
-type Stats struct {
-	AffectedRows int
-	ElapsedTime  string
+// QueryStats contains query statistics.
+// Some fields may not have a valid value depending on the environment.
+// For example, only ElapsedTime and RowsReturned has valid value for Cloud Spanner Emulator.
+type QueryStats struct {
+	ElapsedTime      string
+	CPUTime          string
+	RowsReturned     string
+	RowsScanned      string
+	OptimizerVersion string
 }
 
 var (
@@ -184,12 +191,14 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		})
 	}
 
-	rowsReturned, _ := strconv.Atoi(iter.QueryStats["rows_returned"].(string))
-	elapsedTime := iter.QueryStats["elapsed_time"].(string)
-	result.Stats = Stats{
-		AffectedRows: rowsReturned,
-		ElapsedTime:  elapsedTime,
+	queryStats := parseQueryStats(iter.QueryStats)
+	rowsReturned, err := strconv.Atoi(queryStats.RowsReturned)
+	if err != nil {
+		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
+
+	result.AffectedRows = rowsReturned
+	result.Stats = queryStats
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
 	if targetRoTxn != nil {
@@ -197,6 +206,43 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	return result, nil
+}
+
+// parseQueryStats parses spanner.RowIterator.QueryStats
+func parseQueryStats(stats map[string]interface{}) QueryStats {
+	var queryStats QueryStats
+
+	if v, ok := stats["elapsed_time"]; ok {
+		if elapsed, ok := v.(string); ok {
+			queryStats.ElapsedTime = elapsed
+		}
+	}
+
+	if v, ok := stats["rows_returned"]; ok {
+		if returned, ok := v.(string); ok {
+			queryStats.RowsReturned = returned
+		}
+	}
+
+	if v, ok := stats["rows_scanned"]; ok {
+		if scanned, ok := v.(string); ok {
+			queryStats.RowsScanned = scanned
+		}
+	}
+
+	if v, ok := stats["cpu_time"]; ok {
+		if cpu, ok := v.(string); ok {
+			queryStats.CPUTime = cpu
+		}
+	}
+
+	if v, ok := stats["optimizer_version"]; ok {
+		if version, ok := v.(string); ok {
+			queryStats.OptimizerVersion = version
+		}
+	}
+
+	return queryStats
 }
 
 type CreateDatabaseStatement struct {
@@ -291,7 +337,7 @@ func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
 		result.Rows = append(result.Rows, resultRow)
 	}
 
-	result.Stats.AffectedRows = len(result.Rows)
+	result.AffectedRows = len(result.Rows)
 
 	return result, nil
 }
@@ -322,7 +368,7 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
-	result.Stats.AffectedRows = len(result.Rows)
+	result.AffectedRows = len(result.Rows)
 
 	return result, nil
 }
@@ -349,11 +395,9 @@ type ExplainStatement struct {
 
 func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
-		ColumnNames: []string{"Query_Execution_Plan (EXPERIMENTAL)"},
-		Rows:        make([]Row, 1),
-		Stats: Stats{
-			AffectedRows: 1,
-		},
+		ColumnNames:  []string{"Query_Execution_Plan (EXPERIMENTAL)"},
+		Rows:         make([]Row, 1),
+		AffectedRows: 1,
 	}
 
 	stmt := spanner.NewStatement(s.Explain)
@@ -494,7 +538,7 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 		result.Timestamp = txnResult.Timestamp
 	}
 
-	result.Stats.AffectedRows = int(numRows)
+	result.AffectedRows = int(numRows)
 
 	return result, nil
 }
