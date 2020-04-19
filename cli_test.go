@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/chzyer/readline"
 	"github.com/google/go-cmp/cmp"
@@ -203,4 +205,123 @@ bar: 4
 			t.Errorf("invalid print: expected = %s, but got = %s", expected, got)
 		}
 	})
+}
+
+func TestResultLine(t *testing.T) {
+	timestamp := "2020-04-01T15:00:00.999999999+09:00"
+	ts, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		t.Fatalf("unexpected time.Parse error: %v", err)
+	}
+
+	for _, tt := range []struct {
+		desc    string
+		result  *Result
+		verbose bool
+		want    string
+	}{
+		{
+			desc: "mutation in normal mode",
+			result: &Result{
+				AffectedRows: 3,
+				IsMutation:   true,
+				Stats: QueryStats{
+					ElapsedTime: "10 msec",
+				},
+			},
+			verbose: false,
+			want:    "Query OK, 3 rows affected (10 msec)\n",
+		},
+		{
+			desc: "mutation in verbose mode (timestamp exist)",
+			result: &Result{
+				AffectedRows: 3,
+				IsMutation:   true,
+				Stats: QueryStats{
+					ElapsedTime: "10 msec",
+				},
+				Timestamp: ts,
+			},
+			verbose: true,
+			want:    fmt.Sprintf("Query OK, 3 rows affected (10 msec)\ntimestamp: %s\n", timestamp),
+		},
+		{
+			desc: "mutation in verbose mode (timestamp not exist)",
+			result: &Result{
+				AffectedRows: 0,
+				IsMutation:   true,
+				Stats: QueryStats{
+					ElapsedTime: "10 msec",
+				},
+			},
+			verbose: true,
+			want:    "Query OK, 0 rows affected (10 msec)\n",
+		},
+		{
+			desc: "query in normal mode (rows exist)",
+			result: &Result{
+				AffectedRows: 3,
+				IsMutation:   false,
+				Stats: QueryStats{
+					ElapsedTime: "10 msec",
+				},
+			},
+			verbose: false,
+			want:    "3 rows in set (10 msec)\n",
+		},
+		{
+			desc: "query in normal mode (no rows exist)",
+			result: &Result{
+				AffectedRows: 0,
+				IsMutation:   false,
+				Stats: QueryStats{
+					ElapsedTime: "10 msec",
+				},
+			},
+			verbose: false,
+			want:    "Empty set (10 msec)\n",
+		},
+		{
+			desc: "query in verbose mode (all stats fields exist)",
+			result: &Result{
+				AffectedRows: 3,
+				IsMutation:   false,
+				Stats: QueryStats{
+					ElapsedTime:      "10 msec",
+					CPUTime:          "5 msec",
+					RowsScanned:      "10",
+					RowsReturned:     "3",
+					OptimizerVersion: "2",
+				},
+				Timestamp: ts,
+			},
+			verbose: true,
+			want: fmt.Sprintf(`3 rows in set (10 msec)
+timestamp: %s
+cpu:       5 msec
+scanned:   10 rows
+optimizer: 2
+`, timestamp),
+		},
+		{
+			desc: "query in verbose mode (only stats fields supported by Cloud Spanner Emulator)",
+			result: &Result{
+				AffectedRows: 3,
+				IsMutation:   false,
+				Stats: QueryStats{
+					ElapsedTime:  "10 msec",
+					RowsReturned: "3",
+				},
+				Timestamp: ts,
+			},
+			verbose: true,
+			want:    fmt.Sprintf("3 rows in set (10 msec)\ntimestamp: %s\n", timestamp),
+		},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			if got := resultLine(tt.result, tt.verbose); tt.want != got {
+				t.Errorf("resultLine(%v, %v) = %q, but want = %q", tt.result, tt.verbose, got, tt.want)
+			}
+		})
+	}
 }

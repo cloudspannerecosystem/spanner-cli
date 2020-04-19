@@ -389,7 +389,7 @@ func resultLine(result *Result, verbose bool) string {
 			detail += fmt.Sprintf("cpu:       %s\n", result.Stats.CPUTime)
 		}
 		if result.Stats.RowsScanned != "" {
-			detail += fmt.Sprintf("scanned:   %s\n", result.Stats.RowsScanned)
+			detail += fmt.Sprintf("scanned:   %s rows\n", result.Stats.RowsScanned)
 		}
 		if result.Stats.OptimizerVersion != "" {
 			detail += fmt.Sprintf("optimizer: %s\n", result.Stats.OptimizerVersion)
