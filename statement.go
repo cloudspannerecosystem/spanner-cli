@@ -221,7 +221,7 @@ func parseQueryResult(iter *spanner.RowIterator) ([]Row, []string, error) {
 	return rows, columnNames, nil
 }
 
-// parseQueryStats parses spanner.RowIterator.QueryStats
+// parseQueryStats parses spanner.RowIterator.QueryStats.
 func parseQueryStats(stats map[string]interface{}) QueryStats {
 	var queryStats QueryStats
 

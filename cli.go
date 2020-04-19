@@ -373,14 +373,15 @@ func resultLine(result *Result, verbose bool) string {
 		return fmt.Sprintf("Query OK, %d rows affected (%s)\n", result.AffectedRows, result.Stats.ElapsedTime)
 	}
 
-	var affected string
+	var set string
 	if result.AffectedRows == 0 {
-		affected = "Empty set"
+		set = "Empty set"
 	} else {
-		affected = fmt.Sprintf("%d rows in set", result.AffectedRows)
+		set = fmt.Sprintf("%d rows in set", result.AffectedRows)
 	}
 
 	if verbose {
+		// detail is aligned with max length of key (current: 9)
 		var detail string
 		if timestamp != "" {
 			detail += fmt.Sprintf("timestamp: %s\n", timestamp)
@@ -394,9 +395,9 @@ func resultLine(result *Result, verbose bool) string {
 		if result.Stats.OptimizerVersion != "" {
 			detail += fmt.Sprintf("optimizer: %s\n", result.Stats.OptimizerVersion)
 		}
-		return fmt.Sprintf("%s (%s)\n%s", affected, result.Stats.ElapsedTime, detail)
+		return fmt.Sprintf("%s (%s)\n%s", set, result.Stats.ElapsedTime, detail)
 	}
-	return fmt.Sprintf("%s (%s)\n", affected, result.Stats.ElapsedTime)
+	return fmt.Sprintf("%s (%s)\n", set, result.Stats.ElapsedTime)
 }
 
 func buildCommands(input string) ([]*command, error) {
