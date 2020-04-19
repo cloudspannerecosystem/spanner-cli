@@ -389,13 +389,22 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 type ShowTablesStatement struct{}
 
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
-	if session.InRoTxn() || session.InRwTxn() {
-		return nil, errors.New(`"SHOW TABLES" can not be used in a transaction`)
+	if session.InRwTxn() {
+		// INFORMATION_SCHEMA can not be used in read-write transaction.
+		// https://cloud.google.com/spanner/docs/information-schema
+		return nil, errors.New(`"SHOW TABLES" can not be used in a read-write transaction`)
 	}
 
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	stmt := spanner.NewStatement(fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias))
-	iter := session.client.Single().Query(session.ctx, stmt)
+
+	var txn *spanner.ReadOnlyTransaction
+	if session.InRoTxn() {
+		txn = session.roTxn
+	} else {
+		txn = session.client.Single()
+	}
+	iter := txn.Query(session.ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -439,8 +448,10 @@ type ShowColumnsStatement struct {
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
-	if session.InRoTxn() || session.InRwTxn() {
-		return nil, errors.New(`"SHOW COLUMNS" can not be used in a transaction`)
+	if session.InRwTxn() {
+		// INFORMATION_SCHEMA can not be used in read-write transaction.
+		// https://cloud.google.com/spanner/docs/information-schema
+		return nil, errors.New(`"SHOW COLUMNS" can not be used in a read-write transaction`)
 	}
 
 	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
@@ -463,7 +474,13 @@ WHERE
 ORDER BY
   C.ORDINAL_POSITION ASC`, s.Table))
 
-	iter := session.client.Single().Query(session.ctx, stmt)
+	var txn *spanner.ReadOnlyTransaction
+	if session.InRoTxn() {
+		txn = session.roTxn
+	} else {
+		txn = session.client.Single()
+	}
+	iter := txn.Query(session.ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -486,8 +503,10 @@ type ShowIndexStatement struct {
 }
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
-	if session.InRoTxn() || session.InRwTxn() {
-		return nil, errors.New(`"SHOW INDEX" can not be used in a transaction`)
+	if session.InRwTxn() {
+		// INFORMATION_SCHEMA can not be used in read-write transaction.
+		// https://cloud.google.com/spanner/docs/information-schema
+		return nil, errors.New(`"SHOW INDEX" can not be used in a read-write transaction`)
 	}
 
 	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
@@ -503,7 +522,14 @@ FROM
 WHERE
   TABLE_NAME = '%s'`, s.Table))
 
-	iter := session.client.Single().Query(session.ctx, stmt)
+	var txn *spanner.ReadOnlyTransaction
+	if session.InRoTxn() {
+		txn = session.roTxn
+	} else {
+		txn = session.client.Single()
+	}
+
+	iter := txn.Query(session.ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
