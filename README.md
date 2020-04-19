@@ -33,6 +33,7 @@ spanner:
   -e, --execute=    Execute SQL statement and quit.
   -f, --file=       Execute SQL statement from file and quit.
   -t, --table       Display output in table format for batch mode.
+  -v, --verbose     Display verbose output.
       --credential= Use the specific credential file
       --prompt=     Set the prompt to the specified format
 
