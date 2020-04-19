@@ -62,9 +62,9 @@ func TestBuildCommands(t *testing.T) {
 
 func TestReadInteractiveInput(t *testing.T) {
 	for _, tt := range []struct {
-		desc  string
-		input string
-		want  *inputStatement
+		desc      string
+		input     string
+		want      *inputStatement
 		wantError bool
 	}{
 		{
@@ -100,9 +100,9 @@ func TestReadInteractiveInput(t *testing.T) {
 			},
 		},
 		{
-			desc:  "multiple statements",
-			input: "SELECT 1; SELECT 2;",
-			want: nil,
+			desc:      "multiple statements",
+			input:     "SELECT 1; SELECT 2;",
+			want:      nil,
 			wantError: true,
 		},
 	} {
@@ -136,7 +136,6 @@ func TestPrintResult(t *testing.T) {
 				Row{[]string{"1", "2"}},
 				Row{[]string{"3", "4"}},
 			},
-			Stats:      Stats{},
 			IsMutation: false,
 		}
 		printResult(out, result, DisplayModeTable, false, false)
@@ -164,7 +163,6 @@ func TestPrintResult(t *testing.T) {
 				Row{[]string{"1", "2"}},
 				Row{[]string{"3", "4"}},
 			},
-			Stats:      Stats{},
 			IsMutation: false,
 		}
 		printResult(out, result, DisplayModeVertical, false, false)
@@ -192,7 +190,6 @@ bar: 4
 				Row{[]string{"1", "2"}},
 				Row{[]string{"3", "4"}},
 			},
-			Stats:      Stats{},
 			IsMutation: false,
 		}
 		printResult(out, result, DisplayModeTab, false, false)
