@@ -123,7 +123,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 
 func compareResult(t *testing.T, got *Result, expected *Result) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Stats{}, "ElapsedTime"),
+		cmpopts.IgnoreFields(Result{}, "Stats"),
 		cmpopts.IgnoreFields(Result{}, "Timestamp"),
 	}
 	if !cmp.Equal(got, expected, opts...) {
@@ -160,10 +160,8 @@ func TestSelect(t *testing.T) {
 			Row{[]string{"1", "true"}},
 			Row{[]string{"2", "false"}},
 		},
-		Stats: Stats{
-			AffectedRows: 2,
-		},
-		IsMutation: false,
+		AffectedRows: 2,
+		IsMutation:   false,
 	})
 }
 
@@ -189,10 +187,8 @@ func TestDml(t *testing.T) {
 	}
 
 	compareResult(t, result, &Result{
-		Stats: Stats{
-			AffectedRows: 2,
-		},
-		IsMutation: true,
+		AffectedRows: 2,
+		IsMutation:   true,
 	})
 
 	// check by query
@@ -247,10 +243,8 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 0,
-			},
-			IsMutation: true,
+			AffectedRows: 0,
+			IsMutation:   true,
 		})
 
 		// insert
@@ -265,10 +259,8 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 2,
-			},
-			IsMutation: true,
+			AffectedRows: 2,
+			IsMutation:   true,
 		})
 
 		// commit
@@ -283,10 +275,8 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 0,
-			},
-			IsMutation: true,
+			AffectedRows: 0,
+			IsMutation:   true,
 		})
 
 		// check by query
@@ -336,10 +326,8 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 0,
-			},
-			IsMutation: true,
+			AffectedRows: 0,
+			IsMutation:   true,
 		})
 
 		// insert
@@ -354,10 +342,8 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 2,
-			},
-			IsMutation: true,
+			AffectedRows: 2,
+			IsMutation:   true,
 		})
 
 		// rollback
@@ -372,10 +358,8 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 0,
-			},
-			IsMutation: true,
+			AffectedRows: 0,
+			IsMutation:   true,
 		})
 
 		// check by query
@@ -454,10 +438,8 @@ func TestReadOnlyTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 0,
-			},
-			IsMutation: true,
+			AffectedRows: 0,
+			IsMutation:   true,
 		})
 
 		// query
@@ -477,10 +459,8 @@ func TestReadOnlyTransaction(t *testing.T) {
 				Row{[]string{"1", "true"}},
 				Row{[]string{"2", "false"}},
 			},
-			Stats: Stats{
-				AffectedRows: 2,
-			},
-			IsMutation: false,
+			AffectedRows: 2,
+			IsMutation:   false,
 		})
 
 		// close
@@ -495,10 +475,8 @@ func TestReadOnlyTransaction(t *testing.T) {
 		}
 
 		compareResult(t, result, &Result{
-			Stats: Stats{
-				AffectedRows: 0,
-			},
-			IsMutation: true,
+			AffectedRows: 0,
+			IsMutation:   true,
 		})
 	})
 
@@ -552,10 +530,8 @@ func TestReadOnlyTransaction(t *testing.T) {
 				Row{[]string{"1", "true"}},
 				Row{[]string{"2", "false"}},
 			},
-			Stats: Stats{
-				AffectedRows: 2,
-			},
-			IsMutation: false,
+			AffectedRows: 2,
+			IsMutation:   false,
 		})
 
 		// close
@@ -597,9 +573,7 @@ func TestShowCreateTable(t *testing.T) {
 		Rows: []Row{
 			Row{[]string{tableId, fmt.Sprintf("CREATE TABLE %s (\n  id INT64 NOT NULL,\n  active BOOL NOT NULL,\n) PRIMARY KEY(id)", tableId)}},
 		},
-		Stats: Stats{
-			AffectedRows: 1,
-		},
-		IsMutation: false,
+		AffectedRows: 1,
+		IsMutation:   false,
 	})
 }

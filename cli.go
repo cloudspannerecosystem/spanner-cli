@@ -233,8 +233,8 @@ func (c *Cli) PrintBatchError(err error) {
 	fmt.Fprintf(c.ErrStream, "ERROR: %s\n", err)
 }
 
-func (c *Cli) PrintResult(result *Result, mode DisplayMode, withStats bool) {
-	printResult(c.OutStream, result, mode, withStats, c.Verbose)
+func (c *Cli) PrintResult(result *Result, mode DisplayMode, interactive bool) {
+	printResult(c.OutStream, result, mode, interactive, c.Verbose)
 }
 
 func (c *Cli) PrintProgressingMark() func() {
@@ -316,7 +316,7 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 	}
 }
 
-func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool, verbose bool) {
+func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, verbose bool) {
 	if mode == DisplayModeTable {
 		table := tablewriter.NewWriter(out)
 		table.SetAutoFormatHeaders(false)
@@ -354,21 +354,50 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, withStats bool
 		}
 	}
 
-	if withStats {
-		var timestampStr string
-		if verbose && !result.Timestamp.IsZero() {
-			timestampStr = fmt.Sprintf(", timestamp: %s", result.Timestamp.Format(time.RFC3339Nano))
-		}
-		if result.IsMutation {
-			fmt.Fprintf(out, "Query OK, %d rows affected (%s)%s\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
-		} else {
-			if result.Stats.AffectedRows == 0 {
-				fmt.Fprintf(out, "Empty set (%s)%s\n", result.Stats.ElapsedTime, timestampStr)
-			} else {
-				fmt.Fprintf(out, "%d rows in set (%s)%s\n", result.Stats.AffectedRows, result.Stats.ElapsedTime, timestampStr)
-			}
-		}
+	if interactive {
+		fmt.Fprint(out, resultLine(result, verbose))
 	}
+}
+
+func resultLine(result *Result, verbose bool) string {
+	var timestamp string
+	if !result.Timestamp.IsZero() {
+		timestamp = result.Timestamp.Format(time.RFC3339Nano)
+	}
+
+	if result.IsMutation {
+		if verbose && timestamp != "" {
+			return fmt.Sprintf("Query OK, %d rows affected (%s)\ntimestamp: %s\n", result.AffectedRows,
+				result.Stats.ElapsedTime, timestamp)
+		}
+		return fmt.Sprintf("Query OK, %d rows affected (%s)\n", result.AffectedRows, result.Stats.ElapsedTime)
+	}
+
+	var set string
+	if result.AffectedRows == 0 {
+		set = "Empty set"
+	} else {
+		set = fmt.Sprintf("%d rows in set", result.AffectedRows)
+	}
+
+	if verbose {
+		// detail is aligned with max length of key (current: 9)
+		var detail string
+		if timestamp != "" {
+			detail += fmt.Sprintf("timestamp: %s\n", timestamp)
+		}
+		if result.Stats.CPUTime != "" {
+			detail += fmt.Sprintf("cpu:       %s\n", result.Stats.CPUTime)
+		}
+		if result.Stats.RowsScanned != "" {
+			detail += fmt.Sprintf("scanned:   %s rows\n", result.Stats.RowsScanned)
+		}
+		if result.Stats.OptimizerVersion != "" {
+			detail += fmt.Sprintf("optimizer: %s\n", result.Stats.OptimizerVersion)
+		}
+		return fmt.Sprintf("%s (%s)\n%s", set, result.Stats.ElapsedTime, detail)
+	}
+	return fmt.Sprintf("%s (%s)\n", set, result.Stats.ElapsedTime)
 }
 
 func buildCommands(input string) ([]*command, error) {
