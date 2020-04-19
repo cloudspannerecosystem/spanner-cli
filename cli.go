@@ -365,29 +365,12 @@ func resultLine(result *Result, verbose bool) string {
 		timestamp = result.Timestamp.Format(time.RFC3339Nano)
 	}
 
-	elapsedTime := result.Stats.ElapsedTime
-	if elapsedTime == "" {
-		elapsedTime = "UNKNOWN"
-	}
-	cpuTime := result.Stats.CPUTime
-	if cpuTime == "" {
-		cpuTime = "UNKNOWN"
-	}
-	rowsScanned := result.Stats.RowsScanned
-	if rowsScanned == "" {
-		rowsScanned = "UNKNOWN"
-	}
-	optimizerVersion := result.Stats.OptimizerVersion
-	if optimizerVersion == "" {
-		optimizerVersion = "UNKNOWN"
-	}
-
 	if result.IsMutation {
-		if verbose {
-			return fmt.Sprintf("Query OK, %d rows affected (elapsed: %s, timestamp: %s)\n", result.AffectedRows,
-				elapsedTime, timestamp)
+		if verbose && timestamp != "" {
+			return fmt.Sprintf("Query OK, %d rows affected (%s)\ntimestamp: %s\n", result.AffectedRows,
+				result.Stats.ElapsedTime, timestamp)
 		}
-		return fmt.Sprintf("Query OK, %d rows affected (%s)\n", result.AffectedRows, elapsedTime)
+		return fmt.Sprintf("Query OK, %d rows affected (%s)\n", result.AffectedRows, result.Stats.ElapsedTime)
 	}
 
 	var affected string
@@ -398,10 +381,22 @@ func resultLine(result *Result, verbose bool) string {
 	}
 
 	if verbose {
-		return fmt.Sprintf("%s (elapsed: %s, cpu: %s, scanned: %s rows, optimizer: %s, timestamp: %s)\n", affected,
-			elapsedTime, cpuTime, rowsScanned, optimizerVersion, timestamp)
+		var detail string
+		if timestamp != "" {
+			detail += fmt.Sprintf("timestamp: %s\n", timestamp)
+		}
+		if result.Stats.CPUTime != "" {
+			detail += fmt.Sprintf("cpu:       %s\n", result.Stats.CPUTime)
+		}
+		if result.Stats.RowsScanned != "" {
+			detail += fmt.Sprintf("scanned:   %s\n", result.Stats.RowsScanned)
+		}
+		if result.Stats.OptimizerVersion != "" {
+			detail += fmt.Sprintf("optimizer: %s\n", result.Stats.OptimizerVersion)
+		}
+		return fmt.Sprintf("%s (%s)\n%s", affected, result.Stats.ElapsedTime, detail)
 	}
-	return fmt.Sprintf("%s (%s)\n", affected, elapsedTime)
+	return fmt.Sprintf("%s (%s)\n", affected, result.Stats.ElapsedTime)
 }
 
 func buildCommands(input string) ([]*command, error) {

@@ -166,29 +166,13 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	}
 	defer iter.Stop()
 
-	result := &Result{}
-
-	for {
-		row, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if len(result.ColumnNames) == 0 {
-			// Initialize column names.
-			result.ColumnNames = row.ColumnNames()
-		}
-
-		columns, err := DecodeRow(row)
-		if err != nil {
-			return nil, err
-		}
-		result.Rows = append(result.Rows, Row{
-			Columns: columns,
-		})
+	rows, columnNames, err := parseQueryResult(iter)
+	if err != nil {
+		return nil, err
+	}
+	result := &Result{
+		ColumnNames: columnNames,
+		Rows:        rows,
 	}
 
 	queryStats := parseQueryStats(iter.QueryStats)
@@ -206,6 +190,35 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	return result, nil
+}
+
+// parseQueryResult parses rows and columnNames from spanner.RowIterator.
+// A caller is responsible for calling iterator.Stop().
+func parseQueryResult(iter *spanner.RowIterator) ([]Row, []string, error) {
+	var rows []Row
+	var columnNames []string
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if len(columnNames) == 0 {
+			columnNames = row.ColumnNames()
+		}
+
+		columns, err := DecodeRow(row)
+		if err != nil {
+			return nil, nil, err
+		}
+		rows = append(rows, Row{
+			Columns: columns,
+		})
+	}
+	return rows, columnNames, nil
 }
 
 // parseQueryStats parses spanner.RowIterator.QueryStats
@@ -376,17 +389,25 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 type ShowTablesStatement struct{}
 
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
-		// because information schema can't used in read-write transaction.
-		// cf. https://cloud.google.com/spanner/docs/information-schema
-		return nil, errors.New(`"SHOW TABLES" can not be used in read-write transaction`)
+	if session.InRoTxn() || session.InRwTxn() {
+		return nil, errors.New(`"SHOW TABLES" can not be used in a transaction`)
 	}
 
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
-	query := SelectStatement{
-		Query: fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias),
+	stmt := spanner.NewStatement(fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias))
+	iter := session.client.Single().Query(session.ctx, stmt)
+	defer iter.Stop()
+
+	rows, columnNames, err := parseQueryResult(iter)
+	if err != nil {
+		return nil, err
 	}
-	return query.Execute(session)
+
+	return &Result{
+		ColumnNames:  columnNames,
+		Rows:         rows,
+		AffectedRows: len(rows),
+	}, nil
 }
 
 type ExplainStatement struct {
@@ -418,14 +439,11 @@ type ShowColumnsStatement struct {
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
-		// because information schema can't used in read-write transaction.
-		// cf. https://cloud.google.com/spanner/docs/information-schema
-		return nil, errors.New(`"SHOW COLUMNS" can not be used in read-write transaction`)
+	if session.InRoTxn() || session.InRwTxn() {
+		return nil, errors.New(`"SHOW COLUMNS" can not be used in a transaction`)
 	}
 
-	query := SelectStatement{
-		Query: fmt.Sprintf(`SELECT
+	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
   C.IS_NULLABLE as `+"`NULL`"+`,
@@ -443,19 +461,24 @@ LEFT JOIN
 WHERE
   C.TABLE_SCHEMA = '' AND C.TABLE_NAME = '%s'
 ORDER BY
-  C.ORDINAL_POSITION ASC`, s.Table),
-	}
+  C.ORDINAL_POSITION ASC`, s.Table))
 
-	result, err := query.Execute(session)
+	iter := session.client.Single().Query(session.ctx, stmt)
+	defer iter.Stop()
+
+	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(result.Rows) == 0 {
+	if len(rows) == 0 {
 		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
-	return result, nil
+	return &Result{
+		ColumnNames:  columnNames,
+		Rows:         rows,
+		AffectedRows: len(rows),
+	}, nil
 }
 
 type ShowIndexStatement struct {
@@ -463,14 +486,11 @@ type ShowIndexStatement struct {
 }
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
-		// Information schema can't be used in read-write transaction.
-		// cf. https://cloud.google.com/spanner/docs/information-schema
-		return nil, errors.New(`"SHOW INDEX" can not be used in read-write transaction`)
+	if session.InRoTxn() || session.InRwTxn() {
+		return nil, errors.New(`"SHOW INDEX" can not be used in a transaction`)
 	}
 
-	query := SelectStatement{
-		Query: fmt.Sprintf(`SELECT
+	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
   TABLE_NAME as Table,
   PARENT_TABLE_NAME as Parent_table,
   INDEX_NAME as Index_name,
@@ -481,19 +501,24 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 FROM
   INFORMATION_SCHEMA.INDEXES
 WHERE
-  TABLE_NAME = '%s'`, s.Table),
-	}
+  TABLE_NAME = '%s'`, s.Table))
 
-	result, err := query.Execute(session)
+	iter := session.client.Single().Query(session.ctx, stmt)
+	defer iter.Stop()
+
+	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(result.Rows) == 0 {
+	if len(rows) == 0 {
 		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
-	return result, nil
+	return &Result{
+		ColumnNames:  columnNames,
+		Rows:         rows,
+		AffectedRows: len(rows),
+	}, nil
 }
 
 type DmlStatement struct {
