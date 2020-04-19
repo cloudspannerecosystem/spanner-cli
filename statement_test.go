@@ -185,21 +185,6 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowColumnsStatement{Table: "t1"},
 		},
 		{
-			desc:  "EXPLAIN statement",
-			input: "EXPLAIN t1",
-			want:  &ShowColumnsStatement{Table: "t1"},
-		},
-		{
-			desc:  "DESCRIBE statement",
-			input: "DESCRIBE t1",
-			want:  &ShowColumnsStatement{Table: "t1"},
-		},
-		{
-			desc:  "DESC statement",
-			input: "DESC t1",
-			want:  &ShowColumnsStatement{Table: "t1"},
-		},
-		{
 			desc:  "EXPLAIN SELECT statement",
 			input: "EXPLAIN SELECT * FROM t1",
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
