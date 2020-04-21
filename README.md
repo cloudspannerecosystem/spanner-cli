@@ -241,4 +241,4 @@ $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTI
 
 Do not use this tool for production databases as the tool is still alpha quality.
 
-This tool is not an official Google product.
+Please feel free to report issues and send pull requests, but note that this application is not officially supported as part of the Cloud Spanner product.
