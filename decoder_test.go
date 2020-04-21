@@ -1,3 +1,19 @@
+//
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 package main
 
 import (
@@ -60,7 +76,7 @@ func TestDecodeColumn(t *testing.T) {
 		// non-nullable
 		{
 			desc:  "bool",
-			value:  true,
+			value: true,
 			want:  "true",
 		},
 		{
@@ -174,7 +190,7 @@ func TestDecodeColumn(t *testing.T) {
 		},
 		{
 			desc: "array struct",
-			value: []struct{
+			value: []struct {
 				X int64
 				Y spanner.NullString
 			}{
@@ -243,19 +259,19 @@ func TestDecodeColumn(t *testing.T) {
 
 func TestDecodeRow(t *testing.T) {
 	tests := []struct {
-		desc  string
-		values    []interface{}
-		want []string
+		desc   string
+		values []interface{}
+		want   []string
 	}{
 		{
-			desc:  "non-null columns",
-			values:  []interface{}{"foo", 123},
-			want:  []string{"foo", "123"},
+			desc:   "non-null columns",
+			values: []interface{}{"foo", 123},
+			want:   []string{"foo", "123"},
 		},
 		{
-			desc:  "non-null column and null column",
-			values:  []interface{}{"foo", spanner.NullString{StringVal: "", Valid: false}},
-			want:  []string{"foo", "NULL"},
+			desc:   "non-null column and null column",
+			values: []interface{}{"foo", spanner.NullString{StringVal: "", Valid: false}},
+			want:   []string{"foo", "NULL"},
 		},
 	}
 	for _, test := range tests {
