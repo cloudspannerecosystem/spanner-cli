@@ -593,3 +593,35 @@ func TestShowCreateTable(t *testing.T) {
 		IsMutation:   false,
 	})
 }
+
+func TestShowColumns(t *testing.T) {
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	session, tableId, tearDown := setup(t, ctx, []string{})
+	defer tearDown()
+
+	stmt, err := BuildStatement(fmt.Sprintf("SHOW COLUMNS FROM %s", tableId))
+	if err != nil {
+		t.Fatalf("invalid statement: error=%s", err)
+	}
+
+	result, err := stmt.Execute(session)
+	if err != nil {
+		t.Fatalf("unexpected error happened: %s", err)
+	}
+
+	compareResult(t, result, &Result{
+		ColumnNames: []string{"Field", "Type", "NULL", "Key", "Key_Order", "Options"},
+		Rows: []Row{
+			Row{[]string{"id", "INT64", "NO", "PRIMARY_KEY", "ASC", "NULL"}},
+			Row{[]string{"active", "BOOL", "NO", "NULL", "NULL", "NULL"}},
+		},
+		AffectedRows: 2,
+		IsMutation:   false,
+	})
+}
