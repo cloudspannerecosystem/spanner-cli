@@ -523,7 +523,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 		}
 
 		// begin with stale read
-		stmt, err = BuildStatement("BEGIN RO 30")
+		stmt, err = BuildStatement("BEGIN RO 20")
 		if err != nil {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
