@@ -89,7 +89,7 @@ var (
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
-	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
+	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(?:(?:\x60(?P<quoted_identifier>.*)\x60)|(?P<identifier>.+))$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
 )
@@ -135,7 +135,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
-		return &ShowColumnsStatement{Table: matched[1]}, nil
+		return &ShowColumnsStatement{QuotedTable: matched[1], Table: matched[2]}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: matched[1]}, nil
@@ -461,6 +461,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 
 type ShowColumnsStatement struct {
 	Table string
+	QuotedTable string
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
@@ -470,7 +471,7 @@ func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New(`"SHOW COLUMNS" can not be used in a read-write transaction`)
 	}
 
-	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
+	stmt := spanner.NewStatement(`SELECT
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
   C.IS_NULLABLE as `+"`NULL`"+`,
@@ -486,9 +487,11 @@ LEFT JOIN
 LEFT JOIN
   INFORMATION_SCHEMA.COLUMN_OPTIONS CO USING(TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE
-  C.TABLE_SCHEMA = '' AND C.TABLE_NAME = '%s'
+  C.TABLE_SCHEMA = '' AND (LOWER(C.TABLE_NAME) = LOWER(@table_name) OR C.TABLE_NAME = @quoted_table_name)
 ORDER BY
-  C.ORDINAL_POSITION ASC`, s.Table))
+  C.ORDINAL_POSITION ASC`)
+	stmt.Params["table_name"] = s.Table
+	stmt.Params["quoted_table_name"] = s.QuotedTable
 
 	var txn *spanner.ReadOnlyTransaction
 	if session.InRoTxn() {
@@ -504,7 +507,13 @@ ORDER BY
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		var table string
+		if s.QuotedTable != "" {
+			table = fmt.Sprintf("`%s`", s.QuotedTable)
+		} else {
+			table = fmt.Sprintf("%q", s.Table)
+		}
+		return nil, fmt.Errorf("table %s doesn't exist", table)
 	}
 
 	return &Result{
