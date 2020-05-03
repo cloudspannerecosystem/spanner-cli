@@ -6,8 +6,20 @@ jobs:
       - image: circleci/golang:1.12
         environment:
           GO111MODULE: "on"
+      - image: gcr.io/cloud-spanner-emulator/emulator:0.7.3
     steps:
       - checkout
       - run: go mod download
       - run: go vet ./...
+      - run:
+          name: make test with emulator
+          command: |
+            make setup-emulator
+            make test
+          environment:
+            SPANNER_EMULATOR_HOST: localhost:9010
+            SPANNER_EMULATOR_HOST_REST: localhost:9020
+            PROJECT: fake
+            INSTANCE: fake
+            DATABASE: fake
       - run: make test
