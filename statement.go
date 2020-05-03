@@ -475,9 +475,9 @@ func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
   C.IS_NULLABLE as `+"`NULL`"+`,
-  I.INDEX_TYPE as `+"`Key`"+`,
+  I.INDEX_TYPE as Key,
   IC.COLUMN_ORDERING as Key_Order,
-  CONCAT(CO.OPTION_NAME, "=", CO.OPTION_VALUE) as `+"`Options`"+`
+  CONCAT(CO.OPTION_NAME, "=", CO.OPTION_VALUE) as Options
 FROM
   INFORMATION_SCHEMA.COLUMNS C
 LEFT JOIN
