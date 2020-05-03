@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 }
 
 func initialize() {
-	if os.Getenv(envTestProjectId) == "" || os.Getenv(envTestInstanceId) == "" || os.Getenv(envTestDatabaseId) == "" || os.Getenv(envTestCredential) == "" {
+	if os.Getenv(envTestProjectId) == "" || os.Getenv(envTestInstanceId) == "" || os.Getenv(envTestDatabaseId) == "" {
 		skipIntegrateTest = true
 		return
 	}
@@ -79,9 +79,13 @@ func generateUniqueTableId() string {
 }
 
 func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, func()) {
+	var options []option.ClientOption
+	if testCredential != "" {
+		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
+	}
 	session, err := NewSession(ctx, testProjectId, testInstanceId, testDatabaseId, spanner.ClientConfig{
 		SessionPoolConfig: spanner.SessionPoolConfig{WriteSessions: 0.2},
-	}, option.WithCredentialsJSON([]byte(testCredential)))
+	}, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}
