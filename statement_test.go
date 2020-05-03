@@ -201,6 +201,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowColumnsStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW COLUMNS statement with quoted identifier",
+			input: "SHOW COLUMNS FROM `t1`",
+			want:  &ShowColumnsStatement{QuotedTable: "t1"},
+		},
+		{
 			desc:  "EXPLAIN SELECT statement",
 			input: "EXPLAIN SELECT * FROM t1",
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
