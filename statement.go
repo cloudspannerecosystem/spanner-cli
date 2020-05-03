@@ -481,7 +481,7 @@ func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New(`"SHOW COLUMNS" can not be used in a read-write transaction`)
 	}
 
-	stmt := spanner.NewStatement(`SELECT
+	stmt := spanner.Statement{SQL: `SELECT
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
   C.IS_NULLABLE as ` + "`NULL`" + `,
@@ -499,9 +499,11 @@ LEFT JOIN
 WHERE
   C.TABLE_SCHEMA = '' AND (LOWER(C.TABLE_NAME) = LOWER(@table_name) OR C.TABLE_NAME = @quoted_table_name)
 ORDER BY
-  C.ORDINAL_POSITION ASC`)
-	stmt.Params["table_name"] = s.Table
-	stmt.Params["quoted_table_name"] = s.QuotedTable
+  C.ORDINAL_POSITION ASC`,
+		Params: map[string]interface{}{
+			"table_name":        s.Table,
+			"quoted_table_name": s.QuotedTable,
+		}}
 
 	var txn *spanner.ReadOnlyTransaction
 	if session.InRoTxn() {
