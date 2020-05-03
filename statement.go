@@ -99,6 +99,16 @@ var (
 	rollbackError = errors.New("rollback")
 )
 
+func findStringSubmatchMap(re *regexp.Regexp, input string) map[string]string {
+	namedMatched := make(map[string]string)
+	for i, s := range re.FindStringSubmatch(input) {
+		if name := re.SubexpNames()[i]; name != "" {
+			namedMatched[name] = s
+		}
+	}
+	return namedMatched
+}
+
 func BuildStatement(input string) (Statement, error) {
 	switch {
 	case exitRe.MatchString(input):
@@ -134,8 +144,8 @@ func BuildStatement(input string) (Statement, error) {
 		matched := explainRe.FindStringSubmatch(input)
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
-		matched := showColumnsRe.FindStringSubmatch(input)
-		return &ShowColumnsStatement{QuotedTable: matched[1], Table: matched[2]}, nil
+		matched := findStringSubmatchMap(showColumnsRe, input)
+		return &ShowColumnsStatement{QuotedTable: matched["quoted_identifier"], Table: matched["identifier"]}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: matched[1]}, nil
@@ -460,7 +470,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 }
 
 type ShowColumnsStatement struct {
-	Table string
+	Table       string
 	QuotedTable string
 }
 
@@ -474,7 +484,7 @@ func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(`SELECT
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
-  C.IS_NULLABLE as `+"`NULL`"+`,
+  C.IS_NULLABLE as ` + "`NULL`" + `,
   I.INDEX_TYPE as Key,
   IC.COLUMN_ORDERING as Key_Order,
   CONCAT(CO.OPTION_NAME, "=", CO.OPTION_VALUE) as Options
