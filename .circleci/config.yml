@@ -19,7 +19,7 @@ jobs:
           environment:
             SPANNER_EMULATOR_HOST: localhost:9010
             SPANNER_EMULATOR_HOST_REST: localhost:9020
-            PROJECT: fake
-            INSTANCE: fake
-            DATABASE: fake
+            PROJECT: fake-project
+            INSTANCE: fake-instance
+            DATABASE: fake-database
       - run: make test
