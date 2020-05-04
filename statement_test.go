@@ -90,6 +90,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "DROP TABLE t1"},
 		},
 		{
+			desc:  "DROP TABLE statement",
+			input: "DROP TABLE t1",
+			want:  &DdlStatement{Ddl: "DROP TABLE t1"},
+		},
+		{
 			desc:  "CREATE INDEX statement",
 			input: "CREATE INDEX idx_name ON t1 (name DESC)",
 			want:  &DdlStatement{Ddl: "CREATE INDEX idx_name ON t1 (name DESC)"},
@@ -176,9 +181,9 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowCreateTableStatement{Table: "t1"},
 		},
 		{
-			desc:  "SHOW CREATE TABLE statement",
-			input: "SHOW CREATE TABLE `t1`",
-			want:  &ShowCreateTableStatement{Table: "t1"},
+			desc:  "SHOW CREATE TABLE statement with quoted identifier",
+			input: "SHOW CREATE TABLE `TABLE`",
+			want:  &ShowCreateTableStatement{Table: "TABLE"},
 		},
 		{
 			desc:  "SHOW TABLES statement",
@@ -197,8 +202,8 @@ func TestBuildStatement(t *testing.T) {
 		},
 		{
 			desc:  "SHOW INDEX statement with quoted identifier",
-			input: "SHOW INDEX FROM `t1`",
-			want:  &ShowIndexStatement{Table: "t1"},
+			input: "SHOW INDEX FROM `TABLE`",
+			want:  &ShowIndexStatement{Table: "TABLE"},
 		},
 		{
 			desc:  "SHOW KEYS statement",
@@ -212,8 +217,8 @@ func TestBuildStatement(t *testing.T) {
 		},
 		{
 			desc:  "SHOW COLUMNS statement with quoted identifier",
-			input: "SHOW COLUMNS FROM `t1`",
-			want:  &ShowColumnsStatement{Table: "t1"},
+			input: "SHOW COLUMNS FROM `TABLE`",
+			want:  &ShowColumnsStatement{Table: "TABLE"},
 		},
 		{
 			desc:  "EXPLAIN SELECT statement",
