@@ -145,7 +145,11 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
 		matched := findStringSubmatchMap(showColumnsRe, input)
-		return &ShowColumnsStatement{QuotedTable: matched["quoted_identifier"], Table: matched["identifier"]}, nil
+		table := matched["quoted_identifier"]
+		if table == "" {
+			table = matched["identifier"]
+		}
+		return &ShowColumnsStatement{Table: table}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: matched[1]}, nil
@@ -470,8 +474,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 }
 
 type ShowColumnsStatement struct {
-	Table       string
-	QuotedTable string
+	Table string
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
@@ -497,12 +500,11 @@ LEFT JOIN
 LEFT JOIN
   INFORMATION_SCHEMA.COLUMN_OPTIONS CO USING(TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE
-  C.TABLE_SCHEMA = '' AND (LOWER(C.TABLE_NAME) = LOWER(@table_name) OR C.TABLE_NAME = @quoted_table_name)
+  C.TABLE_SCHEMA = '' AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
 ORDER BY
   C.ORDINAL_POSITION ASC`,
 		Params: map[string]interface{}{
-			"table_name":        s.Table,
-			"quoted_table_name": s.QuotedTable,
+			"table_name": s.Table,
 		}}
 
 	var txn *spanner.ReadOnlyTransaction
@@ -519,13 +521,7 @@ ORDER BY
 		return nil, err
 	}
 	if len(rows) == 0 {
-		var table string
-		if s.QuotedTable != "" {
-			table = fmt.Sprintf("`%s`", s.QuotedTable)
-		} else {
-			table = fmt.Sprintf("%q", s.Table)
-		}
-		return nil, fmt.Errorf("table %s doesn't exist", table)
+		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
 	}
 
 	return &Result{
