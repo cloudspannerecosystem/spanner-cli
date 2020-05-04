@@ -420,7 +420,7 @@ func TestReadWriteTransaction(t *testing.T) {
 		}
 
 		// default transaction idle time is 10 secs
-		time.Sleep(10)
+		time.Sleep(10 * time.Second)
 
 		// second query
 		query = spanner.NewStatement(fmt.Sprintf("SELECT id, active FROM %s", tableId))
@@ -511,7 +511,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 
 		// stale read also can't recognize the recent created table itself,
 		// so sleep for a while
-		time.Sleep(30 * time.Second)
+		time.Sleep(10 * time.Second)
 
 		// insert more fixture
 		stmt, err := BuildStatement(fmt.Sprintf("INSERT INTO %s (id, active) VALUES (3, true), (4, false)", tableId))
@@ -523,7 +523,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 		}
 
 		// begin with stale read
-		stmt, err = BuildStatement("BEGIN RO 30")
+		stmt, err = BuildStatement("BEGIN RO 5")
 		if err != nil {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
