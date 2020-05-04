@@ -99,6 +99,15 @@ var (
 	rollbackError = errors.New("rollback")
 )
 
+func firstNonEmpty(input ...string) string {
+	for _, s := range input {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 func findStringSubmatchMap(re *regexp.Regexp, input string) map[string]string {
 	namedMatched := make(map[string]string)
 	for i, s := range re.FindStringSubmatch(input) {
@@ -145,11 +154,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
 		matched := findStringSubmatchMap(showColumnsRe, input)
-		table := matched["quoted_identifier"]
-		if table == "" {
-			table = matched["identifier"]
-		}
-		return &ShowColumnsStatement{Table: table}, nil
+		return &ShowColumnsStatement{Table: firstNonEmpty(matched["quoted_identifier"], matched["identifier"])}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: matched[1]}, nil
