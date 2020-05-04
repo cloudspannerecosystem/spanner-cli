@@ -493,9 +493,7 @@ WHERE
   C.TABLE_SCHEMA = '' AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
 ORDER BY
   C.ORDINAL_POSITION ASC`,
-		Params: map[string]interface{}{
-			"table_name": s.Table,
-		}}
+		Params: map[string]interface{}{"table_name": s.Table}}
 
 	var txn *spanner.ReadOnlyTransaction
 	if session.InRoTxn() {
@@ -533,7 +531,7 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	stmt := spanner.Statement{
-		SQL:`SELECT
+		SQL: `SELECT
   TABLE_NAME as Table,
   PARENT_TABLE_NAME as Parent_table,
   INDEX_NAME as Index_name,
