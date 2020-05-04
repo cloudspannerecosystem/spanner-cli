@@ -89,8 +89,8 @@ var (
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
-	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(?:\x60(?P<quoted_identifier>.*)\x60|(?P<identifier>.+))$`)
-	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(?:\x60(?P<quoted_identifier>.*)\x60|(?P<identifier>.+))$`)
+	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
+	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
 )
 
@@ -98,25 +98,6 @@ var (
 	txnRetryError = errors.New("transaction was aborted")
 	rollbackError = errors.New("rollback")
 )
-
-func firstNonEmpty(input ...string) string {
-	for _, s := range input {
-		if s != "" {
-			return s
-		}
-	}
-	return ""
-}
-
-func findStringSubmatchMap(re *regexp.Regexp, input string) map[string]string {
-	namedMatched := make(map[string]string)
-	for i, s := range re.FindStringSubmatch(input) {
-		if name := re.SubexpNames()[i]; name != "" {
-			namedMatched[name] = s
-		}
-	}
-	return namedMatched
-}
 
 func BuildStatement(input string) (Statement, error) {
 	switch {
@@ -131,7 +112,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
 	case dropDatabaseRe.MatchString(input):
 		matched := dropDatabaseRe.FindStringSubmatch(input)
-		return &DropDatabaseStatement{DatabaseId: strings.Trim(matched[1], "`")}, nil
+		return &DropDatabaseStatement{DatabaseId: unquoteIdentifier(matched[1])}, nil
 	case createTableRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case alterTableRe.MatchString(input):
@@ -146,18 +127,18 @@ func BuildStatement(input string) (Statement, error) {
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):
 		matched := showCreateTableRe.FindStringSubmatch(input)
-		return &ShowCreateTableStatement{Table: matched[1]}, nil
+		return &ShowCreateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showTablesRe.MatchString(input):
 		return &ShowTablesStatement{}, nil
 	case explainRe.MatchString(input):
 		matched := explainRe.FindStringSubmatch(input)
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
-		matched := findStringSubmatchMap(showColumnsRe, input)
-		return &ShowColumnsStatement{Table: firstNonEmpty(matched["quoted_identifier"], matched["identifier"])}, nil
+		matched := showColumnsRe.FindStringSubmatch(input)
+		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showIndexRe.MatchString(input):
-		matched := findStringSubmatchMap(showIndexRe, input)
-		return &ShowIndexStatement{Table: firstNonEmpty(matched["quoted_identifier"], matched["identifier"])}, nil
+		matched := showIndexRe.FindStringSubmatch(input)
+		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case insertRe.MatchString(input):
 		return &DmlStatement{Dml: input}, nil
 	case updateRe.MatchString(input):
@@ -179,6 +160,10 @@ func BuildStatement(input string) (Statement, error) {
 	}
 
 	return nil, errors.New("invalid statement")
+}
+
+func unquoteIdentifier(input string) string {
+	return strings.Trim(input, "`")
 }
 
 type SelectStatement struct {
