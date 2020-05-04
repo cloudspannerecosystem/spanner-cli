@@ -27,4 +27,3 @@ test:
 setup-emulator:
 	curl -s "${SPANNER_EMULATOR_HOST_REST}/v1/projects/${PROJECT}/instances" --data '{"instanceId": "'${INSTANCE}'"}'
 	curl -s "${SPANNER_EMULATOR_HOST_REST}/v1/projects/${PROJECT}/instances/${INSTANCE}/databases" --data '{"createStatement": "CREATE DATABASE `'${DATABASE}'`"}'
-
