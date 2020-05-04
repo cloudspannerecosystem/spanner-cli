@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 }
 
 func initialize() {
-	if os.Getenv(envTestProjectId) == "" || os.Getenv(envTestInstanceId) == "" || os.Getenv(envTestDatabaseId) == "" || os.Getenv(envTestCredential) == "" {
+	if os.Getenv(envTestProjectId) == "" || os.Getenv(envTestInstanceId) == "" || os.Getenv(envTestDatabaseId) == "" {
 		skipIntegrateTest = true
 		return
 	}
@@ -79,9 +79,13 @@ func generateUniqueTableId() string {
 }
 
 func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, func()) {
+	var options []option.ClientOption
+	if testCredential != "" {
+		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
+	}
 	session, err := NewSession(ctx, testProjectId, testInstanceId, testDatabaseId, spanner.ClientConfig{
 		SessionPoolConfig: spanner.SessionPoolConfig{WriteSessions: 0.2},
-	}, option.WithCredentialsJSON([]byte(testCredential)))
+	}, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}
@@ -590,6 +594,38 @@ func TestShowCreateTable(t *testing.T) {
 			Row{[]string{tableId, fmt.Sprintf("CREATE TABLE %s (\n  id INT64 NOT NULL,\n  active BOOL NOT NULL,\n) PRIMARY KEY(id)", tableId)}},
 		},
 		AffectedRows: 1,
+		IsMutation:   false,
+	})
+}
+
+func TestShowColumns(t *testing.T) {
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	session, tableId, tearDown := setup(t, ctx, []string{})
+	defer tearDown()
+
+	stmt, err := BuildStatement(fmt.Sprintf("SHOW COLUMNS FROM %s", tableId))
+	if err != nil {
+		t.Fatalf("invalid statement: error=%s", err)
+	}
+
+	result, err := stmt.Execute(session)
+	if err != nil {
+		t.Fatalf("unexpected error happened: %s", err)
+	}
+
+	compareResult(t, result, &Result{
+		ColumnNames: []string{"Field", "Type", "NULL", "Key", "Key_Order", "Options"},
+		Rows: []Row{
+			Row{[]string{"id", "INT64", "NO", "PRIMARY_KEY", "ASC", "NULL"}},
+			Row{[]string{"active", "BOOL", "NO", "NULL", "NULL", "NULL"}},
+		},
+		AffectedRows: 2,
 		IsMutation:   false,
 	})
 }

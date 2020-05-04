@@ -176,6 +176,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowCreateTableStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW CREATE TABLE statement with quoted identifier",
+			input: "SHOW CREATE TABLE `TABLE`",
+			want:  &ShowCreateTableStatement{Table: "TABLE"},
+		},
+		{
 			desc:  "SHOW TABLES statement",
 			input: "SHOW TABLES",
 			want:  &ShowTablesStatement{},
@@ -191,6 +196,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowIndexStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW INDEX statement with quoted identifier",
+			input: "SHOW INDEX FROM `TABLE`",
+			want:  &ShowIndexStatement{Table: "TABLE"},
+		},
+		{
 			desc:  "SHOW KEYS statement",
 			input: "SHOW KEYS FROM t1",
 			want:  &ShowIndexStatement{Table: "t1"},
@@ -199,6 +209,11 @@ func TestBuildStatement(t *testing.T) {
 			desc:  "SHOW COLUMNS statement",
 			input: "SHOW COLUMNS FROM t1",
 			want:  &ShowColumnsStatement{Table: "t1"},
+		},
+		{
+			desc:  "SHOW COLUMNS statement with quoted identifier",
+			input: "SHOW COLUMNS FROM `TABLE`",
+			want:  &ShowColumnsStatement{Table: "TABLE"},
 		},
 		{
 			desc:  "EXPLAIN SELECT statement",

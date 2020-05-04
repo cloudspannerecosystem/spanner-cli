@@ -112,7 +112,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
 	case dropDatabaseRe.MatchString(input):
 		matched := dropDatabaseRe.FindStringSubmatch(input)
-		return &DropDatabaseStatement{DatabaseId: strings.Trim(matched[1], "`")}, nil
+		return &DropDatabaseStatement{DatabaseId: unquoteIdentifier(matched[1])}, nil
 	case createTableRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case alterTableRe.MatchString(input):
@@ -127,7 +127,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):
 		matched := showCreateTableRe.FindStringSubmatch(input)
-		return &ShowCreateTableStatement{Table: matched[1]}, nil
+		return &ShowCreateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showTablesRe.MatchString(input):
 		return &ShowTablesStatement{}, nil
 	case explainRe.MatchString(input):
@@ -135,10 +135,10 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
-		return &ShowColumnsStatement{Table: matched[1]}, nil
+		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
-		return &ShowIndexStatement{Table: matched[1]}, nil
+		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case insertRe.MatchString(input):
 		return &DmlStatement{Dml: input}, nil
 	case updateRe.MatchString(input):
@@ -160,6 +160,10 @@ func BuildStatement(input string) (Statement, error) {
 	}
 
 	return nil, errors.New("invalid statement")
+}
+
+func unquoteIdentifier(input string) string {
+	return strings.Trim(input, "`")
 }
 
 type SelectStatement struct {
@@ -470,13 +474,13 @@ func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New(`"SHOW COLUMNS" can not be used in a read-write transaction`)
 	}
 
-	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
+	stmt := spanner.Statement{SQL: `SELECT
   C.COLUMN_NAME as Field,
   C.SPANNER_TYPE as Type,
-  C.IS_NULLABLE as `+"`NULL`"+`,
-  I.INDEX_TYPE as `+"`Key`"+`,
+  C.IS_NULLABLE as ` + "`NULL`" + `,
+  I.INDEX_TYPE as Key,
   IC.COLUMN_ORDERING as Key_Order,
-  CONCAT(CO.OPTION_NAME, "=", CO.OPTION_VALUE) as `+"`Options`"+`
+  CONCAT(CO.OPTION_NAME, "=", CO.OPTION_VALUE) as Options
 FROM
   INFORMATION_SCHEMA.COLUMNS C
 LEFT JOIN
@@ -486,9 +490,10 @@ LEFT JOIN
 LEFT JOIN
   INFORMATION_SCHEMA.COLUMN_OPTIONS CO USING(TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE
-  C.TABLE_SCHEMA = '' AND C.TABLE_NAME = '%s'
+  C.TABLE_SCHEMA = '' AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
 ORDER BY
-  C.ORDINAL_POSITION ASC`, s.Table))
+  C.ORDINAL_POSITION ASC`,
+		Params: map[string]interface{}{"table_name": s.Table}}
 
 	var txn *spanner.ReadOnlyTransaction
 	if session.InRoTxn() {
@@ -525,7 +530,8 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New(`"SHOW INDEX" can not be used in a read-write transaction`)
 	}
 
-	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
+	stmt := spanner.Statement{
+		SQL: `SELECT
   TABLE_NAME as Table,
   PARENT_TABLE_NAME as Parent_table,
   INDEX_NAME as Index_name,
@@ -536,7 +542,8 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 FROM
   INFORMATION_SCHEMA.INDEXES
 WHERE
-  TABLE_NAME = '%s'`, s.Table))
+  C.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
+		Params: map[string]interface{}{"table_name": s.Table}}
 
 	var txn *spanner.ReadOnlyTransaction
 	if session.InRoTxn() {
