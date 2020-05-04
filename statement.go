@@ -90,7 +90,7 @@ var (
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(?:\x60(?P<quoted_identifier>.*)\x60|(?P<identifier>.+))$`)
-	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
+	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(?:\x60(?P<quoted_identifier>.*)\x60|(?P<identifier>.+))$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
 )
 
@@ -156,8 +156,8 @@ func BuildStatement(input string) (Statement, error) {
 		matched := findStringSubmatchMap(showColumnsRe, input)
 		return &ShowColumnsStatement{Table: firstNonEmpty(matched["quoted_identifier"], matched["identifier"])}, nil
 	case showIndexRe.MatchString(input):
-		matched := showIndexRe.FindStringSubmatch(input)
-		return &ShowIndexStatement{Table: matched[1]}, nil
+		matched := findStringSubmatchMap(showIndexRe, input)
+		return &ShowIndexStatement{Table: firstNonEmpty(matched["quoted_identifier"], matched["identifier"])}, nil
 	case insertRe.MatchString(input):
 		return &DmlStatement{Dml: input}, nil
 	case updateRe.MatchString(input):
@@ -547,7 +547,8 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New(`"SHOW INDEX" can not be used in a read-write transaction`)
 	}
 
-	stmt := spanner.NewStatement(fmt.Sprintf(`SELECT
+	stmt := spanner.Statement{
+		SQL:`SELECT
   TABLE_NAME as Table,
   PARENT_TABLE_NAME as Parent_table,
   INDEX_NAME as Index_name,
@@ -558,7 +559,8 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
 FROM
   INFORMATION_SCHEMA.INDEXES
 WHERE
-  TABLE_NAME = '%s'`, s.Table))
+  C.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
+		Params: map[string]interface{}{"table_name": s.Table}}
 
 	var txn *spanner.ReadOnlyTransaction
 	if session.InRoTxn() {

@@ -191,6 +191,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowIndexStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW INDEX statement with quoted identifier",
+			input: "SHOW INDEX FROM `t1`",
+			want:  &ShowIndexStatement{Table: "t1"},
+		},
+		{
 			desc:  "SHOW KEYS statement",
 			input: "SHOW KEYS FROM t1",
 			want:  &ShowIndexStatement{Table: "t1"},
