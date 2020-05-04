@@ -90,11 +90,6 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "DROP TABLE t1"},
 		},
 		{
-			desc:  "DROP TABLE statement",
-			input: "DROP TABLE t1",
-			want:  &DdlStatement{Ddl: "DROP TABLE t1"},
-		},
-		{
 			desc:  "CREATE INDEX statement",
 			input: "CREATE INDEX idx_name ON t1 (name DESC)",
 			want:  &DdlStatement{Ddl: "CREATE INDEX idx_name ON t1 (name DESC)"},
