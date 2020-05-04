@@ -176,6 +176,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowCreateTableStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW CREATE TABLE statement",
+			input: "SHOW CREATE TABLE `t1`",
+			want:  &ShowCreateTableStatement{Table: "t1"},
+		},
+		{
 			desc:  "SHOW TABLES statement",
 			input: "SHOW TABLES",
 			want:  &ShowTablesStatement{},
