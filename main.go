@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 
 	flags "github.com/jessevdk/go-flags"
@@ -131,7 +130,7 @@ func readConfigFile(parser *flags.Parser) error {
 		}
 
 		// TODO: customize config path
-		cnfFile = path.Join(currentUser.HomeDir, cnfFileName)
+		cnfFile = filepath.Join(currentUser.HomeDir, cnfFileName)
 
 		// check config file existence
 		if _, err := os.Stat(cnfFile); err != nil {
