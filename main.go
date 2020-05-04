@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 
 	flags "github.com/jessevdk/go-flags"
 )
@@ -114,19 +115,28 @@ func exitf(format string, a ...interface{}) {
 	os.Exit(1)
 }
 
+const cnfFileName = ".spanner_cli.cnf"
+
 func readConfigFile(parser *flags.Parser) error {
-	currentUser, err := user.Current()
-	if err != nil {
-		// ignore error
-		return nil
-	}
+	var cnfFile string
 
-	// TODO: customize config path
-	cnfFile := path.Join(currentUser.HomeDir, ".spanner_cli.cnf")
+	cwd, _ := os.Getwd() // ignore err
+	if _, err := os.Stat(filepath.Join(cwd, cnfFileName)); err == nil {
+		cnfFile = filepath.Join(cwd, cnfFileName)
+	} else {
+		currentUser, err := user.Current()
+		if err != nil {
+			// ignore error
+			return nil
+		}
 
-	// check config file existence
-	if _, err := os.Stat(cnfFile); err != nil {
-		return nil
+		// TODO: customize config path
+		cnfFile = path.Join(currentUser.HomeDir, cnfFileName)
+
+		// check config file existence
+		if _, err := os.Stat(cnfFile); err != nil {
+			return nil
+		}
 	}
 
 	iniParser := flags.NewIniParser(parser)
