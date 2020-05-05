@@ -302,21 +302,26 @@ func createSession(ctx context.Context, projectId string, instanceId string, dat
 func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {
 	defer rl.SetPrompt(prompt)
 
-	var input string
+	var lines []string
 	for {
 		line, err := rl.Readline()
 		if err != nil {
 			return nil, err
 		}
-		input += line + "\n"
+		lines = append(lines, line)
 
-		statements := separateInput(input)
+		statements := separateInput(strings.Join(lines, " "))
 		switch len(statements) {
 		case 0:
 			// read next input
 		case 1:
-			if statements[0].delim != delimiterUndefined {
-				return &statements[0], nil
+			stmt := statements[0]
+			if stmt.delim != delimiterUndefined {
+				if len(lines) > 1 {
+					// Like mysql client, multi-line statement is appended to the history as a single-line statement.
+					rl.SaveHistory(stmt.statement + stmt.delim.String())
+				}
+				return &stmt, nil
 			}
 			// read next input
 		default:
