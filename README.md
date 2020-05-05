@@ -233,7 +233,7 @@ Run integration tests, which connects to real Cloud Spanner database.
 $ PROJECT=${PROJECT_ID} INSTANCE=${INSTANCE_ID} DATABASE=${DATABASE_ID} CREDENTIAL=${CREDENTIAL} make test
 ```
 
-Run integration tests in [CircleCI Local CLI](https://circleci.com/docs/2.0/local-cli/), which connects to [Cloud Spanner Emulator}(https://cloud.google.com/spanner/docs/emulator?hl=en)
+Run integration tests in [CircleCI Local CLI](https://circleci.com/docs/2.0/local-cli/), which connects to [Cloud Spanner Emulator](https://cloud.google.com/spanner/docs/emulator?hl=en)
 
 ```
 $ circleci local execute
