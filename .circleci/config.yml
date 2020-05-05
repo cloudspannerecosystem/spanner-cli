@@ -1,11 +1,8 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/yfuruyama/spanner-cli
     docker:
-      - image: circleci/golang:1.12
-        environment:
-          GO111MODULE: "on"
+      - image: circleci/golang:1.14
       - image: gcr.io/cloud-spanner-emulator/emulator:0.7.3
     steps:
       - checkout
