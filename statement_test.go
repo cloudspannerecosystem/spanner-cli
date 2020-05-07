@@ -166,6 +166,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &UseStatement{Database: "database2"},
 		},
 		{
+			desc:  "USE statement with quoted identifier",
+			input: "USE `my-database`",
+			want:  &UseStatement{Database: "my-database"},
+		},
+		{
 			desc:  "SHOW DATABASES statement",
 			input: "SHOW DATABASES",
 			want:  &ShowDatabasesStatement{},
