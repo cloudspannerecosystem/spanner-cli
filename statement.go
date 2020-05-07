@@ -105,7 +105,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExitStatement{}, nil
 	case useRe.MatchString(input):
 		matched := useRe.FindStringSubmatch(input)
-		return &UseStatement{Database: matched[1]}, nil
+		return &UseStatement{Database: unquoteIdentifier(matched[1])}, nil
 	case selectRe.MatchString(input):
 		return &SelectStatement{Query: input}, nil
 	case createDatabaseRe.MatchString(input):
