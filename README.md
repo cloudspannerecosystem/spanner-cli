@@ -27,9 +27,9 @@ Usage:
   spanner-cli [OPTIONS]
 
 spanner:
-  -p, --project=    (required) GCP Project ID.
-  -i, --instance=   (required) Cloud Spanner Instance ID
-  -d, --database=   (required) Cloud Spanner Database ID.
+  -p, --project=    (required) GCP Project ID. [$SPANNER_PROJECT_ID]
+  -i, --instance=   (required) Cloud Spanner Instance ID [$SPANNER_INSTANCE_ID]
+  -d, --database=   (required) Cloud Spanner Database ID. [$SPANNER_DATABASE_ID]
   -e, --execute=    Execute SQL statement and quit.
   -f, --file=       Execute SQL statement from file and quit.
   -t, --table       Display output in table format for batch mode.

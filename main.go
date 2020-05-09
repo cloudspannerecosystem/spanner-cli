@@ -32,9 +32,9 @@ type globalOptions struct {
 }
 
 type spannerOptions struct {
-	ProjectId  string `short:"p" long:"project" description:"(required) GCP Project ID."`
-	InstanceId string `short:"i" long:"instance" description:"(required) Cloud Spanner Instance ID"`
-	DatabaseId string `short:"d" long:"database" description:"(required) Cloud Spanner Database ID."`
+	ProjectId  string `short:"p" long:"project" env:"SPANNER_PROJECT_ID" description:"(required) GCP Project ID."`
+	InstanceId string `short:"i" long:"instance" env:"SPANNER_INSTANCE_ID" description:"(required) Cloud Spanner Instance ID"`
+	DatabaseId string `short:"d" long:"database" env:"SPANNER_DATABASE_ID" description:"(required) Cloud Spanner Database ID."`
 	Execute    string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
 	File       string `short:"f" long:"file" description:"Execute SQL statement from file and quit."`
 	Table      bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
