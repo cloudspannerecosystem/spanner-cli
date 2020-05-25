@@ -540,9 +540,9 @@ func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
   IS_NULL_FILTERED as Is_null_filtered,
   INDEX_STATE as Index_state
 FROM
-  INFORMATION_SCHEMA.INDEXES
+  INFORMATION_SCHEMA.INDEXES I
 WHERE
-  C.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
+  I.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
 		Params: map[string]interface{}{"table_name": s.Table}}
 
 	var txn *spanner.ReadOnlyTransaction
