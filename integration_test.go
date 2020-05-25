@@ -654,7 +654,7 @@ func TestShowIndexes(t *testing.T) {
 	compareResult(t, result, &Result{
 		ColumnNames: []string{"Table", "Parent_table", "Index_name", "Index_type", "Is_unique", "Is_null_filtered", "Index_state"},
 		Rows: []Row{
-			Row{[]string{tableId, "", "PRIMARY_KEY", "PRIMARY_KEY", "true", "true", "NULL"}},
+			Row{[]string{tableId, "", "PRIMARY_KEY", "PRIMARY_KEY", "true", "false", "NULL"}},
 		},
 		AffectedRows: 1,
 		IsMutation:   false,
