@@ -24,9 +24,14 @@ import (
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
+type Link struct {
+	Dest *Node
+	Type string
+}
+
 type Node struct {
 	PlanNode *pb.PlanNode
-	Children []*Node
+	Children []*Link
 }
 
 func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
@@ -41,13 +46,19 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 
 	root := &Node{
 		PlanNode: plan.PlanNodes[idx],
-		Children: make([]*Node, 0),
+		Children: make([]*Link, 0),
 	}
 	if root.PlanNode.ChildLinks != nil {
-		for _, childLink := range root.PlanNode.ChildLinks {
+		for i, childLink := range root.PlanNode.ChildLinks {
 			idx := childLink.ChildIndex
 			child := BuildQueryPlanTree(plan, idx)
-			root.Children = append(root.Children, child)
+			childType := childLink.Type
+
+			// Fill missing Input type into the first child of [Distributed] (Cross|Outer) Apply
+			if childType == "" && strings.HasSuffix(root.PlanNode.DisplayName, "Apply") && i == 0 {
+				childType = "Input"
+			}
+			root.Children = append(root.Children, &Link{Type: childType, Dest: child})
 		}
 	}
 
@@ -56,7 +67,7 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 
 func (n *Node) Render() string {
 	tree := treeprint.New()
-	renderTree(tree, n)
+	renderTree(tree, "", n)
 	return "\n" + tree.String()
 }
 
@@ -98,7 +109,7 @@ func getAllMetadataString(node *Node) string {
 	return fmt.Sprintf(`(%s)`, strings.Join(fields, ", "))
 }
 
-func renderTree(tree treeprint.Tree, node *Node) {
+func renderTree(tree treeprint.Tree, linkType string, node *Node) {
 	if !node.IsVisible() {
 		return
 	}
@@ -106,11 +117,20 @@ func renderTree(tree treeprint.Tree, node *Node) {
 	str := node.String()
 
 	if len(node.Children) > 0 {
-		branch := tree.AddBranch(str)
+		var branch treeprint.Tree
+		if linkType != "" {
+			branch = tree.AddMetaBranch(linkType, str)
+		} else {
+			branch = tree.AddBranch(str)
+		}
 		for _, child := range node.Children {
-			renderTree(branch, child)
+			renderTree(branch, child.Type, child.Dest)
 		}
 	} else {
-		tree.AddNode(str)
+		if linkType != "" {
+			tree.AddMetaNode(linkType, str)
+		} else {
+			tree.AddNode(str)
+		}
 	}
 }
