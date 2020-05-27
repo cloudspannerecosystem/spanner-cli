@@ -54,8 +54,8 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 			child := BuildQueryPlanTree(plan, idx)
 			childType := childLink.Type
 
-			// Fill missing Input type into the first child of [Distributed] Cross Apply
-			if childType == "" && strings.HasSuffix(root.PlanNode.DisplayName, "Cross Apply") && i == 0 {
+			// Fill missing Input type into the first child of [Distributed] (Cross|Outer) Apply
+			if childType == "" && strings.HasSuffix(root.PlanNode.DisplayName, "Apply") && i == 0 {
 				childType = "Input"
 			}
 			root.Children = append(root.Children, &Link{Type: childType, Dest: child})
