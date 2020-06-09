@@ -24,8 +24,6 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/imdario/mergo"
-
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -46,27 +44,25 @@ type spannerOptions struct {
 }
 
 func main() {
+	var gopts globalOptions
 	// check config file at first
-	var cnfopts globalOptions
 	{
-		parser := flags.NewParser(&cnfopts, flags.Default)
+		parser := flags.NewParser(&gopts, flags.Default)
 		if err := readConfigFile(parser); err != nil {
 			exitf("Invalid config file format\n")
 		}
 	}
 
 	// then, parse command line options
-	var flagopts globalOptions
 	{
-		parser := flags.NewParser(&flagopts, flags.Default)
+		// Force to process environment variable
+		parser := flags.NewParser(&gopts, flags.Default)
 		if _, err := parser.Parse(); err != nil {
 			exitf("Invalid options\n")
 		}
 	}
 
-	// Merge parsed options
-	opts := cnfopts.Spanner
-	mergo.Merge(&opts, flagopts.Spanner, mergo.WithOverride)
+	opts := gopts.Spanner
 
 	if opts.ProjectId == "" || opts.InstanceId == "" || opts.DatabaseId == "" {
 		exitf("Missing parameters: -p, -i, -d are required\n")
