@@ -94,17 +94,6 @@ func (n *Node) String() string {
 	return operator + " " + metadata
 }
 
-func getMetadataString(node *Node, key string) (string, bool) {
-	if node.PlanNode.Metadata == nil {
-		return "", false
-	}
-	if v, ok := node.PlanNode.Metadata.Fields[key]; ok {
-		return v.GetStringValue(), true
-	} else {
-		return "", false
-	}
-}
-
 func getNodeTitle(node *Node) string {
 	fields := node.PlanNode.GetMetadata().GetFields()
 
