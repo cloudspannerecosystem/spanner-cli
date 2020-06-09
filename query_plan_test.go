@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	structpb "github.com/golang/protobuf/ptypes/struct"
 	"google.golang.org/genproto/googleapis/spanner/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestGetNodeTitleAndGetAllMetadataString(t *testing.T) {
