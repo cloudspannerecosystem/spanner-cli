@@ -197,7 +197,7 @@ func renderTree(tree treeprint.Tree, linkType string, node *Node) {
 	}
 }
 
-func getStringValueFromPath(s *structpb.Struct, first string, path ...string) string {
+func getStringValueByPath(s *structpb.Struct, first string, path ...string) string {
 	current := s.GetFields()[first]
 	for _, p := range path {
 		current = current.GetStructValue().GetFields()[p]
@@ -212,9 +212,9 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 
 	executionStats := node.PlanNode.GetExecutionStats()
 	str := fmt.Sprintf("%s\t%s\t%s\t%s", node.String(),
-		getStringValueFromPath(executionStats, "rows", "total"),
-		getStringValueFromPath(executionStats, "execution_summary", "num_executions"),
-		getStringValueFromPath(executionStats, "latency", "total"),
+		getStringValueByPath(executionStats, "rows", "total"),
+		getStringValueByPath(executionStats, "execution_summary", "num_executions"),
+		getStringValueByPath(executionStats, "latency", "total"),
 	)
 
 	if len(node.Children) > 0 {
