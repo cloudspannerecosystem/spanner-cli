@@ -91,24 +91,21 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
 	var result []RenderedTreeWithStats
-	renderedTree := tree.String()
-	for _, line := range strings.Split(renderedTree, "\n") {
+	for _, line := range strings.Split(tree.String(), "\n") {
 		if line == "" {
 			continue
 		}
 		tsv := strings.Split(line, "\t")
-		elem := RenderedTreeWithStats{}
-		elem.Text = tsv[0]
-		if len(tsv) > 1 {
-			elem.RowsTotal = tsv[1]
+		if len(tsv) == 1 {
+			result = append(result, RenderedTreeWithStats{Text: tsv[0]})
+			continue
 		}
-		if len(tsv) > 2 {
-			elem.Execution = tsv[2]
-		}
-		if len(tsv) > 3 {
-			elem.LatencyTotal = tsv[3]
-		}
-		result = append(result, elem)
+		result = append(result, RenderedTreeWithStats{
+			Text:         tsv[0],
+			RowsTotal:    tsv[1],
+			Execution:    tsv[2],
+			LatencyTotal: tsv[3],
+		})
 	}
 	return result
 }
