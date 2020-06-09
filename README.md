@@ -219,6 +219,13 @@ instance = myinstance
 prompt = "[\\p:\\i:\\d]\\t> "
 ```
 
+## Configuration Precedence
+
+1. Command line flags(highest)
+2. Environment variables
+3. `.spanner_cli.cnf` in current directory
+4. `.spanner_cli.cnf` in home directory(lowest)
+
 ## How to develop
 
 Run unit tests.

@@ -45,15 +45,14 @@ type spannerOptions struct {
 
 func main() {
 	var gopts globalOptions
-	parser := flags.NewParser(&gopts, flags.Default)
-
-	// check config file at first
-	if err := readConfigFile(parser); err != nil {
+	// process config files at first
+	if err := readConfigFile(flags.NewParser(&gopts, flags.Default)); err != nil {
 		exitf("Invalid config file format\n")
 	}
 
-	// then, parse command line options
-	if _, err := parser.Parse(); err != nil {
+	// then, process environment variables and command line options
+	// use another parser to process environment variable
+	if _, err := flags.NewParser(&gopts, flags.Default).Parse(); err != nil {
 		exitf("Invalid options\n")
 	}
 
@@ -117,30 +116,24 @@ func exitf(format string, a ...interface{}) {
 const cnfFileName = ".spanner_cli.cnf"
 
 func readConfigFile(parser *flags.Parser) error {
-	var cnfFile string
-
-	cwd, _ := os.Getwd() // ignore err
-	if _, err := os.Stat(filepath.Join(cwd, cnfFileName)); err == nil {
-		cnfFile = filepath.Join(cwd, cnfFileName)
-	} else {
-		currentUser, err := user.Current()
-		if err != nil {
-			// ignore error
-			return nil
-		}
-
-		// TODO: customize config path
-		cnfFile = filepath.Join(currentUser.HomeDir, cnfFileName)
-
-		// check config file existence
-		if _, err := os.Stat(cnfFile); err != nil {
-			return nil
-		}
+	var cnfFiles []string
+	if currentUser, err := user.Current(); err == nil {
+		cnfFiles = append(cnfFiles, filepath.Join(currentUser.HomeDir, cnfFileName))
 	}
 
+	cwd, _ := os.Getwd() // ignore err
+	cwdCnfFile := filepath.Join(cwd, cnfFileName)
+	cnfFiles = append(cnfFiles, cwdCnfFile)
+
 	iniParser := flags.NewIniParser(parser)
-	if err := iniParser.ParseFile(cnfFile); err != nil {
-		return err
+	for _, cnfFile := range cnfFiles {
+		// skip if missing
+		if _, err := os.Stat(cnfFile); err != nil {
+			continue
+		}
+		if err := iniParser.ParseFile(cnfFile); err != nil {
+			return err
+		}
 	}
 
 	return nil
