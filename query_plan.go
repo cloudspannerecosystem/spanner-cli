@@ -23,6 +23,7 @@ import (
 
 	"github.com/xlab/treeprint"
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func init() {
@@ -199,15 +200,24 @@ func renderTree(tree treeprint.Tree, linkType string, node *Node) {
 	}
 }
 
+func getStringValueFromPath(s *structpb.Struct, first string, path ...string) string {
+	current := s.GetFields()[first]
+	for _, p := range path {
+		current = current.GetStructValue().GetFields()[p]
+	}
+	return current.GetStringValue()
+}
+
 func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	if !node.IsVisible() {
 		return
 	}
 
+	executionStats := node.PlanNode.GetExecutionStats()
 	str := fmt.Sprintf("%s\t%s\t%s\t%s", node.String(),
-		node.PlanNode.GetExecutionStats().GetFields()["rows"].GetStructValue().GetFields()["total"].GetStringValue(),
-		node.PlanNode.GetExecutionStats().GetFields()["execution_summary"].GetStructValue().GetFields()["num_executions"].GetStringValue(),
-		node.PlanNode.GetExecutionStats().GetFields()["latency"].GetStructValue().GetFields()["total"].GetStringValue(),
+		getStringValueFromPath(executionStats, "rows", "total"),
+		getStringValueFromPath(executionStats, "execution_summary", "num_executions"),
+		getStringValueFromPath(executionStats, "latency", "total"),
 	)
 
 	if len(node.Children) > 0 {
