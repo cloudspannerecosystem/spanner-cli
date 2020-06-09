@@ -88,7 +88,7 @@ func (n *Node) IsVisible() bool {
 }
 
 func (n *Node) String() string {
-	operator := n.PlanNode.DisplayName
+	operator := getNodeTitle(n)
 	metadata := getAllMetadataString(n)
 	return operator + " " + metadata
 }
@@ -104,14 +104,46 @@ func getMetadataString(node *Node, key string) (string, bool) {
 	}
 }
 
-func getAllMetadataString(node *Node) string {
-	if node.PlanNode.Metadata == nil {
-		return ""
+func getNodeTitle(node *Node) string {
+	fields := node.PlanNode.GetMetadata().GetFields()
+
+	var components []string
+	for _, s := range []string{
+		fields["call_type"].GetStringValue(),
+		fields["iterator_type"].GetStringValue(),
+		strings.TrimSuffix(fields["scan_type"].GetStringValue(), "Scan"),
+		node.PlanNode.GetDisplayName(),
+	} {
+		if s != "" {
+			components = append(components, s)
+		}
 	}
+	return strings.Join(components, " ")
+}
+
+func getAllMetadataString(node *Node) string {
+	metadata := node.PlanNode.GetMetadata().GetFields()
 
 	fields := make([]string, 0)
-	for k, v := range node.PlanNode.Metadata.Fields {
-		fields = append(fields, fmt.Sprintf("%s: %s", k, v.GetStringValue()))
+	for k, v := range metadata {
+		switch k {
+		case "call_type", "iterator_type": // Skip because it is displayed in node title
+			continue
+		case "scan_target": // Skip because it is combined with scan_type
+			continue
+		case "subquery_cluster_node": // Skip because it is useless without displaying node id
+			continue
+		case "scan_type":
+			fields = append(fields, fmt.Sprintf("%s: %s",
+				strings.TrimSuffix(v.GetStringValue(), "Scan"),
+				metadata["scan_target"].GetStringValue()))
+		default:
+			fields = append(fields, fmt.Sprintf("%s: %s", k, v.GetStringValue()))
+		}
+	}
+
+	if len(fields) == 0 {
+		return ""
 	}
 	return fmt.Sprintf(`(%s)`, strings.Join(fields, ", "))
 }
