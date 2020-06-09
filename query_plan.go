@@ -80,9 +80,9 @@ func (n *Node) Render() string {
 }
 
 type RenderedTreeWithStats struct {
-	Text string
-	RowsTotal string
-	Execution string
+	Text         string
+	RowsTotal    string
+	Execution    string
 	LatencyTotal string
 }
 
@@ -139,7 +139,6 @@ func (n *Node) String() string {
 		}
 		operator = strings.Join(components, " ")
 	}
-
 
 	var metadata string
 	{
@@ -209,7 +208,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		node.PlanNode.GetExecutionStats().GetFields()["rows"].GetStructValue().GetFields()["total"].GetStringValue(),
 		node.PlanNode.GetExecutionStats().GetFields()["execution_summary"].GetStructValue().GetFields()["num_executions"].GetStringValue(),
 		node.PlanNode.GetExecutionStats().GetFields()["latency"].GetStructValue().GetFields()["total"].GetStringValue(),
-		)
+	)
 
 	if len(node.Children) > 0 {
 		var branch treeprint.Tree

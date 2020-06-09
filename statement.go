@@ -92,7 +92,7 @@ var (
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
-	explainAnalyzeRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+ANALYZE\s+(.+)$`)
+	explainAnalyzeRe  = regexp.MustCompile(`(?is)^EXPLAIN\s+ANALYZE\s+(.+)$`)
 )
 
 var (
@@ -495,7 +495,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames:  []string{"Query_Execution_Plan", "Rows", "Exec.", "Latency"},
+		ColumnNames: []string{"Query_Execution_Plan", "Rows", "Exec.", "Latency"},
 	}
 
 	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
