@@ -24,6 +24,13 @@ import (
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
+func init() {
+	// Use only ascii characters
+	treeprint.EdgeTypeLink = "|"
+	treeprint.EdgeTypeMid = "+-"
+	treeprint.EdgeTypeEnd = "+-"
+}
+
 type Link struct {
 	Dest *Node
 	Type string
