@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/xlab/treeprint"
@@ -88,32 +89,56 @@ func (n *Node) IsVisible() bool {
 }
 
 func (n *Node) String() string {
-	operator := n.PlanNode.DisplayName
-	metadata := getAllMetadataString(n)
+	metadataFields := n.PlanNode.GetMetadata().GetFields()
+
+	var operator string
+	{
+		var components []string
+		for _, s := range []string{
+			metadataFields["call_type"].GetStringValue(),
+			metadataFields["iterator_type"].GetStringValue(),
+			strings.TrimSuffix(metadataFields["scan_type"].GetStringValue(), "Scan"),
+			n.PlanNode.GetDisplayName(),
+		} {
+			if s != "" {
+				components = append(components, s)
+			}
+		}
+		operator = strings.Join(components, " ")
+	}
+
+
+	var metadata string
+	{
+		fields := make([]string, 0)
+		for k, v := range metadataFields {
+			switch k {
+			case "call_type", "iterator_type": // Skip because it is displayed in node title
+				continue
+			case "scan_target": // Skip because it is combined with scan_type
+				continue
+			case "subquery_cluster_node": // Skip because it is useless without displaying node id
+				continue
+			case "scan_type":
+				fields = append(fields, fmt.Sprintf("%s: %s",
+					strings.TrimSuffix(v.GetStringValue(), "Scan"),
+					metadataFields["scan_target"].GetStringValue()))
+			default:
+				fields = append(fields, fmt.Sprintf("%s: %s", k, v.GetStringValue()))
+			}
+		}
+
+		sort.Strings(fields)
+
+		if len(fields) != 0 {
+			metadata = fmt.Sprintf(`(%s)`, strings.Join(fields, ", "))
+		}
+	}
+
+	if metadata == "" {
+		return operator
+	}
 	return operator + " " + metadata
-}
-
-func getMetadataString(node *Node, key string) (string, bool) {
-	if node.PlanNode.Metadata == nil {
-		return "", false
-	}
-	if v, ok := node.PlanNode.Metadata.Fields[key]; ok {
-		return v.GetStringValue(), true
-	} else {
-		return "", false
-	}
-}
-
-func getAllMetadataString(node *Node) string {
-	if node.PlanNode.Metadata == nil {
-		return ""
-	}
-
-	fields := make([]string, 0)
-	for k, v := range node.PlanNode.Metadata.Fields {
-		fields = append(fields, fmt.Sprintf("%s: %s", k, v.GetStringValue()))
-	}
-	return fmt.Sprintf(`(%s)`, strings.Join(fields, ", "))
 }
 
 func renderTree(tree treeprint.Tree, linkType string, node *Node) {
