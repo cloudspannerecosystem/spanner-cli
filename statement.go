@@ -389,7 +389,7 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 	for _, stmt := range ddlResponse.Statements {
-		if regexp.MustCompile(`(?i)^CREATE TABLE ` + s.Table).MatchString(stmt) {
+		if isCreateTableDDL(stmt, s.Table) {
 			resultRow := Row{
 				Columns: []string{s.Table, stmt},
 			}
@@ -404,6 +404,12 @@ func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
 	result.AffectedRows = len(result.Rows)
 
 	return result, nil
+}
+
+func isCreateTableDDL(ddl string, table string) bool {
+	table = regexp.QuoteMeta(table)
+	re := fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\s*\\(", table, table)
+	return regexp.MustCompile(re).MatchString(ddl)
 }
 
 type ShowTablesStatement struct{}
