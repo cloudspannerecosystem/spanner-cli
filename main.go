@@ -46,20 +46,14 @@ type spannerOptions struct {
 func main() {
 	var gopts globalOptions
 	// check config file at first
-	{
-		parser := flags.NewParser(&gopts, flags.Default)
-		if err := readConfigFile(parser); err != nil {
-			exitf("Invalid config file format\n")
-		}
+	if err := readConfigFile(flags.NewParser(&gopts, flags.Default)); err != nil {
+		exitf("Invalid config file format\n")
 	}
 
 	// then, parse command line options
-	{
-		// Use new parser to process environment variable
-		parser := flags.NewParser(&gopts, flags.Default)
-		if _, err := parser.Parse(); err != nil {
-			exitf("Invalid options\n")
-		}
+	// Use another parser to process environment variable
+	if _, err := flags.NewParser(&gopts, flags.Default).Parse(); err != nil {
+		exitf("Invalid options\n")
 	}
 
 	opts := gopts.Spanner
