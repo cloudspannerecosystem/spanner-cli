@@ -55,7 +55,7 @@ func main() {
 
 	// then, parse command line options
 	{
-		// Force to process environment variable
+		// Use new parser to process environment variable
 		parser := flags.NewParser(&gopts, flags.Default)
 		if _, err := parser.Parse(); err != nil {
 			exitf("Invalid options\n")
