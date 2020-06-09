@@ -32,7 +32,7 @@ func TestGetNodeTitleAndGetAllMetadataString(t *testing.T) {
 					"Full scan": {Kind: &structpb.Value_StringValue{StringValue: "true"}},
 				},
 			},
-		}}, "Index Scan", "(Index: SongsBySongName, Full scan: true)"},
+		}}, "Index Scan", "(Full scan: true, Index: SongsBySongName)"},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Scan",
 			Metadata:    &structpb.Struct{

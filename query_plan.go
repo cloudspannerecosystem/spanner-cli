@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/xlab/treeprint"
@@ -145,6 +146,7 @@ func getAllMetadataString(node *Node) string {
 	if len(fields) == 0 {
 		return ""
 	}
+	sort.Strings(fields)
 	return fmt.Sprintf(`(%s)`, strings.Join(fields, ", "))
 }
 
