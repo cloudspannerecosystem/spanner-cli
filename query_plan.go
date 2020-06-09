@@ -79,6 +79,39 @@ func (n *Node) Render() string {
 	return "\n" + tree.String()
 }
 
+type RenderedTreeWithStats struct {
+	Text string
+	RowsTotal string
+	Execution string
+	LatencyTotal string
+}
+
+func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
+	tree := treeprint.New()
+	renderTreeWithStats(tree, "", n)
+	var result []RenderedTreeWithStats
+	renderedTree := tree.String()
+	for _, line := range strings.Split(renderedTree, "\n") {
+		if line == "" {
+			continue
+		}
+		tsv := strings.Split(line, "\t")
+		elem := RenderedTreeWithStats{}
+		elem.Text = tsv[0]
+		if len(tsv) > 1 {
+			elem.RowsTotal = tsv[1]
+		}
+		if len(tsv) > 2 {
+			elem.Execution = tsv[2]
+		}
+		if len(tsv) > 3 {
+			elem.LatencyTotal = tsv[3]
+		}
+		result = append(result, elem)
+	}
+	return result
+}
+
 func (n *Node) IsVisible() bool {
 	operator := n.PlanNode.DisplayName
 	if operator == "Function" || operator == "Reference" || operator == "Constant" {
@@ -157,6 +190,36 @@ func renderTree(tree treeprint.Tree, linkType string, node *Node) {
 		}
 		for _, child := range node.Children {
 			renderTree(branch, child.Type, child.Dest)
+		}
+	} else {
+		if linkType != "" {
+			tree.AddMetaNode(linkType, str)
+		} else {
+			tree.AddNode(str)
+		}
+	}
+}
+
+func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
+	if !node.IsVisible() {
+		return
+	}
+
+	str := fmt.Sprintf("%s\t%s\t%s\t%s", node.String(),
+		node.PlanNode.GetExecutionStats().GetFields()["rows"].GetStructValue().GetFields()["total"].GetStringValue(),
+		node.PlanNode.GetExecutionStats().GetFields()["execution_summary"].GetStructValue().GetFields()["num_executions"].GetStringValue(),
+		node.PlanNode.GetExecutionStats().GetFields()["latency"].GetStructValue().GetFields()["total"].GetStringValue(),
+		)
+
+	if len(node.Children) > 0 {
+		var branch treeprint.Tree
+		if linkType != "" {
+			branch = tree.AddMetaBranch(linkType, str)
+		} else {
+			branch = tree.AddBranch(str)
+		}
+		for _, child := range node.Children {
+			renderTreeWithStats(branch, child.Type, child.Dest)
 		}
 	} else {
 		if linkType != "" {
