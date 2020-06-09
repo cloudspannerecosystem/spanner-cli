@@ -127,20 +127,18 @@ func exitf(format string, a ...interface{}) {
 const cnfFileName = ".spanner_cli.cnf"
 
 func readConfigFile(parser *flags.Parser) error {
-	currentUser, err := user.Current()
-	if err != nil {
-		// ignore error
-		return nil
+	var cnfFiles []string
+	if currentUser, err := user.Current(); err == nil {
+		cnfFiles = append(cnfFiles, filepath.Join(currentUser.HomeDir, cnfFileName))
 	}
-
-	// TODO: customize config path
-	homeCnfFile := filepath.Join(currentUser.HomeDir, cnfFileName)
 
 	cwd, _ := os.Getwd() // ignore err
 	cwdCnfFile := filepath.Join(cwd, cnfFileName)
+	cnfFiles = append(cnfFiles, cwdCnfFile)
 
 	iniParser := flags.NewIniParser(parser)
-	for _, cnfFile := range []string{homeCnfFile, cwdCnfFile} {
+	for _, cnfFile := range cnfFiles {
+		// skip if missing
 		if _, err := os.Stat(cnfFile); err != nil {
 			continue
 		}
