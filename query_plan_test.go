@@ -8,16 +8,16 @@ import (
 )
 
 func TestGetNodeTitleAndGetAllMetadataString(t *testing.T) {
-	for _, test := range []struct{
-		node          *Node
-		wantNodeTitle string
+	for _, test := range []struct {
+		node               *Node
+		wantNodeTitle      string
 		wantMetadataString string
 	}{
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Distributed Union",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"call_type": {Kind: &structpb.Value_StringValue{StringValue: "Local"}},
+					"call_type":             {Kind: &structpb.Value_StringValue{StringValue: "Local"}},
 					"subquery_cluster_node": {Kind: &structpb.Value_StringValue{StringValue: "4"}},
 				},
 			},
@@ -25,35 +25,35 @@ func TestGetNodeTitleAndGetAllMetadataString(t *testing.T) {
 		},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Scan",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"scan_type": {Kind: &structpb.Value_StringValue{StringValue: "IndexScan"}},
+					"scan_type":   {Kind: &structpb.Value_StringValue{StringValue: "IndexScan"}},
 					"scan_target": {Kind: &structpb.Value_StringValue{StringValue: "SongsBySongName"}},
-					"Full scan": {Kind: &structpb.Value_StringValue{StringValue: "true"}},
+					"Full scan":   {Kind: &structpb.Value_StringValue{StringValue: "true"}},
 				},
 			},
 		}}, "Index Scan", "(Full scan: true, Index: SongsBySongName)"},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Scan",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"scan_type": {Kind: &structpb.Value_StringValue{StringValue: "TableScan"}},
+					"scan_type":   {Kind: &structpb.Value_StringValue{StringValue: "TableScan"}},
 					"scan_target": {Kind: &structpb.Value_StringValue{StringValue: "Songs"}},
 				},
 			},
 		}}, "Table Scan", "(Table: Songs)"},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Scan",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"scan_type": {Kind: &structpb.Value_StringValue{StringValue: "BatchScan"}},
+					"scan_type":   {Kind: &structpb.Value_StringValue{StringValue: "BatchScan"}},
 					"scan_target": {Kind: &structpb.Value_StringValue{StringValue: "$v2"}},
 				},
 			},
 		}}, "Batch Scan", "(Batch: $v2)"},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Sort Limit",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"call_type": {Kind: &structpb.Value_StringValue{StringValue: "Local"}},
 				},
@@ -61,7 +61,7 @@ func TestGetNodeTitleAndGetAllMetadataString(t *testing.T) {
 		}}, "Local Sort Limit", ""},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Sort Limit",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"call_type": {Kind: &structpb.Value_StringValue{StringValue: "Global"}},
 				},
@@ -69,7 +69,7 @@ func TestGetNodeTitleAndGetAllMetadataString(t *testing.T) {
 		}}, "Global Sort Limit", ""},
 		{&Node{PlanNode: &spanner.PlanNode{
 			DisplayName: "Aggregate",
-			Metadata:    &structpb.Struct{
+			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"iterator_type": {Kind: &structpb.Value_StringValue{StringValue: "Stream"}},
 				},
