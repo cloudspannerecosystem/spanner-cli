@@ -235,9 +235,9 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		&structpb.Value{Kind: &structpb.Value_StructValue{
 			&structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"execution_stats": {Kind: &structpb.Value_StructValue{node.PlanNode.GetExecutionStats()}},
-					"display_name":    {Kind: &structpb.Value_StringValue{node.String()}},
-					"link_type":       {Kind: &structpb.Value_StringValue{linkType}},
+					"execution_stats": {Kind: &structpb.Value_StructValue{StructValue: node.PlanNode.GetExecutionStats()}},
+					"display_name":    {Kind: &structpb.Value_StringValue{StringValue: node.String()}},
+					"link_type":       {Kind: &structpb.Value_StringValue{StringValue: linkType}},
 				},
 			},
 		}},
