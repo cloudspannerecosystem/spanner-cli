@@ -101,8 +101,9 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
-		var value structpb.Value
 		branchText, protojsonText := line[:i], line[i:]
+
+		var value structpb.Value
 		err := protojson.Unmarshal([]byte(protojsonText), &value)
 		if err != nil {
 			result = append(result, RenderedTreeWithStats{Text: line})
@@ -118,6 +119,7 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		} else {
 			text = displayName
 		}
+
 		result = append(result, RenderedTreeWithStats{
 			Text:         branchText + text,
 			RowsTotal:    getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
