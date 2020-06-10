@@ -496,7 +496,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames: []string{"Query_Execution_Plan", "Rows", "Exec.", "Latency"},
+		ColumnNames:  []string{"Query_Execution_Plan", "Rows", "Exec.", "Latency"},
 		ForceVerbose: true,
 	}
 
