@@ -17,6 +17,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -231,13 +232,12 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		return
 	}
 
-	b, _ := protojson.Marshal(
-		&structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"execution_stats": {Kind: &structpb.Value_StructValue{StructValue: node.PlanNode.GetExecutionStats()}},
-				"display_name":    {Kind: &structpb.Value_StringValue{StringValue: node.String()}},
-				"link_type":       {Kind: &structpb.Value_StringValue{StringValue: linkType}},
-			},
+	statsJson, _ := protojson.Marshal(node.PlanNode.GetExecutionStats())
+	b, _ := json.Marshal(
+		map[string]interface{}{
+				"execution_stats": json.RawMessage(statsJson),
+				"display_name":    node.String(),
+				"link_type":       linkType,
 		},
 	)
 	str := string(b)
