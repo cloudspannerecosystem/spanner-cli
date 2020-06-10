@@ -41,6 +41,7 @@ type Result struct {
 	Stats        QueryStats
 	IsMutation   bool
 	Timestamp    time.Time
+	ForceVerbose bool
 }
 
 type Row struct {
@@ -496,6 +497,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 
 	result := &Result{
 		ColumnNames: []string{"Query_Execution_Plan", "Rows", "Exec.", "Latency"},
+		ForceVerbose: true,
 	}
 
 	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
@@ -513,8 +515,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		result.Timestamp, _ = targetRoTxn.Timestamp()
 	}
 
-	renderedTree := tree.RenderTreeWithStats()
-	for _, row := range renderedTree {
+	for _, row := range tree.RenderTreeWithStats() {
 		result.Rows = append(result.Rows, Row{[]string{row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
 	}
 
