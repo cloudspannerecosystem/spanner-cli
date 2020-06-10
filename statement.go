@@ -513,7 +513,8 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		result.Timestamp, _ = targetRoTxn.Timestamp()
 	}
 
-	for _, row := range tree.RenderTreeWithStats() {
+	renderedTree := tree.RenderTreeWithStats()
+	for _, row := range renderedTree {
 		result.Rows = append(result.Rows, Row{[]string{row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
 	}
 
