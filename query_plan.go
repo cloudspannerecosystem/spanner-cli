@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -89,8 +88,6 @@ type RenderedTreeWithStats struct {
 	LatencyTotal string
 }
 
-var jsonEmbeddedTreeNodeRe = regexp.MustCompile(`^([^{]*)(\{.*)?$`)
-
 func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
@@ -99,19 +96,19 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		if line == "" {
 			continue
 		}
-		matched := jsonEmbeddedTreeNodeRe.FindStringSubmatch(line)
-		if matched[2] == "" {
+		matched := strings.Split(line, "\t")
+		if len(matched) == 1 {
 			result = append(result, RenderedTreeWithStats{Text: matched[0]})
 			continue
 		}
 		var value structpb.Value
-		err := protojson.Unmarshal([]byte(matched[2]), &value)
+		err := protojson.Unmarshal([]byte(matched[1]), &value)
 		if err != nil {
 			result = append(result, RenderedTreeWithStats{Text: matched[0]})
 			continue
 		}
 		result = append(result, RenderedTreeWithStats{
-			Text:         matched[1],
+			Text:         matched[0],
 			RowsTotal:    getStringValueByPath(value.GetStructValue(), "rows", "total"),
 			Execution:    getStringValueByPath(value.GetStructValue(), "execution_summary", "num_executions"),
 			LatencyTotal: getStringValueByPath(value.GetStructValue(), "latency", "total"),
@@ -223,7 +220,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	b, _ := protojson.Marshal(
 			&structpb.Value{Kind: &structpb.Value_StructValue{node.PlanNode.GetExecutionStats()}},
 	)
-	str := node.String() + string(b)
+	str := node.String() + "\t" + string(b)
 
 	if len(node.Children) > 0 {
 		var branch treeprint.Tree
