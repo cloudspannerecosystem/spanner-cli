@@ -96,22 +96,33 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		if line == "" {
 			continue
 		}
-		matched := strings.Split(line, "\t")
-		if len(matched) == 1 {
-			result = append(result, RenderedTreeWithStats{Text: matched[0]})
+		i := strings.Index(line, "{")
+		if i == -1 {
+			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
 		var value structpb.Value
-		err := protojson.Unmarshal([]byte(matched[1]), &value)
+		branchText, protojsonText := line[:i], line[i:]
+		err := protojson.Unmarshal([]byte(protojsonText), &value)
 		if err != nil {
-			result = append(result, RenderedTreeWithStats{Text: matched[0]})
+			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
+
+		displayName := getStringValueByPath(value.GetStructValue(), "display_name")
+		linkType := getStringValueByPath(value.GetStructValue(), "link_type")
+
+		var text string
+		if linkType != "" {
+			text = fmt.Sprintf("[%s] %s", linkType, displayName)
+		} else {
+			text = displayName
+		}
 		result = append(result, RenderedTreeWithStats{
-			Text:         matched[0],
-			RowsTotal:    getStringValueByPath(value.GetStructValue(), "rows", "total"),
-			Execution:    getStringValueByPath(value.GetStructValue(), "execution_summary", "num_executions"),
-			LatencyTotal: getStringValueByPath(value.GetStructValue(), "latency", "total"),
+			Text:         branchText + text,
+			RowsTotal:    getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
+			Execution:    getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
+			LatencyTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
 		})
 	}
 	return result
@@ -218,25 +229,25 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	}
 
 	b, _ := protojson.Marshal(
-			&structpb.Value{Kind: &structpb.Value_StructValue{node.PlanNode.GetExecutionStats()}},
+		&structpb.Value{Kind: &structpb.Value_StructValue{
+			&structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"execution_stats": &structpb.Value{Kind: &structpb.Value_StructValue{node.PlanNode.GetExecutionStats()}},
+					"display_name": &structpb.Value{Kind: &structpb.Value_StringValue{node.String()}},
+					"link_type": &structpb.Value{Kind: &structpb.Value_StringValue{linkType}},
+				},
+			},
+		}},
 	)
-	str := node.String() + "\t" + string(b)
+	str := string(b)
 
 	if len(node.Children) > 0 {
 		var branch treeprint.Tree
-		if linkType != "" {
-			branch = tree.AddMetaBranch(linkType, str)
-		} else {
-			branch = tree.AddBranch(str)
-		}
+		branch = tree.AddBranch(str)
 		for _, child := range node.Children {
 			renderTreeWithStats(branch, child.Type, child.Dest)
 		}
 	} else {
-		if linkType != "" {
-			tree.AddMetaNode(linkType, str)
-		} else {
-			tree.AddNode(str)
-		}
+		tree.AddNode(str)
 	}
 }
