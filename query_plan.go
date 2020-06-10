@@ -232,15 +232,13 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	}
 
 	b, _ := protojson.Marshal(
-		&structpb.Value{Kind: &structpb.Value_StructValue{
-			StructValue: &structpb.Struct{
-				Fields: map[string]*structpb.Value{
-					"execution_stats": {Kind: &structpb.Value_StructValue{StructValue: node.PlanNode.GetExecutionStats()}},
-					"display_name":    {Kind: &structpb.Value_StringValue{StringValue: node.String()}},
-					"link_type":       {Kind: &structpb.Value_StringValue{StringValue: linkType}},
-				},
+		&structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"execution_stats": {Kind: &structpb.Value_StructValue{StructValue: node.PlanNode.GetExecutionStats()}},
+				"display_name":    {Kind: &structpb.Value_StringValue{StringValue: node.String()}},
+				"link_type":       {Kind: &structpb.Value_StringValue{StringValue: linkType}},
 			},
-		}},
+		},
 	)
 	str := string(b)
 
