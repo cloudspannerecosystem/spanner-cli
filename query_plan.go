@@ -96,12 +96,13 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		if line == "" {
 			continue
 		}
-		i := strings.Index(line, "{")
-		if i == -1 {
+
+		idx := strings.Index(line, "{")
+		if idx == -1 {
 			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
-		branchText, protojsonText := line[:i], line[i:]
+		branchText, protojsonText := line[:idx], line[idx:]
 
 		var value structpb.Value
 		err := protojson.Unmarshal([]byte(protojsonText), &value)
