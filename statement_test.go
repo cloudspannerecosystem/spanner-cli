@@ -287,3 +287,55 @@ func TestBuildStatement(t *testing.T) {
 		}
 	}
 }
+
+func TestIsCreateTableDDL(t *testing.T) {
+	for _, tt := range []struct {
+		desc  string
+		ddl   string
+		table string
+		want  bool
+	}{
+		{
+			desc:  "exact match",
+			ddl:   "CREATE TABLE t1 (\n",
+			table: "t1",
+			want:  true,
+		},
+		{
+			desc:  "given table is prefix of DDL's table",
+			ddl:   "CREATE TABLE t12 (\n",
+			table: "t1",
+			want:  false,
+		},
+		{
+			desc:  "DDL's table is prefix of given table",
+			ddl:   "CREATE TABLE t1 (\n",
+			table: "t12",
+			want:  false,
+		},
+		{
+			desc:  "given table has reserved word",
+			ddl:   "CREATE TABLE `create` (\n",
+			table: "create",
+			want:  true,
+		},
+		{
+			desc:  "given table is regular expression",
+			ddl:   "CREATE TABLE t1 (\n",
+			table: `..`,
+			want:  false,
+		},
+		{
+			desc:  "given table is invalid regular expression",
+			ddl:   "CREATE TABLE t1 (\n",
+			table: `[\]`,
+			want:  false,
+		},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			if got := isCreateTableDDL(tt.ddl, tt.table); got != tt.want {
+				t.Errorf("isCreateTableDDL(%q, %q) = %v, but want %v", tt.ddl, tt.table, got, tt.want)
+			}
+		})
+	}
+}
