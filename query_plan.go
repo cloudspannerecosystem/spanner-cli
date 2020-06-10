@@ -232,9 +232,9 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		&structpb.Value{Kind: &structpb.Value_StructValue{
 			&structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"execution_stats": &structpb.Value{Kind: &structpb.Value_StructValue{node.PlanNode.GetExecutionStats()}},
-					"display_name": &structpb.Value{Kind: &structpb.Value_StringValue{node.String()}},
-					"link_type": &structpb.Value{Kind: &structpb.Value_StringValue{linkType}},
+					"execution_stats": {Kind: &structpb.Value_StructValue{node.PlanNode.GetExecutionStats()}},
+					"display_name":    {Kind: &structpb.Value_StringValue{node.String()}},
+					"link_type":       {Kind: &structpb.Value_StringValue{linkType}},
 				},
 			},
 		}},
@@ -242,8 +242,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	str := string(b)
 
 	if len(node.Children) > 0 {
-		var branch treeprint.Tree
-		branch = tree.AddBranch(str)
+		branch := tree.AddBranch(str)
 		for _, child := range node.Children {
 			renderTreeWithStats(branch, child.Type, child.Dest)
 		}
