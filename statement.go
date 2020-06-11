@@ -137,7 +137,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExplainStatement{Explain: matched[1]}, nil
 	case explainAnalyzeRe.MatchString(input):
 		matched := explainAnalyzeRe.FindStringSubmatch(input)
-		return &ExplainAnalyzeStatement{Explain: matched[1]}, nil
+		return &ExplainAnalyzeStatement{Query: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
 		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
@@ -469,11 +469,11 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 }
 
 type ExplainAnalyzeStatement struct {
-	Explain string
+	Query string
 }
 
 func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
-	stmt := spanner.NewStatement(s.Explain)
+	stmt := spanner.NewStatement(s.Query)
 	var iter *spanner.RowIterator
 
 	var targetRoTxn *spanner.ReadOnlyTransaction
