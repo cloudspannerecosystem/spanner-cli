@@ -98,12 +98,12 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 			continue
 		}
 
-		idx := strings.Index(line, "{")
-		if idx == -1 {
+		split := strings.Split(line, "\t")
+		if len(split) == 1 {
 			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
-		branchText, protojsonText := line[:idx], line[idx:]
+		branchText, protojsonText := split[0], split[1]
 
 		var value structpb.Value
 		err := protojson.Unmarshal([]byte(protojsonText), &value)
@@ -240,7 +240,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 				"link_type":       linkType,
 		},
 	)
-	str := string(b)
+	str := "\t" + string(b)
 
 	if len(node.Children) > 0 {
 		branch := tree.AddBranch(str)
