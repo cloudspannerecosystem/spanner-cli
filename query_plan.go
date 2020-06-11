@@ -126,7 +126,7 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 			Text:         branchText + text,
 			RowsTotal:    getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
 			Execution:    getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
-			LatencyTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
+			LatencyTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total") + " " + getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit"),
 		})
 	}
 	return result
