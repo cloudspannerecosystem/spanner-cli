@@ -123,10 +123,12 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		}
 
 		result = append(result, RenderedTreeWithStats{
-			Text:         branchText + text,
-			RowsTotal:    getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
-			Execution:    getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
-			LatencyTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total") + " " + getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit"),
+			Text:      branchText + text,
+			RowsTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
+			Execution: getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
+			LatencyTotal: fmt.Sprintf("%s %s",
+				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
+				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit")),
 		})
 	}
 	return result
@@ -235,11 +237,12 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	statsJson, _ := protojson.Marshal(node.PlanNode.GetExecutionStats())
 	b, _ := json.Marshal(
 		map[string]interface{}{
-				"execution_stats": json.RawMessage(statsJson),
-				"display_name":    node.String(),
-				"link_type":       linkType,
+			"execution_stats": json.RawMessage(statsJson),
+			"display_name":    node.String(),
+			"link_type":       linkType,
 		},
 	)
+	// Prefixed by tab to ease to split
 	str := "\t" + string(b)
 
 	if len(node.Children) > 0 {
