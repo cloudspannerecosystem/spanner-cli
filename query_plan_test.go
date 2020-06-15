@@ -33,20 +33,12 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						ExecutionStats: &structpb.Struct{Fields: map[string]*structpb.Value{
-							"latency": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-									"unit":  {Kind: &structpb.Value_StringValue{StringValue: "msec"}},
-								}}}},
-							"execution_summary": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"num_executions": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-								}}}},
-							"rows": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "9"}},
-								}}}}}},
+						ExecutionStats: protojsonAsStruct(`
+{
+  "latency": {"total": "1", "unit": "msec"},
+  "rows": {"total": "9"},
+  "execution_summary": {"num_executions": "1"},
+}`),
 					},
 					{
 						ChildLinks: []*spanner.PlanNode_ChildLink{
@@ -57,20 +49,12 @@ func TestRenderTreeWithStats(t *testing.T) {
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
 						Metadata:    protojsonAsStruct(`{"call_type": "Local"}`),
-						ExecutionStats: &structpb.Struct{Fields: map[string]*structpb.Value{
-							"latency": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-									"unit":  {Kind: &structpb.Value_StringValue{StringValue: "msec"}},
-								}}}},
-							"execution_summary": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"num_executions": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-								}}}},
-							"rows": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "9"}},
-								}}}}}},
+						ExecutionStats: protojsonAsStruct(`
+{
+  "latency": {"total": "1", "unit": "msec"},
+  "rows": {"total": "9"},
+  "execution_summary": {"num_executions": "1"},
+}`),
 					},
 					{
 						ChildLinks: []*spanner.PlanNode_ChildLink{
@@ -80,39 +64,23 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Serialize Result",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						ExecutionStats: &structpb.Struct{Fields: map[string]*structpb.Value{
-							"latency": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-									"unit":  {Kind: &structpb.Value_StringValue{StringValue: "msec"}},
-								}}}},
-							"execution_summary": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"num_executions": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-								}}}},
-							"rows": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "9"}},
-								}}}}}},
+						ExecutionStats: protojsonAsStruct(`
+{
+  "latency": {"total": "1", "unit": "msec"},
+  "rows": {"total": "9"},
+  "execution_summary": {"num_executions": "1"},
+}`),
 					},
 					{
 						DisplayName: "Scan",
 						Kind:        spanner.PlanNode_RELATIONAL,
 						Metadata:    protojsonAsStruct(`{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}`),
-						ExecutionStats: &structpb.Struct{Fields: map[string]*structpb.Value{
-							"latency": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-									"unit":  {Kind: &structpb.Value_StringValue{StringValue: "msec"}},
-								}}}},
-							"execution_summary": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"num_executions": {Kind: &structpb.Value_StringValue{StringValue: "1"}},
-								}}}},
-							"rows": &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{
-								Fields: map[string]*structpb.Value{
-									"total": {Kind: &structpb.Value_StringValue{StringValue: "9"}},
-								}}}}}},
+						ExecutionStats: protojsonAsStruct(`
+{
+  "latency": {"total": "1", "unit": "msec"},
+  "rows": {"total": "9"},
+  "execution_summary": {"num_executions": "1"},
+}`),
 					},
 				},
 			},
