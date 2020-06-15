@@ -9,13 +9,15 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func protojsonAsStruct(j string) *structpb.Struct {
+func protojsonAsStruct(t *testing.T, j string) *structpb.Struct {
+	t.Helper()
 	var result structpb.Struct
 	if err := protojson.Unmarshal([]byte(j), &result); err != nil {
-		return nil
+		t.Fatal("protojsonAsStruct fails, invalid test case", err)
 	}
 	return &result
 }
+
 func TestRenderTreeWithStats(t *testing.T) {
 	for _, test := range []struct {
 		title string
@@ -33,11 +35,11 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						ExecutionStats: protojsonAsStruct(`
+						ExecutionStats: protojsonAsStruct(t, `
 {
   "latency": {"total": "1", "unit": "msec"},
   "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"},
+  "execution_summary": {"num_executions": "1"}
 }`),
 					},
 					{
@@ -48,12 +50,12 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						Metadata:    protojsonAsStruct(`{"call_type": "Local"}`),
-						ExecutionStats: protojsonAsStruct(`
+						Metadata:    protojsonAsStruct(t, `{"call_type": "Local"}`),
+						ExecutionStats: protojsonAsStruct(t, `
 {
   "latency": {"total": "1", "unit": "msec"},
   "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"},
+  "execution_summary": {"num_executions": "1"}
 }`),
 					},
 					{
@@ -64,22 +66,22 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Serialize Result",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						ExecutionStats: protojsonAsStruct(`
+						ExecutionStats: protojsonAsStruct(t, `
 {
   "latency": {"total": "1", "unit": "msec"},
   "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"},
+  "execution_summary": {"num_executions": "1"}
 }`),
 					},
 					{
 						DisplayName: "Scan",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						Metadata:    protojsonAsStruct(`{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}`),
-						ExecutionStats: protojsonAsStruct(`
+						Metadata:    protojsonAsStruct(t, `{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}`),
+						ExecutionStats: protojsonAsStruct(t, `
 {
   "latency": {"total": "1", "unit": "msec"},
   "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"},
+  "execution_summary": {"num_executions": "1"}
 }`),
 					},
 				},
