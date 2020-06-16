@@ -41,6 +41,7 @@ type Result struct {
 	Stats        QueryStats
 	IsMutation   bool
 	Timestamp    time.Time
+	ForceVerbose bool
 }
 
 type Row struct {
@@ -92,6 +93,7 @@ var (
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
+	explainAnalyzeRe  = regexp.MustCompile(`(?is)^EXPLAIN\s+ANALYZE\s+(.+)$`)
 )
 
 var (
@@ -133,6 +135,9 @@ func BuildStatement(input string) (Statement, error) {
 	case explainRe.MatchString(input):
 		matched := explainRe.FindStringSubmatch(input)
 		return &ExplainStatement{Explain: matched[1]}, nil
+	case explainAnalyzeRe.MatchString(input):
+		matched := explainAnalyzeRe.FindStringSubmatch(input)
+		return &ExplainAnalyzeStatement{Query: matched[1]}, nil
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
 		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
@@ -465,6 +470,60 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	tree := BuildQueryPlanTree(queryPlan, 0)
 	rendered := tree.Render()
 	result.Rows[0] = Row{[]string{rendered}}
+
+	return result, nil
+}
+
+type ExplainAnalyzeStatement struct {
+	Query string
+}
+
+func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
+	stmt := spanner.NewStatement(s.Query)
+	var iter *spanner.RowIterator
+
+	var targetRoTxn *spanner.ReadOnlyTransaction
+	if session.InRwTxn() {
+		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
+	} else if session.InRoTxn() {
+		targetRoTxn = session.roTxn
+		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
+	} else {
+		targetRoTxn = session.client.Single()
+		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
+	}
+	defer iter.Stop()
+	// consume iter
+	err := iter.Do(func(*spanner.Row) error {
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := &Result{
+		ColumnNames:  []string{"Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ForceVerbose: true,
+	}
+
+	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
+	queryStats := parseQueryStats(iter.QueryStats)
+	rowsReturned, err := strconv.Atoi(queryStats.RowsReturned)
+	if err != nil {
+		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
+	}
+
+	result.AffectedRows = rowsReturned
+	result.Stats = queryStats
+
+	// ReadOnlyTransaction.Timestamp() is invalid until read.
+	if targetRoTxn != nil {
+		result.Timestamp, _ = targetRoTxn.Timestamp()
+	}
+
+	for _, row := range tree.RenderTreeWithStats() {
+		result.Rows = append(result.Rows, Row{[]string{row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+	}
 
 	return result, nil
 }

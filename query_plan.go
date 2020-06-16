@@ -17,12 +17,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/xlab/treeprint"
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func init() {
@@ -79,6 +82,58 @@ func (n *Node) Render() string {
 	return "\n" + tree.String()
 }
 
+type RenderedTreeWithStats struct {
+	Text         string
+	RowsTotal    string
+	Execution    string
+	LatencyTotal string
+}
+
+func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
+	tree := treeprint.New()
+	renderTreeWithStats(tree, "", n)
+	var result []RenderedTreeWithStats
+	for _, line := range strings.Split(tree.String(), "\n") {
+		if line == "" {
+			continue
+		}
+
+		split := strings.SplitN(line, "\t", 2)
+		// Handle the case of the root node of treeprint
+		if len(split) != 2 {
+			result = append(result, RenderedTreeWithStats{Text: line})
+			continue
+		}
+		branchText, protojsonText := split[0], split[1]
+
+		var value structpb.Value
+		if err := protojson.Unmarshal([]byte(protojsonText), &value); err != nil {
+			result = append(result, RenderedTreeWithStats{Text: line})
+			continue
+		}
+
+		displayName := getStringValueByPath(value.GetStructValue(), "display_name")
+		linkType := getStringValueByPath(value.GetStructValue(), "link_type")
+
+		var text string
+		if linkType != "" {
+			text = fmt.Sprintf("[%s] %s", linkType, displayName)
+		} else {
+			text = displayName
+		}
+
+		result = append(result, RenderedTreeWithStats{
+			Text:      branchText + text,
+			RowsTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
+			Execution: getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
+			LatencyTotal: fmt.Sprintf("%s %s",
+				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
+				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit")),
+		})
+	}
+	return result
+}
+
 func (n *Node) IsVisible() bool {
 	operator := n.PlanNode.DisplayName
 	if operator == "Function" || operator == "Reference" || operator == "Constant" {
@@ -106,7 +161,6 @@ func (n *Node) String() string {
 		}
 		operator = strings.Join(components, " ")
 	}
-
 
 	var metadata string
 	{
@@ -164,5 +218,39 @@ func renderTree(tree treeprint.Tree, linkType string, node *Node) {
 		} else {
 			tree.AddNode(str)
 		}
+	}
+}
+
+func getStringValueByPath(s *structpb.Struct, first string, path ...string) string {
+	current := s.GetFields()[first]
+	for _, p := range path {
+		current = current.GetStructValue().GetFields()[p]
+	}
+	return current.GetStringValue()
+}
+
+func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
+	if !node.IsVisible() {
+		return
+	}
+
+	statsJson, _ := protojson.Marshal(node.PlanNode.GetExecutionStats())
+	b, _ := json.Marshal(
+		map[string]interface{}{
+			"execution_stats": json.RawMessage(statsJson),
+			"display_name":    node.String(),
+			"link_type":       linkType,
+		},
+	)
+	// Prefixed by tab to ease to split
+	str := "\t" + string(b)
+
+	if len(node.Children) > 0 {
+		branch := tree.AddBranch(str)
+		for _, child := range node.Children {
+			renderTreeWithStats(branch, child.Type, child.Dest)
+		}
+	} else {
+		tree.AddNode(str)
 	}
 }
