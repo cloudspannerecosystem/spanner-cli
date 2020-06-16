@@ -107,8 +107,7 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		branchText, protojsonText := split[0], split[1]
 
 		var value structpb.Value
-		err := protojson.Unmarshal([]byte(protojsonText), &value)
-		if err != nil {
+		if err := protojson.Unmarshal([]byte(protojsonText), &value); err != nil {
 			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
