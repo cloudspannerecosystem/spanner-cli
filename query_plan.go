@@ -98,7 +98,8 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 			continue
 		}
 
-		split := strings.Split(line, "\t")
+		split := strings.SplitN(line, "\t", 2)
+		// The root node of treeprint
 		if len(split) == 1 {
 			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
