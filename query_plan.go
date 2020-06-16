@@ -79,7 +79,7 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 func (n *Node) Render() string {
 	tree := treeprint.New()
 	renderTree(tree, "", n)
-	return "\n" + tree.String()
+	return strings.TrimSuffix(tree.String(), "\n") // remove an extra new line appended to rendered tree
 }
 
 type RenderedTreeWithStats struct {
