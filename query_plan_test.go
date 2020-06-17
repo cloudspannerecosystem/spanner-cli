@@ -29,10 +29,9 @@ func TestRenderTreeWithStats(t *testing.T) {
 			plan: &spanner.QueryPlan{
 				PlanNodes: []*spanner.PlanNode{
 					{
+						Index: 0,
 						ChildLinks: []*spanner.PlanNode_ChildLink{
-							{
-								ChildIndex: 1,
-							},
+							{ChildIndex: 1},
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
@@ -44,10 +43,9 @@ func TestRenderTreeWithStats(t *testing.T) {
 }`),
 					},
 					{
+						Index: 1,
 						ChildLinks: []*spanner.PlanNode_ChildLink{
-							{
-								ChildIndex: 2,
-							},
+							{ChildIndex: 2},
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
@@ -60,10 +58,9 @@ func TestRenderTreeWithStats(t *testing.T) {
 }`),
 					},
 					{
+						Index: 2,
 						ChildLinks: []*spanner.PlanNode_ChildLink{
-							{
-								ChildIndex: 3,
-							},
+							{ChildIndex: 3},
 						},
 						DisplayName: "Serialize Result",
 						Kind:        spanner.PlanNode_RELATIONAL,
@@ -75,6 +72,7 @@ func TestRenderTreeWithStats(t *testing.T) {
 }`),
 					},
 					{
+						Index:       3,
 						DisplayName: "Scan",
 						Kind:        spanner.PlanNode_RELATIONAL,
 						Metadata:    protojsonAsStruct(t, `{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}`),
@@ -90,24 +88,28 @@ func TestRenderTreeWithStats(t *testing.T) {
 			want: []RenderedTreeWithStats{
 				{Text: "."},
 				{
+					ID:           "0",
 					Text:         "+- Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
+					ID:           "1",
 					Text:         "    +- Local Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
+					ID:           "2",
 					Text:         "        +- Serialize Result",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
+					ID:           "3",
 					Text:         "            +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 					RowsTotal:    "9",
 					Execution:    "1",
