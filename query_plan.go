@@ -89,7 +89,7 @@ type RenderedTreeWithStats struct {
 	RowsTotal    string
 	Execution    string
 	LatencyTotal string
-	Children     []string
+	Predicates   []string
 }
 
 func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithStats {
@@ -124,7 +124,8 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 		} else {
 			text = displayName
 		}
-		var children []string
+
+		var predicates []string
 		idx, _ := strconv.ParseInt(getStringValueByPath(value.GetStructValue(), "id"), 10, 0)
 
 		for _, cl := range planNodes[idx].GetChildLinks() {
@@ -132,15 +133,15 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
 				continue
 			}
-			children = append(children, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
+			predicates = append(predicates, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
 		}
 
 		result = append(result, RenderedTreeWithStats{
-			ID:        fmt.Sprint(idx),
-			Children:  children,
-			Text:      branchText + text,
-			RowsTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
-			Execution: getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
+			ID:         fmt.Sprint(idx),
+			Predicates: predicates,
+			Text:       branchText + text,
+			RowsTotal:  getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
+			Execution:  getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
 			LatencyTotal: fmt.Sprintf("%s %s",
 				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
 				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit")),
