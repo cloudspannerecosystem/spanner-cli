@@ -37,6 +37,7 @@ type Statement interface {
 type Result struct {
 	ColumnNames  []string
 	Rows         []Row
+	Predicates   []string
 	AffectedRows int
 	Stats        QueryStats
 	IsMutation   bool
@@ -502,7 +503,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames:  []string{"Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
 		ForceVerbose: true,
 	}
 
@@ -521,8 +522,25 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		result.Timestamp, _ = targetRoTxn.Timestamp()
 	}
 
-	for _, row := range tree.RenderTreeWithStats() {
-		result.Rows = append(result.Rows, Row{[]string{row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+	planNodes := iter.QueryPlan.GetPlanNodes()
+	maxWidthOfNodeID := len(fmt.Sprint(len(planNodes)))
+	for _, row := range tree.RenderTreeWithStats(planNodes) {
+		var formattedID string
+		if len(row.Children) > 0 {
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, "*"+row.ID)
+		} else {
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, row.ID)
+		}
+		result.Rows = append(result.Rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+		for i, child := range row.Children {
+			var prefix string
+			if i == 0 {
+				prefix = fmt.Sprintf("%*s:", maxWidthOfNodeID, row.ID)
+			} else {
+				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
+			}
+			result.Predicates = append(result.Predicates, fmt.Sprintf("%s %s", prefix, child))
+		}
 	}
 
 	return result, nil

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/xlab/treeprint"
@@ -83,13 +84,15 @@ func (n *Node) Render() string {
 }
 
 type RenderedTreeWithStats struct {
+	ID           string
 	Text         string
 	RowsTotal    string
 	Execution    string
 	LatencyTotal string
+	Children     []string
 }
 
-func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
+func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithStats {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
 	var result []RenderedTreeWithStats
@@ -121,8 +124,20 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		} else {
 			text = displayName
 		}
+		var children []string
+		idx, _ := strconv.ParseInt(getStringValueByPath(value.GetStructValue(), "id"), 10, 0)
+
+		for _, cl := range planNodes[idx].GetChildLinks() {
+			child := planNodes[cl.ChildIndex]
+			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
+				continue
+			}
+			children = append(children, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
+		}
 
 		result = append(result, RenderedTreeWithStats{
+			ID:        fmt.Sprint(idx),
+			Children:  children,
 			Text:      branchText + text,
 			RowsTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
 			Execution: getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
@@ -237,6 +252,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	statsJson, _ := protojson.Marshal(node.PlanNode.GetExecutionStats())
 	b, _ := json.Marshal(
 		map[string]interface{}{
+			"id":              fmt.Sprint(node.PlanNode.Index),
 			"execution_stats": json.RawMessage(statsJson),
 			"display_name":    node.String(),
 			"link_type":       linkType,

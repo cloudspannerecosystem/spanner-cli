@@ -24,7 +24,8 @@ func TestRenderTreeWithStats(t *testing.T) {
 		plan  *spanner.QueryPlan
 		want  []RenderedTreeWithStats
 	}{
-		{title: "Simple Query",
+		{
+			title: "Simple Query",
 			plan: &spanner.QueryPlan{
 				PlanNodes: []*spanner.PlanNode{
 					{
@@ -115,7 +116,7 @@ func TestRenderTreeWithStats(t *testing.T) {
 			}},
 	} {
 		tree := BuildQueryPlanTree(test.plan, 0)
-		if got := tree.RenderTreeWithStats(); !cmp.Equal(test.want, got) {
+		if got := tree.RenderTreeWithStats(test.plan.GetPlanNodes()); !cmp.Equal(test.want, got) {
 			t.Errorf("%s: node.RenderTreeWithStats() differ: %s", test.title, cmp.Diff(test.want, got))
 		}
 	}
