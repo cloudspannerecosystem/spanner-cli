@@ -280,4 +280,3 @@ func getMaxVisibleNodeID(planNodes []*pb.PlanNode) int32 {
 	}
 	return maxVisibleNodeID
 }
-
