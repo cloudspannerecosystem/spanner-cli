@@ -270,3 +270,14 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		tree.AddNode(str)
 	}
 }
+
+func getMaxVisibleNodeID(planNodes []*pb.PlanNode) int32 {
+	var maxVisibleNodeID int32
+	for _, planNode := range planNodes {
+		if (&Node{PlanNode: planNode}).IsVisible() {
+			maxVisibleNodeID = planNode.Index
+		}
+	}
+	return maxVisibleNodeID
+}
+

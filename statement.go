@@ -523,7 +523,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	planNodes := iter.QueryPlan.GetPlanNodes()
-	maxWidthOfNodeID := len(fmt.Sprint(len(planNodes)))
+	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
 	for _, row := range tree.RenderTreeWithStats(planNodes) {
 		var formattedID string
 		if len(row.Children) > 0 {
