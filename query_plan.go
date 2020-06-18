@@ -77,12 +77,6 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	return root
 }
 
-func (n *Node) Render() string {
-	tree := treeprint.New()
-	renderTree(tree, "", n)
-	return strings.TrimSuffix(tree.String(), "\n") // remove an extra new line appended to rendered tree
-}
-
 type RenderedTreeWithStats struct {
 	ID           string
 	Text         string
@@ -209,32 +203,6 @@ func (n *Node) String() string {
 		return operator
 	}
 	return operator + " " + metadata
-}
-
-func renderTree(tree treeprint.Tree, linkType string, node *Node) {
-	if !node.IsVisible() {
-		return
-	}
-
-	str := node.String()
-
-	if len(node.Children) > 0 {
-		var branch treeprint.Tree
-		if linkType != "" {
-			branch = tree.AddMetaBranch(linkType, str)
-		} else {
-			branch = tree.AddBranch(str)
-		}
-		for _, child := range node.Children {
-			renderTree(branch, child.Type, child.Dest)
-		}
-	} else {
-		if linkType != "" {
-			tree.AddMetaNode(linkType, str)
-		} else {
-			tree.AddNode(str)
-		}
-	}
 }
 
 func getStringValueByPath(s *structpb.Struct, first string, path ...string) string {
