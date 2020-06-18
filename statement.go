@@ -502,28 +502,19 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	result := &Result{
-		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
-		ForceVerbose: true,
-	}
-
-	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
 	queryStats := parseQueryStats(iter.QueryStats)
 	rowsReturned, err := strconv.Atoi(queryStats.RowsReturned)
 	if err != nil {
 		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
 
-	result.AffectedRows = rowsReturned
-	result.Stats = queryStats
-
-	// ReadOnlyTransaction.Timestamp() is invalid until read.
-	if targetRoTxn != nil {
-		result.Timestamp, _ = targetRoTxn.Timestamp()
-	}
-
 	planNodes := iter.QueryPlan.GetPlanNodes()
 	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+
+	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
+
+	var predicates []string
+	var rows []Row
 	for _, row := range tree.RenderTreeWithStats(planNodes) {
 		var formattedID string
 		if len(row.Predicates) > 0 {
@@ -531,7 +522,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		} else {
 			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, row.ID)
 		}
-		result.Rows = append(result.Rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+		rows = append(rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
 		for i, predicate := range row.Predicates {
 			var prefix string
 			if i == 0 {
@@ -539,10 +530,25 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 			} else {
 				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
 			}
-			result.Predicates = append(result.Predicates, fmt.Sprintf("%s %s", prefix, predicate))
+			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
 		}
 	}
 
+	// ReadOnlyTransaction.Timestamp() is invalid until read.
+	var timestamp time.Time
+	if targetRoTxn != nil {
+		timestamp, _ = targetRoTxn.Timestamp()
+	}
+
+	result := &Result{
+		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ForceVerbose: true,
+		AffectedRows: rowsReturned,
+		Stats:        queryStats,
+		Timestamp:    timestamp,
+		Rows:         rows,
+		Predicates:   predicates,
+	}
 	return result, nil
 }
 
