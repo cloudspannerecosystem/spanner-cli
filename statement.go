@@ -456,21 +456,42 @@ type ExplainStatement struct {
 }
 
 func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames:  []string{"Query_Execution_Plan (EXPERIMENTAL)"},
-		Rows:         make([]Row, 1),
-		AffectedRows: 1,
-	}
-
 	stmt := spanner.NewStatement(s.Explain)
 	queryPlan, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
 
+	planNodes := queryPlan.GetPlanNodes()
+	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+
 	tree := BuildQueryPlanTree(queryPlan, 0)
-	rendered := tree.Render()
-	result.Rows[0] = Row{[]string{rendered}}
+	var rows []Row
+	var predicates []string
+	for _, row := range tree.RenderTreeWithStats(planNodes) {
+		var formattedID string
+		if len(row.Predicates) > 0 {
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, "*"+row.ID)
+		} else {
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, row.ID)
+		}
+		rows = append(rows, Row{[]string{formattedID, row.Text}})
+		for i, predicate := range row.Predicates {
+			var prefix string
+			if i == 0 {
+				prefix = fmt.Sprintf("%*s:", maxWidthOfNodeID, row.ID)
+			} else {
+				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
+			}
+			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
+		}
+	}
+	result := &Result{
+		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		AffectedRows: 1,
+		Rows:         rows,
+		Predicates:   predicates,
+	}
 
 	return result, nil
 }
