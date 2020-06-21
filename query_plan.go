@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/xlab/treeprint"
@@ -47,7 +46,7 @@ type Node struct {
 }
 
 type QueryPlanNodeWithStats struct {
-	ID             string    `json:"id"`
+	ID             int32     `json:"id"`
 	ExecutionStats *pbStruct `json:"execution_stats"`
 	DisplayName    string    `json:"display_name"`
 	LinkType       string    `json:"link_type"`
@@ -127,9 +126,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 		}
 
 		var predicates []string
-		idx, _ := strconv.ParseInt(value.ID, 10, 0)
-
-		for _, cl := range planNodes[idx].GetChildLinks() {
+		for _, cl := range planNodes[value.ID].GetChildLinks() {
 			child := planNodes[cl.ChildIndex]
 			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
 				continue
@@ -138,7 +135,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 		}
 
 		result = append(result, RenderedTreeWithStats{
-			ID:         fmt.Sprint(idx),
+			ID:         fmt.Sprint(value.ID),
 			Predicates: predicates,
 			Text:       branchText + text,
 			RowsTotal:  getStringValueByPath(value.ExecutionStats.Struct, "rows", "total"),
@@ -243,7 +240,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 
 	b, _ := json.Marshal(
 		QueryPlanNodeWithStats{
-			ID:             fmt.Sprint(node.PlanNode.Index),
+			ID:             node.PlanNode.Index,
 			ExecutionStats: &pbStruct{node.PlanNode.GetExecutionStats()},
 			DisplayName:    node.String(),
 			LinkType:       linkType,
