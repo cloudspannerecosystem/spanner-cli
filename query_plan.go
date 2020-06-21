@@ -52,6 +52,25 @@ type QueryPlanNodeWithStats struct {
 	LinkType       string    `json:"link_type"`
 }
 
+type executionStatsValue struct {
+	Unit  string `json:"unit"`
+	Total string `json:"total"`
+}
+
+// queryPlanNodeWithStatsTyped is proto-free typed representation of QueryPlanNodeWithStats
+type queryPlanNodeWithStatsTyped struct {
+	ID             int32 `json:"id"`
+	ExecutionStats struct {
+		Rows             executionStatsValue `json:"rows"`
+		Latency          executionStatsValue `json:"latency"`
+		ExecutionSummary struct {
+			NumExecutions string `json:"num_executions"`
+		} `json:"execution_summary"`
+	} `json:"execution_stats"`
+	DisplayName string `json:"display_name"`
+	LinkType    string `json:"link_type"`
+}
+
 func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	if len(plan.PlanNodes) == 0 {
 		return &Node{}
@@ -109,7 +128,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		}
 		branchText, protojsonText := split[0], split[1]
 
-		var planNode QueryPlanNodeWithStats
+		var planNode queryPlanNodeWithStatsTyped
 		if err := json.Unmarshal([]byte(protojsonText), &planNode); err != nil {
 			result = append(result, QueryPlanRow{Text: line})
 			continue
@@ -132,14 +151,12 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		}
 
 		result = append(result, QueryPlanRow{
-			ID:         planNode.ID,
-			Predicates: predicates,
-			Text:       branchText + text,
-			RowsTotal:  getStringValueByPath(planNode.ExecutionStats.Struct, "rows", "total"),
-			Execution:  getStringValueByPath(planNode.ExecutionStats.Struct, "execution_summary", "num_executions"),
-			LatencyTotal: fmt.Sprintf("%s %s",
-				getStringValueByPath(planNode.ExecutionStats.Struct, "latency", "total"),
-				getStringValueByPath(planNode.ExecutionStats.Struct, "latency", "unit")),
+			ID:           planNode.ID,
+			Predicates:   predicates,
+			Text:         branchText + text,
+			RowsTotal:    planNode.ExecutionStats.Rows.Total,
+			Execution:    planNode.ExecutionStats.ExecutionSummary.NumExecutions,
+			LatencyTotal: fmt.Sprintf("%s %s", planNode.ExecutionStats.Latency.Total, planNode.ExecutionStats.Latency.Unit),
 		})
 	}
 	return result
