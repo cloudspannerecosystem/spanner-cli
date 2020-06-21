@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type Statement interface {
@@ -462,30 +463,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	planNodes := queryPlan.GetPlanNodes()
-	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
-
-	tree := BuildQueryPlanTree(queryPlan, 0)
-	var rows []Row
-	var predicates []string
-	for _, row := range tree.RenderTreeWithStats(planNodes) {
-		var formattedID string
-		if len(row.Predicates) > 0 {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, "*"+fmt.Sprint(row.ID))
-		} else {
-			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
-		}
-		rows = append(rows, Row{[]string{formattedID, row.Text}})
-		for i, predicate := range row.Predicates {
-			var prefix string
-			if i == 0 {
-				prefix = fmt.Sprintf("%*d:", maxWidthOfNodeID, row.ID)
-			} else {
-				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
-			}
-			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
-		}
-	}
+	rows, predicates := processPlanWithoutStats(queryPlan)
 	result := &Result{
 		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
 		AffectedRows: 1,
@@ -529,31 +507,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
 
-	planNodes := iter.QueryPlan.GetPlanNodes()
-	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
-
-	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
-
-	var predicates []string
-	var rows []Row
-	for _, row := range tree.RenderTreeWithStats(planNodes) {
-		var formattedID string
-		if len(row.Predicates) > 0 {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID, "*"+fmt.Sprint(row.ID))
-		} else {
-			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
-		}
-		rows = append(rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
-		for i, predicate := range row.Predicates {
-			var prefix string
-			if i == 0 {
-				prefix = fmt.Sprintf("%*d:", maxWidthOfNodeID, row.ID)
-			} else {
-				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
-			}
-			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
-		}
-	}
+	rows, predicates := processPlanWithStats(iter.QueryPlan)
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
 	var timestamp time.Time
@@ -571,6 +525,46 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		Predicates:   predicates,
 	}
 	return result, nil
+}
+
+func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+	return processPlanImpl(plan, true)
+}
+
+func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+	return processPlanImpl(plan, false)
+}
+
+
+func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string) {
+	planNodes := plan.GetPlanNodes()
+	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+
+	tree := BuildQueryPlanTree(plan, 0)
+
+	for _, row := range tree.RenderTreeWithStats(planNodes) {
+		var formattedID string
+		if len(row.Predicates) > 0 {
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID, "*"+fmt.Sprint(row.ID))
+		} else {
+			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
+		}
+		if withStats {
+			rows = append(rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+		} else {
+			rows = append(rows, Row{[]string{formattedID, row.Text}})
+		}
+		for i, predicate := range row.Predicates {
+			var prefix string
+			if i == 0 {
+				prefix = fmt.Sprintf("%*d:", maxWidthOfNodeID, row.ID)
+			} else {
+				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
+			}
+			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
+		}
+	}
+	return rows, predicates
 }
 
 type ShowColumnsStatement struct {
