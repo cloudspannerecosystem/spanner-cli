@@ -86,7 +86,7 @@ func TestRenderTreeWithStats(t *testing.T) {
 				},
 			},
 			want: []QueryPlanRow{
-				{Text: "."},
+				{Text: ".", TextOnly: true},
 				{
 					ID:           0,
 					Text:         "+- Distributed Union",
