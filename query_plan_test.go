@@ -88,28 +88,28 @@ func TestRenderTreeWithStats(t *testing.T) {
 			want: []QueryPlanRow{
 				{Text: "."},
 				{
-					ID:           "0",
+					ID:           0,
 					Text:         "+- Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
-					ID:           "1",
+					ID:           1,
 					Text:         "    +- Local Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
-					ID:           "2",
+					ID:           2,
 					Text:         "        +- Serialize Result",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
-					ID:           "3",
+					ID:           3,
 					Text:         "            +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 					RowsTotal:    "9",
 					Execution:    "1",

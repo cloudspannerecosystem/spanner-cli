@@ -84,7 +84,7 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 }
 
 type QueryPlanRow struct {
-	ID           string
+	ID           int32
 	Text         string
 	RowsTotal    string
 	Execution    string
@@ -135,7 +135,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		}
 
 		result = append(result, QueryPlanRow{
-			ID:         fmt.Sprint(value.ID),
+			ID:         value.ID,
 			Predicates: predicates,
 			Text:       branchText + text,
 			RowsTotal:  getStringValueByPath(value.ExecutionStats.Struct, "rows", "total"),

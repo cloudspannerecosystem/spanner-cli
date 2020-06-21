@@ -471,15 +471,15 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	for _, row := range tree.RenderTreeWithStats(planNodes) {
 		var formattedID string
 		if len(row.Predicates) > 0 {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, "*"+row.ID)
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, "*"+fmt.Sprint(row.ID))
 		} else {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, row.ID)
+			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
 		}
 		rows = append(rows, Row{[]string{formattedID, row.Text}})
 		for i, predicate := range row.Predicates {
 			var prefix string
 			if i == 0 {
-				prefix = fmt.Sprintf("%*s:", maxWidthOfNodeID, row.ID)
+				prefix = fmt.Sprintf("%*d:", maxWidthOfNodeID, row.ID)
 			} else {
 				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
 			}
@@ -539,15 +539,15 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	for _, row := range tree.RenderTreeWithStats(planNodes) {
 		var formattedID string
 		if len(row.Predicates) > 0 {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, "*"+row.ID)
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID, "*"+fmt.Sprint(row.ID))
 		} else {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID+1, row.ID)
+			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
 		}
 		rows = append(rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
 		for i, predicate := range row.Predicates {
 			var prefix string
 			if i == 0 {
-				prefix = fmt.Sprintf("%*s:", maxWidthOfNodeID, row.ID)
+				prefix = fmt.Sprintf("%*d:", maxWidthOfNodeID, row.ID)
 			} else {
 				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
 			}
