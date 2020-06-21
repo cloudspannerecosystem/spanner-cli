@@ -223,25 +223,8 @@ func (n *Node) String() string {
 	return operator + " " + metadata
 }
 
-func getStringValueByPath(s *structpb.Struct, first string, path ...string) string {
-	current := s.GetFields()[first]
-	for _, p := range path {
-		current = current.GetStructValue().GetFields()[p]
-	}
-	return current.GetStringValue()
-}
-
-// pbStruct is wrapper to implement json.Marshaller/json.Unmarshaller interfaces
+// pbStruct is wrapper to implement json.Marshaller interface
 type pbStruct struct{ *structpb.Struct }
-
-func (p *pbStruct) UnmarshalJSON(b []byte) error {
-	var ret structpb.Struct
-	if err := protojson.Unmarshal(b, &ret); err != nil {
-		return err
-	}
-	p.Struct = &ret
-	return nil
-}
 
 func (p *pbStruct) MarshalJSON() ([]byte, error) {
 	return protojson.Marshal(p.Struct)
