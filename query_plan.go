@@ -109,6 +109,7 @@ type QueryPlanRow struct {
 	Execution    string
 	LatencyTotal string
 	Predicates   []string
+	TextOnly     bool
 }
 
 func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
@@ -123,14 +124,14 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		split := strings.SplitN(line, "\t", 2)
 		// Handle the case of the root node of treeprint
 		if len(split) != 2 {
-			result = append(result, QueryPlanRow{Text: line})
+			result = append(result, QueryPlanRow{Text: line, TextOnly: true})
 			continue
 		}
 		branchText, protojsonText := split[0], split[1]
 
 		var planNode queryPlanNodeWithStatsTyped
 		if err := json.Unmarshal([]byte(protojsonText), &planNode); err != nil {
-			result = append(result, QueryPlanRow{Text: line})
+			result = append(result, QueryPlanRow{Text: line, TextOnly: true})
 			continue
 		}
 

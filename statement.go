@@ -543,7 +543,9 @@ func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates
 
 	for _, row := range tree.RenderTreeWithStats(planNodes) {
 		var formattedID string
-		if len(row.Predicates) > 0 {
+		if row.TextOnly {
+			formattedID = strings.Repeat(" ", maxWidthOfNodeID+1)
+		} else if len(row.Predicates) > 0 {
 			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID, "*"+fmt.Sprint(row.ID))
 		} else {
 			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
