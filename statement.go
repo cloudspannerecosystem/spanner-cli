@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type Statement interface {
@@ -37,6 +38,7 @@ type Statement interface {
 type Result struct {
 	ColumnNames  []string
 	Rows         []Row
+	Predicates   []string
 	AffectedRows int
 	Stats        QueryStats
 	IsMutation   bool
@@ -455,21 +457,19 @@ type ExplainStatement struct {
 }
 
 func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
-	result := &Result{
-		ColumnNames:  []string{"Query_Execution_Plan (EXPERIMENTAL)"},
-		Rows:         make([]Row, 1),
-		AffectedRows: 1,
-	}
-
 	stmt := spanner.NewStatement(s.Explain)
 	queryPlan, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
 
-	tree := BuildQueryPlanTree(queryPlan, 0)
-	rendered := tree.Render()
-	result.Rows[0] = Row{[]string{rendered}}
+	rows, predicates := processPlanWithoutStats(queryPlan)
+	result := &Result{
+		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		AffectedRows: 1,
+		Rows:         rows,
+		Predicates:   predicates,
+	}
 
 	return result, nil
 }
@@ -501,31 +501,69 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	result := &Result{
-		ColumnNames:  []string{"Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
-		ForceVerbose: true,
-	}
-
-	tree := BuildQueryPlanTree(iter.QueryPlan, 0)
 	queryStats := parseQueryStats(iter.QueryStats)
 	rowsReturned, err := strconv.Atoi(queryStats.RowsReturned)
 	if err != nil {
 		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
 
-	result.AffectedRows = rowsReturned
-	result.Stats = queryStats
+	rows, predicates := processPlanWithStats(iter.QueryPlan)
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
+	var timestamp time.Time
 	if targetRoTxn != nil {
-		result.Timestamp, _ = targetRoTxn.Timestamp()
+		timestamp, _ = targetRoTxn.Timestamp()
 	}
 
-	for _, row := range tree.RenderTreeWithStats() {
-		result.Rows = append(result.Rows, Row{[]string{row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+	result := &Result{
+		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ForceVerbose: true,
+		AffectedRows: rowsReturned,
+		Stats:        queryStats,
+		Timestamp:    timestamp,
+		Rows:         rows,
+		Predicates:   predicates,
 	}
-
 	return result, nil
+}
+
+func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+	return processPlanImpl(plan, true)
+}
+
+func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+	return processPlanImpl(plan, false)
+}
+
+func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string) {
+	planNodes := plan.GetPlanNodes()
+	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+
+	tree := BuildQueryPlanTree(plan, 0)
+
+	for _, row := range tree.RenderTreeWithStats(planNodes) {
+		var formattedID string
+		if len(row.Predicates) > 0 {
+			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID, "*"+fmt.Sprint(row.ID))
+		} else {
+			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
+		}
+		if withStats {
+			rows = append(rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
+		} else {
+			rows = append(rows, Row{[]string{formattedID, row.Text}})
+		}
+		for i, predicate := range row.Predicates {
+			var prefix string
+			if i == 0 {
+				prefix = fmt.Sprintf("%*d:", maxWidthOfNodeID, row.ID)
+			} else {
+				prefix = strings.Repeat(" ", maxWidthOfNodeID+1)
+			}
+			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
+		}
+	}
+	return rows, predicates
 }
 
 type ShowColumnsStatement struct {

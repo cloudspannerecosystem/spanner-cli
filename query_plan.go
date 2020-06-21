@@ -45,6 +45,32 @@ type Node struct {
 	Children []*Link
 }
 
+type QueryPlanNodeWithStats struct {
+	ID             int32     `json:"id"`
+	ExecutionStats *pbStruct `json:"execution_stats"`
+	DisplayName    string    `json:"display_name"`
+	LinkType       string    `json:"link_type"`
+}
+
+type executionStatsValue struct {
+	Unit  string `json:"unit"`
+	Total string `json:"total"`
+}
+
+// queryPlanNodeWithStatsTyped is proto-free typed representation of QueryPlanNodeWithStats
+type queryPlanNodeWithStatsTyped struct {
+	ID             int32 `json:"id"`
+	ExecutionStats struct {
+		Rows             executionStatsValue `json:"rows"`
+		Latency          executionStatsValue `json:"latency"`
+		ExecutionSummary struct {
+			NumExecutions string `json:"num_executions"`
+		} `json:"execution_summary"`
+	} `json:"execution_stats"`
+	DisplayName string `json:"display_name"`
+	LinkType    string `json:"link_type"`
+}
+
 func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	if len(plan.PlanNodes) == 0 {
 		return &Node{}
@@ -76,23 +102,19 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	return root
 }
 
-func (n *Node) Render() string {
-	tree := treeprint.New()
-	renderTree(tree, "", n)
-	return strings.TrimSuffix(tree.String(), "\n") // remove an extra new line appended to rendered tree
-}
-
-type RenderedTreeWithStats struct {
+type QueryPlanRow struct {
+	ID           int32
 	Text         string
 	RowsTotal    string
 	Execution    string
 	LatencyTotal string
+	Predicates   []string
 }
 
-func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
+func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
-	var result []RenderedTreeWithStats
+	var result []QueryPlanRow
 	for _, line := range strings.Split(tree.String(), "\n") {
 		if line == "" {
 			continue
@@ -101,34 +123,40 @@ func (n *Node) RenderTreeWithStats() []RenderedTreeWithStats {
 		split := strings.SplitN(line, "\t", 2)
 		// Handle the case of the root node of treeprint
 		if len(split) != 2 {
-			result = append(result, RenderedTreeWithStats{Text: line})
+			result = append(result, QueryPlanRow{Text: line})
 			continue
 		}
 		branchText, protojsonText := split[0], split[1]
 
-		var value structpb.Value
-		if err := protojson.Unmarshal([]byte(protojsonText), &value); err != nil {
-			result = append(result, RenderedTreeWithStats{Text: line})
+		var planNode queryPlanNodeWithStatsTyped
+		if err := json.Unmarshal([]byte(protojsonText), &planNode); err != nil {
+			result = append(result, QueryPlanRow{Text: line})
 			continue
 		}
 
-		displayName := getStringValueByPath(value.GetStructValue(), "display_name")
-		linkType := getStringValueByPath(value.GetStructValue(), "link_type")
-
 		var text string
-		if linkType != "" {
-			text = fmt.Sprintf("[%s] %s", linkType, displayName)
+		if planNode.LinkType != "" {
+			text = fmt.Sprintf("[%s] %s", planNode.LinkType, planNode.DisplayName)
 		} else {
-			text = displayName
+			text = planNode.DisplayName
 		}
 
-		result = append(result, RenderedTreeWithStats{
-			Text:      branchText + text,
-			RowsTotal: getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
-			Execution: getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
-			LatencyTotal: fmt.Sprintf("%s %s",
-				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
-				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit")),
+		var predicates []string
+		for _, cl := range planNodes[planNode.ID].GetChildLinks() {
+			child := planNodes[cl.ChildIndex]
+			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
+				continue
+			}
+			predicates = append(predicates, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
+		}
+
+		result = append(result, QueryPlanRow{
+			ID:           planNode.ID,
+			Predicates:   predicates,
+			Text:         branchText + text,
+			RowsTotal:    planNode.ExecutionStats.Rows.Total,
+			Execution:    planNode.ExecutionStats.ExecutionSummary.NumExecutions,
+			LatencyTotal: fmt.Sprintf("%s %s", planNode.ExecutionStats.Latency.Total, planNode.ExecutionStats.Latency.Unit),
 		})
 	}
 	return result
@@ -195,38 +223,11 @@ func (n *Node) String() string {
 	return operator + " " + metadata
 }
 
-func renderTree(tree treeprint.Tree, linkType string, node *Node) {
-	if !node.IsVisible() {
-		return
-	}
+// pbStruct is wrapper to implement json.Marshaller interface
+type pbStruct struct{ *structpb.Struct }
 
-	str := node.String()
-
-	if len(node.Children) > 0 {
-		var branch treeprint.Tree
-		if linkType != "" {
-			branch = tree.AddMetaBranch(linkType, str)
-		} else {
-			branch = tree.AddBranch(str)
-		}
-		for _, child := range node.Children {
-			renderTree(branch, child.Type, child.Dest)
-		}
-	} else {
-		if linkType != "" {
-			tree.AddMetaNode(linkType, str)
-		} else {
-			tree.AddNode(str)
-		}
-	}
-}
-
-func getStringValueByPath(s *structpb.Struct, first string, path ...string) string {
-	current := s.GetFields()[first]
-	for _, p := range path {
-		current = current.GetStructValue().GetFields()[p]
-	}
-	return current.GetStringValue()
+func (p *pbStruct) MarshalJSON() ([]byte, error) {
+	return protojson.Marshal(p.Struct)
 }
 
 func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
@@ -234,12 +235,12 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		return
 	}
 
-	statsJson, _ := protojson.Marshal(node.PlanNode.GetExecutionStats())
 	b, _ := json.Marshal(
-		map[string]interface{}{
-			"execution_stats": json.RawMessage(statsJson),
-			"display_name":    node.String(),
-			"link_type":       linkType,
+		QueryPlanNodeWithStats{
+			ID:             node.PlanNode.Index,
+			ExecutionStats: &pbStruct{node.PlanNode.GetExecutionStats()},
+			DisplayName:    node.String(),
+			LinkType:       linkType,
 		},
 	)
 	// Prefixed by tab to ease to split
@@ -253,4 +254,14 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	} else {
 		tree.AddNode(str)
 	}
+}
+
+func getMaxVisibleNodeID(planNodes []*pb.PlanNode) int32 {
+	var maxVisibleNodeID int32
+	for _, planNode := range planNodes {
+		if (&Node{PlanNode: planNode}).IsVisible() {
+			maxVisibleNodeID = planNode.Index
+		}
+	}
+	return maxVisibleNodeID
 }

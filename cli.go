@@ -370,6 +370,13 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 		}
 	}
 
+	if len(result.Predicates) > 0 {
+		fmt.Fprintln(out, "Predicates(identified by ID):")
+		for _, s := range result.Predicates {
+			fmt.Fprintf(out, " %s\n", s)
+		}
+		fmt.Fprintln(out)
+	}
 	if result.ForceVerbose {
 		fmt.Fprint(out, resultLine(result, true))
 	} else if interactive {
