@@ -46,6 +46,13 @@ type Node struct {
 	Children []*Link
 }
 
+type QueryPlanNodeWithStats struct {
+	ID             string    `json:"id"`
+	ExecutionStats *pbStruct `json:"execution_stats"`
+	DisplayName    string    `json:"display_name"`
+	LinkType       string    `json:"link_type"`
+}
+
 func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	if len(plan.PlanNodes) == 0 {
 		return &Node{}
@@ -103,14 +110,14 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 		}
 		branchText, protojsonText := split[0], split[1]
 
-		var value structpb.Value
-		if err := protojson.Unmarshal([]byte(protojsonText), &value); err != nil {
+		var value QueryPlanNodeWithStats
+		if err := json.Unmarshal([]byte(protojsonText), &value); err != nil {
 			result = append(result, RenderedTreeWithStats{Text: line})
 			continue
 		}
 
-		displayName := getStringValueByPath(value.GetStructValue(), "display_name")
-		linkType := getStringValueByPath(value.GetStructValue(), "link_type")
+		displayName := value.DisplayName
+		linkType := value.LinkType
 
 		var text string
 		if linkType != "" {
@@ -120,7 +127,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 		}
 
 		var predicates []string
-		idx, _ := strconv.ParseInt(getStringValueByPath(value.GetStructValue(), "id"), 10, 0)
+		idx, _ := strconv.ParseInt(value.ID, 10, 0)
 
 		for _, cl := range planNodes[idx].GetChildLinks() {
 			child := planNodes[cl.ChildIndex]
@@ -134,11 +141,11 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 			ID:         fmt.Sprint(idx),
 			Predicates: predicates,
 			Text:       branchText + text,
-			RowsTotal:  getStringValueByPath(value.GetStructValue(), "execution_stats", "rows", "total"),
-			Execution:  getStringValueByPath(value.GetStructValue(), "execution_stats", "execution_summary", "num_executions"),
+			RowsTotal:  getStringValueByPath(value.ExecutionStats.Struct, "rows", "total"),
+			Execution:  getStringValueByPath(value.ExecutionStats.Struct, "execution_summary", "num_executions"),
 			LatencyTotal: fmt.Sprintf("%s %s",
-				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "total"),
-				getStringValueByPath(value.GetStructValue(), "execution_stats", "latency", "unit")),
+				getStringValueByPath(value.ExecutionStats.Struct, "latency", "total"),
+				getStringValueByPath(value.ExecutionStats.Struct, "latency", "unit")),
 		})
 	}
 	return result
@@ -213,18 +220,33 @@ func getStringValueByPath(s *structpb.Struct, first string, path ...string) stri
 	return current.GetStringValue()
 }
 
+// pbStruct is wrapper to implement json.Marshaller/json.Unmarshaller interfaces
+type pbStruct struct{ *structpb.Struct }
+
+func (p *pbStruct) UnmarshalJSON(b []byte) error {
+	var ret structpb.Struct
+	if err := protojson.Unmarshal(b, &ret); err != nil {
+		return err
+	}
+	p.Struct = &ret
+	return nil
+}
+
+func (p *pbStruct) MarshalJSON() ([]byte, error) {
+	return protojson.Marshal(p.Struct)
+}
+
 func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	if !node.IsVisible() {
 		return
 	}
 
-	statsJson, _ := protojson.Marshal(node.PlanNode.GetExecutionStats())
 	b, _ := json.Marshal(
-		map[string]interface{}{
-			"id":              fmt.Sprint(node.PlanNode.Index),
-			"execution_stats": json.RawMessage(statsJson),
-			"display_name":    node.String(),
-			"link_type":       linkType,
+		QueryPlanNodeWithStats{
+			ID:             fmt.Sprint(node.PlanNode.Index),
+			ExecutionStats: &pbStruct{node.PlanNode.GetExecutionStats()},
+			DisplayName:    node.String(),
+			LinkType:       linkType,
 		},
 	)
 	// Prefixed by tab to ease to split
