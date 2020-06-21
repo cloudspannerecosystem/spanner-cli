@@ -22,7 +22,7 @@ func TestRenderTreeWithStats(t *testing.T) {
 	for _, test := range []struct {
 		title string
 		plan  *spanner.QueryPlan
-		want  []RenderedTreeWithStats
+		want  []QueryPlanRow
 	}{
 		{
 			title: "Simple Query",
@@ -85,7 +85,7 @@ func TestRenderTreeWithStats(t *testing.T) {
 					},
 				},
 			},
-			want: []RenderedTreeWithStats{
+			want: []QueryPlanRow{
 				{Text: "."},
 				{
 					ID:           "0",

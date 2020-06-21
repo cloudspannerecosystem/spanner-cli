@@ -83,7 +83,7 @@ func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
 	return root
 }
 
-type RenderedTreeWithStats struct {
+type QueryPlanRow struct {
 	ID           string
 	Text         string
 	RowsTotal    string
@@ -92,10 +92,10 @@ type RenderedTreeWithStats struct {
 	Predicates   []string
 }
 
-func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithStats {
+func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
-	var result []RenderedTreeWithStats
+	var result []QueryPlanRow
 	for _, line := range strings.Split(tree.String(), "\n") {
 		if line == "" {
 			continue
@@ -104,14 +104,14 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 		split := strings.SplitN(line, "\t", 2)
 		// Handle the case of the root node of treeprint
 		if len(split) != 2 {
-			result = append(result, RenderedTreeWithStats{Text: line})
+			result = append(result, QueryPlanRow{Text: line})
 			continue
 		}
 		branchText, protojsonText := split[0], split[1]
 
 		var value QueryPlanNodeWithStats
 		if err := json.Unmarshal([]byte(protojsonText), &value); err != nil {
-			result = append(result, RenderedTreeWithStats{Text: line})
+			result = append(result, QueryPlanRow{Text: line})
 			continue
 		}
 
@@ -134,7 +134,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []RenderedTreeWithS
 			predicates = append(predicates, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
 		}
 
-		result = append(result, RenderedTreeWithStats{
+		result = append(result, QueryPlanRow{
 			ID:         fmt.Sprint(value.ID),
 			Predicates: predicates,
 			Text:       branchText + text,
