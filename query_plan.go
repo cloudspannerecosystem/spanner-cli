@@ -109,24 +109,21 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		}
 		branchText, protojsonText := split[0], split[1]
 
-		var value QueryPlanNodeWithStats
-		if err := json.Unmarshal([]byte(protojsonText), &value); err != nil {
+		var planNode QueryPlanNodeWithStats
+		if err := json.Unmarshal([]byte(protojsonText), &planNode); err != nil {
 			result = append(result, QueryPlanRow{Text: line})
 			continue
 		}
 
-		displayName := value.DisplayName
-		linkType := value.LinkType
-
 		var text string
-		if linkType != "" {
-			text = fmt.Sprintf("[%s] %s", linkType, displayName)
+		if planNode.LinkType != "" {
+			text = fmt.Sprintf("[%s] %s", planNode.LinkType, planNode.DisplayName)
 		} else {
-			text = displayName
+			text = planNode.DisplayName
 		}
 
 		var predicates []string
-		for _, cl := range planNodes[value.ID].GetChildLinks() {
+		for _, cl := range planNodes[planNode.ID].GetChildLinks() {
 			child := planNodes[cl.ChildIndex]
 			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
 				continue
@@ -135,14 +132,14 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		}
 
 		result = append(result, QueryPlanRow{
-			ID:         value.ID,
+			ID:         planNode.ID,
 			Predicates: predicates,
 			Text:       branchText + text,
-			RowsTotal:  getStringValueByPath(value.ExecutionStats.Struct, "rows", "total"),
-			Execution:  getStringValueByPath(value.ExecutionStats.Struct, "execution_summary", "num_executions"),
+			RowsTotal:  getStringValueByPath(planNode.ExecutionStats.Struct, "rows", "total"),
+			Execution:  getStringValueByPath(planNode.ExecutionStats.Struct, "execution_summary", "num_executions"),
 			LatencyTotal: fmt.Sprintf("%s %s",
-				getStringValueByPath(value.ExecutionStats.Struct, "latency", "total"),
-				getStringValueByPath(value.ExecutionStats.Struct, "latency", "unit")),
+				getStringValueByPath(planNode.ExecutionStats.Struct, "latency", "total"),
+				getStringValueByPath(planNode.ExecutionStats.Struct, "latency", "unit")),
 		})
 	}
 	return result
