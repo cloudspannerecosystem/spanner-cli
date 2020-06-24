@@ -45,10 +45,10 @@ type Node struct {
 }
 
 type QueryPlanNodeWithStats struct {
-	ID             int32     `json:"id"`
+	ID             int32            `json:"id"`
 	ExecutionStats *structpb.Struct `json:"execution_stats"`
-	DisplayName    string    `json:"display_name"`
-	LinkType       string    `json:"link_type"`
+	DisplayName    string           `json:"display_name"`
+	LinkType       string           `json:"link_type"`
 }
 
 type executionStatsValue struct {
