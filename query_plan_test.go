@@ -5,18 +5,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genproto/googleapis/spanner/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
-
-func protojsonAsStruct(t *testing.T, j string) *structpb.Struct {
-	t.Helper()
-	var result structpb.Struct
-	if err := protojson.Unmarshal([]byte(j), &result); err != nil {
-		t.Fatal("protojsonAsStruct fails, invalid test case", err)
-	}
-	return &result
-}
 
 func mustNewStruct(m map[string]interface{}) *structpb.Struct {
 	if s, err := structpb.NewStruct(m); err != nil {
@@ -25,6 +15,7 @@ func mustNewStruct(m map[string]interface{}) *structpb.Struct {
 		return s
 	}
 }
+
 func TestRenderTreeWithStats(t *testing.T) {
 	for _, test := range []struct {
 		title string
@@ -42,12 +33,11 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						ExecutionStats: protojsonAsStruct(t, `
-{
-  "latency": {"total": "1", "unit": "msec"},
-  "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"}
-}`),
+						ExecutionStats: mustNewStruct(map[string]interface{}{
+							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
+							"rows":              map[string]interface{}{"total": "9"},
+							"execution_summary": map[string]interface{}{"num_executions": "1"},
+						}),
 					},
 					{
 						Index: 1,
@@ -56,13 +46,12 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Distributed Union",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						Metadata:    protojsonAsStruct(t, `{"call_type": "Local"}`),
-						ExecutionStats: protojsonAsStruct(t, `
-{
-  "latency": {"total": "1", "unit": "msec"},
-  "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"}
-}`),
+						Metadata:    mustNewStruct(map[string]interface{}{"call_type": "Local"}),
+						ExecutionStats: mustNewStruct(map[string]interface{}{
+							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
+							"rows":              map[string]interface{}{"total": "9"},
+							"execution_summary": map[string]interface{}{"num_executions": "1"},
+						}),
 					},
 					{
 						Index: 2,
@@ -71,24 +60,22 @@ func TestRenderTreeWithStats(t *testing.T) {
 						},
 						DisplayName: "Serialize Result",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						ExecutionStats: protojsonAsStruct(t, `
-{
-  "latency": {"total": "1", "unit": "msec"},
-  "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"}
-}`),
+						ExecutionStats: mustNewStruct(map[string]interface{}{
+							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
+							"rows":              map[string]interface{}{"total": "9"},
+							"execution_summary": map[string]interface{}{"num_executions": "1"},
+						}),
 					},
 					{
 						Index:       3,
 						DisplayName: "Scan",
 						Kind:        spanner.PlanNode_RELATIONAL,
-						Metadata:    protojsonAsStruct(t, `{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}`),
-						ExecutionStats: protojsonAsStruct(t, `
-{
-  "latency": {"total": "1", "unit": "msec"},
-  "rows": {"total": "9"},
-  "execution_summary": {"num_executions": "1"}
-}`),
+						Metadata:    mustNewStruct(map[string]interface{}{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}),
+						ExecutionStats: mustNewStruct(map[string]interface{}{
+							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
+							"rows":              map[string]interface{}{"total": "9"},
+							"execution_summary": map[string]interface{}{"num_executions": "1"},
+						}),
 					},
 				},
 			},
