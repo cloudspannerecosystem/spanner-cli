@@ -18,6 +18,13 @@ func protojsonAsStruct(t *testing.T, j string) *structpb.Struct {
 	return &result
 }
 
+func mustNewStruct(m map[string]interface{}) *structpb.Struct {
+	if s, err := structpb.NewStruct(m); err != nil {
+		panic(err)
+	} else {
+		return s
+	}
+}
 func TestRenderTreeWithStats(t *testing.T) {
 	for _, test := range []struct {
 		title string
@@ -132,71 +139,57 @@ func TestNodeString(t *testing.T) {
 		{"Distributed Union with call_type=Local",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Distributed Union",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"call_type":             {Kind: &structpb.Value_StringValue{StringValue: "Local"}},
-						"subquery_cluster_node": {Kind: &structpb.Value_StringValue{StringValue: "4"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"call_type":             "Local",
+					"subquery_cluster_node": "4",
+				}),
 			}}, "Local Distributed Union",
 		},
 		{"Scan with scan_type=IndexScan and Full scan=true",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Scan",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"scan_type":   {Kind: &structpb.Value_StringValue{StringValue: "IndexScan"}},
-						"scan_target": {Kind: &structpb.Value_StringValue{StringValue: "SongsBySongName"}},
-						"Full scan":   {Kind: &structpb.Value_StringValue{StringValue: "true"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"scan_type":   "IndexScan",
+					"scan_target": "SongsBySongName",
+					"Full scan":   "true",
+				}),
 			}}, "Index Scan (Full scan: true, Index: SongsBySongName)"},
 		{"Scan with scan_type=TableScan",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Scan",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"scan_type":   {Kind: &structpb.Value_StringValue{StringValue: "TableScan"}},
-						"scan_target": {Kind: &structpb.Value_StringValue{StringValue: "Songs"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"scan_type":   "TableScan",
+					"scan_target": "Songs",
+				}),
 			}}, "Table Scan (Table: Songs)"},
 		{"Scan with scan_type=BatchScan",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Scan",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"scan_type":   {Kind: &structpb.Value_StringValue{StringValue: "BatchScan"}},
-						"scan_target": {Kind: &structpb.Value_StringValue{StringValue: "$v2"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"scan_type":   "BatchScan",
+					"scan_target": "$v2",
+				}),
 			}}, "Batch Scan (Batch: $v2)"},
 		{"Sort Limit with call_type=Local",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Sort Limit",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"call_type": {Kind: &structpb.Value_StringValue{StringValue: "Local"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"call_type": "Local",
+				}),
 			}}, "Local Sort Limit"},
 		{"Sort Limit with call_type=Global",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Sort Limit",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"call_type": {Kind: &structpb.Value_StringValue{StringValue: "Global"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"call_type": "Global",
+				}),
 			}}, "Global Sort Limit"},
 		{"Aggregate with iterator_type=Stream",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Aggregate",
-				Metadata: &structpb.Struct{
-					Fields: map[string]*structpb.Value{
-						"iterator_type": {Kind: &structpb.Value_StringValue{StringValue: "Stream"}},
-					},
-				},
+				Metadata: mustNewStruct(map[string]interface{}{
+					"iterator_type": "Stream",
+				}),
 			}}, "Stream Aggregate"},
 	} {
 		if got := test.node.String(); got != test.want {
