@@ -24,7 +24,6 @@ import (
 
 	"github.com/xlab/treeprint"
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -46,10 +45,10 @@ type Node struct {
 }
 
 type QueryPlanNodeWithStats struct {
-	ID             int32     `json:"id"`
-	ExecutionStats *pbStruct `json:"execution_stats"`
-	DisplayName    string    `json:"display_name"`
-	LinkType       string    `json:"link_type"`
+	ID             int32            `json:"id"`
+	ExecutionStats *structpb.Struct `json:"execution_stats"`
+	DisplayName    string           `json:"display_name"`
+	LinkType       string           `json:"link_type"`
 }
 
 type executionStatsValue struct {
@@ -224,13 +223,6 @@ func (n *Node) String() string {
 	return operator + " " + metadata
 }
 
-// pbStruct is wrapper to implement json.Marshaller interface
-type pbStruct struct{ *structpb.Struct }
-
-func (p *pbStruct) MarshalJSON() ([]byte, error) {
-	return protojson.Marshal(p.Struct)
-}
-
 func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	if !node.IsVisible() {
 		return
@@ -239,7 +231,7 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	b, _ := json.Marshal(
 		QueryPlanNodeWithStats{
 			ID:             node.PlanNode.Index,
-			ExecutionStats: &pbStruct{node.PlanNode.GetExecutionStats()},
+			ExecutionStats: node.PlanNode.GetExecutionStats(),
 			DisplayName:    node.String(),
 			LinkType:       linkType,
 		},
