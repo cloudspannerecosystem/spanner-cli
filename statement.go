@@ -538,17 +538,18 @@ func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []strin
 func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string) {
 	planNodes := plan.GetPlanNodes()
 	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+	widthOfNodeIDWithIndicator := maxWidthOfNodeID + 1
 
 	tree := BuildQueryPlanTree(plan, 0)
 
 	for _, row := range tree.RenderTreeWithStats(planNodes) {
 		var formattedID string
 		if row.TextOnly {
-			formattedID = strings.Repeat(" ", maxWidthOfNodeID+1)
+			formattedID = strings.Repeat(" ", widthOfNodeIDWithIndicator)
 		} else if len(row.Predicates) > 0 {
-			formattedID = fmt.Sprintf("%*s", maxWidthOfNodeID, "*"+fmt.Sprint(row.ID))
+			formattedID = fmt.Sprintf("%*s", widthOfNodeIDWithIndicator, "*"+fmt.Sprint(row.ID))
 		} else {
-			formattedID = fmt.Sprintf("%*d", maxWidthOfNodeID+1, row.ID)
+			formattedID = fmt.Sprintf("%*d", widthOfNodeIDWithIndicator, row.ID)
 		}
 		if withStats {
 			rows = append(rows, Row{[]string{formattedID, row.Text, row.RowsTotal, row.Execution, row.LatencyTotal}})
