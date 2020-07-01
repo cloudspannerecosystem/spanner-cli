@@ -75,9 +75,7 @@ var (
 	dropIndexRe      = regexp.MustCompile(`(?is)^DROP\s+INDEX\s.+$`)
 
 	// DML
-	insertRe = regexp.MustCompile(`(?is)^INSERT\s+.+$`)
-	updateRe = regexp.MustCompile(`(?is)^UPDATE\s+.+$`)
-	deleteRe = regexp.MustCompile(`(?is)^DELETE\s+.+$`)
+	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
 
 	// Transaction
 	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
@@ -94,8 +92,7 @@ var (
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
-	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
-	explainAnalyzeRe  = regexp.MustCompile(`(?is)^EXPLAIN\s+ANALYZE\s+(.+)$`)
+	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(ANALYZE\s+)?(.+)$`)
 )
 
 func BuildStatement(input string) (Statement, error) {
@@ -131,21 +128,22 @@ func BuildStatement(input string) (Statement, error) {
 		return &ShowTablesStatement{}, nil
 	case explainRe.MatchString(input):
 		matched := explainRe.FindStringSubmatch(input)
-		return &ExplainStatement{Explain: matched[1]}, nil
-	case explainAnalyzeRe.MatchString(input):
-		matched := explainAnalyzeRe.FindStringSubmatch(input)
-		return &ExplainAnalyzeStatement{Query: matched[1]}, nil
+		if matched[1] == "" {
+			if dmlRe.MatchString(matched[2]) {
+				return &ExplainDmlStatement{Dml: matched[2]}, nil
+			} else {
+				return &ExplainStatement{Explain: matched[2]}, nil
+			}
+		} else {
+			return &ExplainAnalyzeStatement{Query: matched[2]}, nil
+		}
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
 		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
-	case insertRe.MatchString(input):
-		return &DmlStatement{Dml: input}, nil
-	case updateRe.MatchString(input):
-		return &DmlStatement{Dml: input}, nil
-	case deleteRe.MatchString(input):
+	case dmlRe.MatchString(input):
 		return &DmlStatement{Dml: input}, nil
 	case beginRwRe.MatchString(input):
 		return &BeginRwStatement{}, nil
@@ -729,6 +727,61 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result.AffectedRows = int(numRows)
+
+	return result, nil
+}
+
+type ExplainDmlStatement struct {
+	Dml string
+}
+
+func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
+	stmt := spanner.NewStatement(s.Dml)
+
+	var timestamp time.Time
+	var queryPlan *pb.QueryPlan
+	var err error
+	if session.InRwTxn() {
+		queryPlan, err = session.rwTxn.AnalyzeQuery(session.ctx, stmt)
+		if err != nil {
+			// Abort transaction.
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
+		}
+	} else {
+		// Start implicit transaction.
+		begin := BeginRwStatement{}
+		if _, err = begin.Execute(session); err != nil {
+			return nil, err
+		}
+
+		queryPlan, err = session.rwTxn.AnalyzeQuery(session.ctx, stmt)
+		if err != nil {
+			// once error has happened, escape from implicit transaction
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return nil, err
+		}
+
+		rollback := RollbackStatement{}
+		txnResult, err := rollback.Execute(session)
+		if err != nil {
+			return nil, err
+		}
+
+		timestamp = txnResult.Timestamp
+	}
+
+	rows, predicates := processPlanWithoutStats(queryPlan)
+	result := &Result{
+		IsMutation:   true,
+		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		AffectedRows: 1,
+		Rows:         rows,
+		Predicates:   predicates,
+		Timestamp:    timestamp,
+	}
 
 	return result, nil
 }
