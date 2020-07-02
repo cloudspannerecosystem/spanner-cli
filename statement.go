@@ -140,7 +140,11 @@ func BuildStatement(input string) (Statement, error) {
 				return &ExplainStatement{Explain: matched[2]}, nil
 			}
 		} else {
-			return &ExplainAnalyzeStatement{Query: matched[2]}, nil
+			if dmlRe.MatchString(matched[2]) {
+				return &ExplainAnalyzeDmlStatement{Dml: matched[2]}, nil
+			} else {
+				return &ExplainAnalyzeStatement{Query: matched[2]}, nil
+			}
 		}
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
@@ -767,6 +771,69 @@ func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		IsMutation:   true,
 		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		AffectedRows: 1,
+		Rows:         rows,
+		Predicates:   predicates,
+		Timestamp:    timestamp,
+	}
+
+	return result, nil
+}
+
+type ExplainAnalyzeDmlStatement struct {
+	Dml string
+}
+
+func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) {
+	stmt := spanner.NewStatement(s.Dml)
+
+	var timestamp time.Time
+	var queryPlan *pb.QueryPlan
+	var iter *spanner.RowIterator
+	var err error
+	if session.InRwTxn() {
+		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
+		defer iter.Stop()
+		err = iter.Do(func(r *spanner.Row) error { return nil })
+		if err != nil {
+			// Abort transaction.
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
+		}
+		queryPlan = iter.QueryPlan
+	} else {
+		// Start implicit transaction.
+		begin := BeginRwStatement{}
+		if _, err = begin.Execute(session); err != nil {
+			return nil, err
+		}
+
+		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
+		defer iter.Stop()
+		err = iter.Do(func(r *spanner.Row) error { return nil })
+		queryPlan = iter.QueryPlan
+		if err != nil {
+			// once error has happened, escape from implicit transaction
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return nil, err
+		}
+
+		commit := CommitStatement{}
+		txnResult, err := commit.Execute(session)
+		if err != nil {
+			return nil, err
+		}
+
+		timestamp = txnResult.Timestamp
+	}
+
+	rows, predicates := processPlanWithStats(queryPlan)
+	result := &Result{
+		IsMutation:   true,
+		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ForceVerbose: true,
 		AffectedRows: 1,
 		Rows:         rows,
 		Predicates:   predicates,
