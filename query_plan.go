@@ -249,13 +249,14 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	}
 }
 
-func getMaxVisibleNodeID(planNodes []*pb.PlanNode) int32 {
+func getMaxVisibleNodeID(plan *pb.QueryPlan) int32 {
 	var maxVisibleNodeID int32
-	for _, planNode := range planNodes {
+	// We assume that plan_nodes[] is pre-sorted in ascending order.
+	// See QueryPlan.plan_nodes[] in the document.
+	// https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1?hl=en#google.spanner.v1.QueryPlan.FIELDS.repeated.google.spanner.v1.PlanNode.google.spanner.v1.QueryPlan.plan_nodes
+	for _, planNode := range plan.GetPlanNodes() {
 		if (&Node{PlanNode: planNode}).IsVisible() {
-			if planNode.Index > maxVisibleNodeID {
-				maxVisibleNodeID = planNode.Index
-			}
+			maxVisibleNodeID = planNode.Index
 		}
 	}
 	return maxVisibleNodeID

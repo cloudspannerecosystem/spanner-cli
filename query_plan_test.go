@@ -190,26 +190,18 @@ func TestNodeString(t *testing.T) {
 func TestGetMaxVisibleNodeID(t *testing.T) {
 	for _, tt := range []struct {
 		desc  string
-		input []*pb.PlanNode
+		input *pb.QueryPlan
 		want  int32
 	}{
 		{
-			desc: "ascending order",
-			input: []*pb.PlanNode{
-				&pb.PlanNode{Index: 1, DisplayName: "Index Scan"},
-				&pb.PlanNode{Index: 999, DisplayName: "Constant"}, // This is not visible
-				&pb.PlanNode{Index: 2, DisplayName: "Index Scan"},
-				&pb.PlanNode{Index: 3, DisplayName: "Index Scan"},
-			},
-			want: 3,
-		},
-		{
-			desc: "random order",
-			input: []*pb.PlanNode{
-				&pb.PlanNode{Index: 1, DisplayName: "Index Scan"},
-				&pb.PlanNode{Index: 3, DisplayName: "Index Scan"},
-				&pb.PlanNode{Index: 999, DisplayName: "Constant"}, // This is not visible
-				&pb.PlanNode{Index: 2, DisplayName: "Index Scan"},
+			desc: "pr-sorted order",
+			input: &pb.QueryPlan{
+				PlanNodes: []*pb.PlanNode{
+					{Index: 1, DisplayName: "Index Scan"},
+					{Index: 2, DisplayName: "Index Scan"},
+					{Index: 3, DisplayName: "Index Scan"},
+					{Index: 4, DisplayName: "Constant"}, // This is not visible
+				},
 			},
 			want: 3,
 		},

@@ -537,7 +537,7 @@ func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []strin
 
 func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string) {
 	planNodes := plan.GetPlanNodes()
-	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(plan)))
 	widthOfNodeIDWithIndicator := maxWidthOfNodeID + 1
 
 	tree := BuildQueryPlanTree(plan, 0)
