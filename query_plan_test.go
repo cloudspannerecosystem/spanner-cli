@@ -194,7 +194,7 @@ func TestGetMaxVisibleNodeID(t *testing.T) {
 		want  int32
 	}{
 		{
-			desc: "pr-sorted order",
+			desc: "pre-sorted order",
 			input: &pb.QueryPlan{
 				PlanNodes: []*pb.PlanNode{
 					{Index: 1, DisplayName: "Index Scan"},
