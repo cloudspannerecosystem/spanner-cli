@@ -253,7 +253,9 @@ func getMaxVisibleNodeID(planNodes []*pb.PlanNode) int32 {
 	var maxVisibleNodeID int32
 	for _, planNode := range planNodes {
 		if (&Node{PlanNode: planNode}).IsVisible() {
-			maxVisibleNodeID = planNode.Index
+			if planNode.Index > maxVisibleNodeID {
+				maxVisibleNodeID = planNode.Index
+			}
 		}
 	}
 	return maxVisibleNodeID

@@ -6,6 +6,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 func mustNewStruct(m map[string]interface{}) *structpb.Struct {
@@ -181,6 +183,39 @@ func TestNodeString(t *testing.T) {
 	} {
 		if got := test.node.String(); got != test.want {
 			t.Errorf("%s: node.String() = %q but want %q", test.title, got, test.want)
+		}
+	}
+}
+
+func TestGetMaxVisibleNodeID(t *testing.T) {
+	for _, tt := range []struct {
+		desc  string
+		input []*pb.PlanNode
+		want  int32
+	}{
+		{
+			desc: "ascending order",
+			input: []*pb.PlanNode{
+				&pb.PlanNode{Index: 1, DisplayName: "Index Scan"},
+				&pb.PlanNode{Index: 999, DisplayName: "Constant"}, // This is not visible
+				&pb.PlanNode{Index: 2, DisplayName: "Index Scan"},
+				&pb.PlanNode{Index: 3, DisplayName: "Index Scan"},
+			},
+			want: 3,
+		},
+		{
+			desc: "random order",
+			input: []*pb.PlanNode{
+				&pb.PlanNode{Index: 1, DisplayName: "Index Scan"},
+				&pb.PlanNode{Index: 3, DisplayName: "Index Scan"},
+				&pb.PlanNode{Index: 999, DisplayName: "Constant"}, // This is not visible
+				&pb.PlanNode{Index: 2, DisplayName: "Index Scan"},
+			},
+			want: 3,
+		},
+	} {
+		if got := getMaxVisibleNodeID(tt.input); got != tt.want {
+			t.Errorf("getMaxVisibleNodeID(%s) = %d, but want = %d", tt.input, got, tt.want)
 		}
 	}
 }
