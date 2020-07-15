@@ -82,41 +82,46 @@ func TestRenderTreeWithStats(t *testing.T) {
 				},
 			},
 			want: []QueryPlanRow{
-				{Text: ".", TextOnly: true},
 				{
 					ID:           0,
-					Text:         "+- Distributed Union",
+					Text:         "Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           1,
-					Text:         "    +- Local Distributed Union",
+					Text:         "+- Local Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           2,
-					Text:         "        +- Serialize Result",
+					Text:         "    +- Serialize Result",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           3,
-					Text:         "            +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
+					Text:         "        +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 			}},
 	} {
-		tree := BuildQueryPlanTree(test.plan, 0)
-		if got := tree.RenderTreeWithStats(test.plan.GetPlanNodes()); !cmp.Equal(test.want, got) {
-			t.Errorf("%s: node.RenderTreeWithStats() differ: %s", test.title, cmp.Diff(test.want, got))
-		}
+		t.Run(test.title, func(t *testing.T) {
+			tree := BuildQueryPlanTree(test.plan, 0)
+			got, err := tree.RenderTreeWithStats(test.plan.GetPlanNodes())
+			if err != nil {
+				t.Errorf("error should be nil, but got = %v", err)
+			}
+			if !cmp.Equal(test.want, got) {
+				t.Errorf("node.RenderTreeWithStats() differ: %s", cmp.Diff(test.want, got))
+			}
+		})
 	}
 }
 func TestNodeString(t *testing.T) {

@@ -463,7 +463,11 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	rows, predicates := processPlanWithoutStats(queryPlan)
+	rows, predicates, err := processPlanWithoutStats(queryPlan)
+	if err != nil {
+		return nil, err
+	}
+
 	result := &Result{
 		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
 		AffectedRows: 1,
@@ -507,7 +511,10 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
 
-	rows, predicates := processPlanWithStats(iter.QueryPlan)
+	rows, predicates, err := processPlanWithStats(iter.QueryPlan)
+	if err != nil {
+		return nil, err
+	}
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
 	var timestamp time.Time
@@ -527,26 +534,28 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	return result, nil
 }
 
-func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string, err error) {
 	return processPlanImpl(plan, true)
 }
 
-func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string, err error) {
 	return processPlanImpl(plan, false)
 }
 
-func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string) {
+func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string, err error) {
 	planNodes := plan.GetPlanNodes()
 	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(plan)))
 	widthOfNodeIDWithIndicator := maxWidthOfNodeID + 1
 
 	tree := BuildQueryPlanTree(plan, 0)
 
-	for _, row := range tree.RenderTreeWithStats(planNodes) {
+	treeRows, err := tree.RenderTreeWithStats(planNodes)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, row := range treeRows {
 		var formattedID string
-		if row.TextOnly {
-			formattedID = strings.Repeat(" ", widthOfNodeIDWithIndicator)
-		} else if len(row.Predicates) > 0 {
+		if len(row.Predicates) > 0 {
 			formattedID = fmt.Sprintf("%*s", widthOfNodeIDWithIndicator, "*"+fmt.Sprint(row.ID))
 		} else {
 			formattedID = fmt.Sprintf("%*d", widthOfNodeIDWithIndicator, row.ID)
@@ -566,7 +575,7 @@ func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates
 			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
 		}
 	}
-	return rows, predicates
+	return rows, predicates, nil
 }
 
 type ShowColumnsStatement struct {

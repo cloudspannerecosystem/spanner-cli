@@ -108,10 +108,9 @@ type QueryPlanRow struct {
 	Execution    string
 	LatencyTotal string
 	Predicates   []string
-	TextOnly     bool
 }
 
-func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
+func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, error) {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
 	var result []QueryPlanRow
@@ -123,15 +122,13 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		split := strings.SplitN(line, "\t", 2)
 		// Handle the case of the root node of treeprint
 		if len(split) != 2 {
-			result = append(result, QueryPlanRow{Text: line, TextOnly: true})
-			continue
+			return nil, fmt.Errorf("unexpected split error, tree line = %q", line)
 		}
 		branchText, protojsonText := split[0], split[1]
 
 		var planNode queryPlanNodeWithStatsTyped
 		if err := json.Unmarshal([]byte(protojsonText), &planNode); err != nil {
-			result = append(result, QueryPlanRow{Text: line, TextOnly: true})
-			continue
+			return nil, fmt.Errorf("unexpected JSON unmarshal error, tree line = %q", line)
 		}
 
 		var text string
@@ -159,7 +156,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 			LatencyTotal: fmt.Sprintf("%s %s", planNode.ExecutionStats.Latency.Total, planNode.ExecutionStats.Latency.Unit),
 		})
 	}
-	return result
+	return result, nil
 }
 
 func (n *Node) IsVisible() bool {
@@ -169,6 +166,10 @@ func (n *Node) IsVisible() bool {
 	}
 
 	return true
+}
+
+func (n *Node) IsRoot() bool {
+	return n.PlanNode.Index == 0
 }
 
 func (n *Node) String() string {
@@ -240,12 +241,22 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	str := "\t" + string(b)
 
 	if len(node.Children) > 0 {
-		branch := tree.AddBranch(str)
+		var branch treeprint.Tree
+		if node.IsRoot() {
+			tree.SetValue(str)
+			branch = tree
+		} else {
+			branch = tree.AddBranch(str)
+		}
 		for _, child := range node.Children {
 			renderTreeWithStats(branch, child.Type, child.Dest)
 		}
 	} else {
-		tree.AddNode(str)
+		if node.IsRoot() {
+			tree.SetValue(str)
+		} else {
+			tree.AddNode(str)
+		}
 	}
 }
 
