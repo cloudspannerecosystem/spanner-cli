@@ -32,6 +32,8 @@ func init() {
 	treeprint.EdgeTypeLink = "|"
 	treeprint.EdgeTypeMid = "+-"
 	treeprint.EdgeTypeEnd = "+-"
+
+	treeprint.IndentSize = 2
 }
 
 type Link struct {
