@@ -10,7 +10,7 @@ require (
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/olekukonko/tablewriter v0.0.4
-	github.com/xlab/treeprint v1.0.0
+	github.com/xlab/treeprint v1.0.1-0.20200715141336-10e0bc383e01
 	google.golang.org/api v0.21.0
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.28.1
