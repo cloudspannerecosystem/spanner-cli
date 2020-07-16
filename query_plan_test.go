@@ -98,14 +98,14 @@ func TestRenderTreeWithStats(t *testing.T) {
 				},
 				{
 					ID:           2,
-					Text:         "    +- Serialize Result",
+					Text:         "   +- Serialize Result",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           3,
-					Text:         "        +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
+					Text:         "      +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
