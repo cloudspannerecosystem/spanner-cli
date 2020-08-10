@@ -511,6 +511,12 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
 
+	// Cloud Spanner Emulator doesn't set query plan nodes to the result.
+	// See: https://github.com/GoogleCloudPlatform/cloud-spanner-emulator/blob/77188b228e7757cd56ecffb5bc3ee85dce5d6ae1/frontend/handlers/queries.cc#L224-L230
+	if iter.QueryPlan == nil {
+		return nil, errors.New("EXPLAIN ANALYZE statement is not supported for Cloud Spanner Emulator.")
+	}
+
 	rows, predicates, err := processPlanWithStats(iter.QueryPlan)
 	if err != nil {
 		return nil, err
