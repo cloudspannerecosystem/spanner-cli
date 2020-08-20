@@ -98,11 +98,6 @@ var (
 	explainAnalyzeRe  = regexp.MustCompile(`(?is)^EXPLAIN\s+ANALYZE\s+(.+)$`)
 )
 
-var (
-	txnRetryError = errors.New("transaction was aborted")
-	rollbackError = errors.New("rollback")
-)
-
 func BuildStatement(input string) (Statement, error) {
 	switch {
 	case exitRe.MatchString(input):
@@ -705,10 +700,10 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
 		numRows, err = session.rwTxn.Update(session.ctx, stmt)
 		if err != nil {
-			// Abort transaction.
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
 			rollback.Execute(session)
-			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
+			return nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
 	} else {
 		// Start implicit transaction.
@@ -748,41 +743,12 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	txnStarted := make(chan bool)
-
-	go func() {
-		txnExecuted := false
-		ts, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-			// ReadWriteTransaction might retry this function, but retry is not allowed in this tool.
-			if txnExecuted {
-				return txnRetryError
-			}
-			txnExecuted = true
-
-			finish := session.StartRwTxn(ctx, txn)
-			defer finish()
-
-			txnStarted <- true
-
-			// Wait for commit...
-			isCommitted := <-session.committedChan
-
-			if isCommitted {
-				return nil
-			} else {
-				return rollbackError
-			}
-		})
-		session.txnFinished <- txnFinishResult{CommitTimestamp: ts, Err: err}
-	}()
-
-	select {
-	case <-txnStarted:
-		// go
-	case txnFinishRes := <-session.txnFinished:
-		// Error happened before starting transaction
-		return nil, txnFinishRes.Err
+	txn, err := spanner.NewReadWriteStmtBasedTransaction(session.ctx, session.client)
+	if err != nil {
+		return nil, err
 	}
+	session.StartRwTxn(txn)
+	session.StartHeartbeat()
 
 	return &Result{IsMutation: true}, nil
 }
@@ -790,46 +756,45 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 type CommitStatement struct{}
 
 func (s *CommitStatement) Execute(session *Session) (*Result, error) {
+	result := &Result{IsMutation: true}
 	if session.InRoTxn() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
-
-	result := &Result{IsMutation: true}
-
 	if !session.InRwTxn() {
 		return result, nil
 	}
 
-	session.committedChan <- true
+	// Stop heartbeat before calling commit
+	// because once commit has finished there is no guarantee that transaction object can be used.
+	session.StopHeartbeat()
 
-	txnFinishRes := <-session.txnFinished
-	if err := txnFinishRes.Err; err != nil {
+	ts, err := session.rwTxn.Commit(session.ctx)
+	session.FinishRwTxn()
+	if err != nil {
 		return nil, err
 	}
+	result.Timestamp = ts
 
-	result.Timestamp = txnFinishRes.CommitTimestamp
 	return result, nil
 }
 
 type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
+	result := &Result{IsMutation: true}
 	if session.InRoTxn() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
-
-	result := &Result{IsMutation: true}
-
 	if !session.InRwTxn() {
 		return result, nil
 	}
 
-	session.committedChan <- false
+	// Stop heartbeat before calling rollback
+	// because once rollback has finished there is no guarantee that transaction object can be used.
+	session.StopHeartbeat()
 
-	txnFinishRes := <-session.txnFinished
-	if err := txnFinishRes.Err; err != nil && err != rollbackError {
-		return nil, err
-	}
+	session.rwTxn.Rollback(session.ctx)
+	session.FinishRwTxn()
 
 	return result, nil
 }

@@ -43,9 +43,8 @@ type Session struct {
 	adminClient *adminapi.DatabaseAdminClient
 
 	// for read-write transaction
-	rwTxn         *spanner.ReadWriteTransaction
-	txnFinished   chan txnFinishResult
-	committedChan chan bool
+	rwTxn         *spanner.ReadWriteStmtBasedTransaction
+	heartbeatChan chan bool
 
 	// for read-only transaction
 	roTxn *spanner.ReadOnlyTransaction
@@ -73,31 +72,21 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 	}
 
 	return &Session{
-		ctx:           ctx,
-		projectId:     projectId,
-		instanceId:    instanceId,
-		databaseId:    databaseId,
-		client:        client,
-		adminClient:   adminClient,
-		txnFinished:   make(chan txnFinishResult),
-		committedChan: make(chan bool),
+		ctx:         ctx,
+		projectId:   projectId,
+		instanceId:  instanceId,
+		databaseId:  databaseId,
+		client:      client,
+		adminClient: adminClient,
 	}, nil
 }
 
-func (s *Session) StartRwTxn(ctx context.Context, txn *spanner.ReadWriteTransaction) func() {
-	oldCtx := s.ctx
-	s.ctx = ctx
+func (s *Session) StartRwTxn(txn *spanner.ReadWriteStmtBasedTransaction) {
 	s.rwTxn = txn
+}
 
-	heartbeat := s.StartHeartbeat()
-
-	finish := func() {
-		close(heartbeat)
-		s.ctx = oldCtx
-		s.rwTxn = nil
-	}
-
-	return finish
+func (s *Session) FinishRwTxn() {
+	s.rwTxn = nil
 }
 
 func (s *Session) StartRoTxn(txn *spanner.ReadOnlyTransaction) {
@@ -152,12 +141,12 @@ func (s *Session) DatabaseExists() (bool, error) {
 	}
 }
 
-// Start heartbeat for read-write transaction.
+// StartHeartbeat starts heartbeat for read-write transaction.
 //
 // If no reads or DMLs happen within 10 seconds, the rw-transaction is considered idle at Cloud Spanner server.
 // This "SELECT 1" query prevents the transaction from being considered idle.
 // cf. https://godoc.org/cloud.google.com/go/spanner#hdr-Idle_transactions
-func (s *Session) StartHeartbeat() chan bool {
+func (s *Session) StartHeartbeat() {
 	interval := time.NewTicker(5 * time.Second)
 	timeout := time.NewTimer(600 * time.Second)
 	stop := make(chan bool)
@@ -178,10 +167,14 @@ func (s *Session) StartHeartbeat() chan bool {
 			}
 		}
 	}()
-	return stop
+	s.heartbeatChan = stop
 }
 
-func heartbeat(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+func (s *Session) StopHeartbeat() {
+	close(s.heartbeatChan)
+}
+
+func heartbeat(ctx context.Context, txn *spanner.ReadWriteStmtBasedTransaction) error {
 	iter := txn.Query(ctx, spanner.NewStatement("SELECT 1"))
 	defer iter.Stop()
 	_, err := iter.Next()
