@@ -163,7 +163,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, er
 
 func (n *Node) IsVisible() bool {
 	operator := n.PlanNode.DisplayName
-	if operator == "Function" || operator == "Reference" || operator == "Constant" || operator == "Array Constructor" {
+	if operator == "Function" || operator == "Reference" || operator == "Constant" || operator == "Array Constructor" || operator == "Parameter" {
 		return false
 	}
 
