@@ -377,7 +377,8 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 		}
 		fmt.Fprintln(out)
 	}
-	if result.ForceVerbose {
+
+	if verbose || result.ForceVerbose {
 		fmt.Fprint(out, resultLine(result, true))
 	} else if interactive {
 		fmt.Fprint(out, resultLine(result, verbose))

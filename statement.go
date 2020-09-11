@@ -95,11 +95,6 @@ var (
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(ANALYZE\s+)?(.+)$`)
 )
 
-var (
-	txnRetryError = errors.New("transaction was aborted")
-	rollbackError = errors.New("rollback")
-)
-
 func BuildStatement(input string) (Statement, error) {
 	switch {
 	case exitRe.MatchString(input):
@@ -465,7 +460,11 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	rows, predicates := processPlanWithoutStats(queryPlan)
+	rows, predicates, err := processPlanWithoutStats(queryPlan)
+	if err != nil {
+		return nil, err
+	}
+
 	result := &Result{
 		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
 		AffectedRows: 1,
@@ -509,7 +508,16 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 		return nil, fmt.Errorf("rowsReturned is invalid: %v", err)
 	}
 
-	rows, predicates := processPlanWithStats(iter.QueryPlan)
+	// Cloud Spanner Emulator doesn't set query plan nodes to the result.
+	// See: https://github.com/GoogleCloudPlatform/cloud-spanner-emulator/blob/77188b228e7757cd56ecffb5bc3ee85dce5d6ae1/frontend/handlers/queries.cc#L224-L230
+	if iter.QueryPlan == nil {
+		return nil, errors.New("EXPLAIN ANALYZE statement is not supported for Cloud Spanner Emulator.")
+	}
+
+	rows, predicates, err := processPlanWithStats(iter.QueryPlan)
+	if err != nil {
+		return nil, err
+	}
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
 	var timestamp time.Time
@@ -529,26 +537,28 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	return result, nil
 }
 
-func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string, err error) {
 	return processPlanImpl(plan, true)
 }
 
-func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string) {
+func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string, err error) {
 	return processPlanImpl(plan, false)
 }
 
-func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string) {
+func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string, err error) {
 	planNodes := plan.GetPlanNodes()
-	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(planNodes)))
+	maxWidthOfNodeID := len(fmt.Sprint(getMaxVisibleNodeID(plan)))
 	widthOfNodeIDWithIndicator := maxWidthOfNodeID + 1
 
 	tree := BuildQueryPlanTree(plan, 0)
 
-	for _, row := range tree.RenderTreeWithStats(planNodes) {
+	treeRows, err := tree.RenderTreeWithStats(planNodes)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, row := range treeRows {
 		var formattedID string
-		if row.TextOnly {
-			formattedID = strings.Repeat(" ", widthOfNodeIDWithIndicator)
-		} else if len(row.Predicates) > 0 {
+		if len(row.Predicates) > 0 {
 			formattedID = fmt.Sprintf("%*s", widthOfNodeIDWithIndicator, "*"+fmt.Sprint(row.ID))
 		} else {
 			formattedID = fmt.Sprintf("%*d", widthOfNodeIDWithIndicator, row.ID)
@@ -568,7 +578,7 @@ func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates
 			predicates = append(predicates, fmt.Sprintf("%s %s", prefix, predicate))
 		}
 	}
-	return rows, predicates
+	return rows, predicates, nil
 }
 
 type ShowColumnsStatement struct {
@@ -692,10 +702,10 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
 		numRows, err = session.rwTxn.Update(session.ctx, stmt)
 		if err != nil {
-			// Abort transaction.
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
 			rollback.Execute(session)
-			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
+			return nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
 	} else {
 		// Start implicit transaction.
@@ -853,41 +863,12 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	txnStarted := make(chan bool)
-
-	go func() {
-		txnExecuted := false
-		ts, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-			// ReadWriteTransaction might retry this function, but retry is not allowed in this tool.
-			if txnExecuted {
-				return txnRetryError
-			}
-			txnExecuted = true
-
-			finish := session.StartRwTxn(ctx, txn)
-			defer finish()
-
-			txnStarted <- true
-
-			// Wait for commit...
-			isCommitted := <-session.committedChan
-
-			if isCommitted {
-				return nil
-			} else {
-				return rollbackError
-			}
-		})
-		session.txnFinished <- txnFinishResult{CommitTimestamp: ts, Err: err}
-	}()
-
-	select {
-	case <-txnStarted:
-		// go
-	case txnFinishRes := <-session.txnFinished:
-		// Error happened before starting transaction
-		return nil, txnFinishRes.Err
+	txn, err := spanner.NewReadWriteStmtBasedTransaction(session.ctx, session.client)
+	if err != nil {
+		return nil, err
 	}
+	session.StartRwTxn(txn)
+	session.StartHeartbeat()
 
 	return &Result{IsMutation: true}, nil
 }
@@ -895,46 +876,45 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 type CommitStatement struct{}
 
 func (s *CommitStatement) Execute(session *Session) (*Result, error) {
+	result := &Result{IsMutation: true}
 	if session.InRoTxn() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
-
-	result := &Result{IsMutation: true}
-
 	if !session.InRwTxn() {
 		return result, nil
 	}
 
-	session.committedChan <- true
+	// Stop heartbeat before calling commit
+	// because once commit has finished there is no guarantee that transaction object can be used.
+	session.StopHeartbeat()
 
-	txnFinishRes := <-session.txnFinished
-	if err := txnFinishRes.Err; err != nil {
+	ts, err := session.rwTxn.Commit(session.ctx)
+	session.FinishRwTxn()
+	if err != nil {
 		return nil, err
 	}
+	result.Timestamp = ts
 
-	result.Timestamp = txnFinishRes.CommitTimestamp
 	return result, nil
 }
 
 type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
+	result := &Result{IsMutation: true}
 	if session.InRoTxn() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
-
-	result := &Result{IsMutation: true}
-
 	if !session.InRwTxn() {
 		return result, nil
 	}
 
-	session.committedChan <- false
+	// Stop heartbeat before calling rollback
+	// because once rollback has finished there is no guarantee that transaction object can be used.
+	session.StopHeartbeat()
 
-	txnFinishRes := <-session.txnFinished
-	if err := txnFinishRes.Err; err != nil && err != rollbackError {
-		return nil, err
-	}
+	session.rwTxn.Rollback(session.ctx)
+	session.FinishRwTxn()
 
 	return result, nil
 }

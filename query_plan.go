@@ -32,6 +32,8 @@ func init() {
 	treeprint.EdgeTypeLink = "|"
 	treeprint.EdgeTypeMid = "+-"
 	treeprint.EdgeTypeEnd = "+-"
+
+	treeprint.IndentSize = 2
 }
 
 type Link struct {
@@ -108,10 +110,9 @@ type QueryPlanRow struct {
 	Execution    string
 	LatencyTotal string
 	Predicates   []string
-	TextOnly     bool
 }
 
-func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
+func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, error) {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
 	var result []QueryPlanRow
@@ -123,15 +124,13 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 		split := strings.SplitN(line, "\t", 2)
 		// Handle the case of the root node of treeprint
 		if len(split) != 2 {
-			result = append(result, QueryPlanRow{Text: line, TextOnly: true})
-			continue
+			return nil, fmt.Errorf("unexpected split error, tree line = %q", line)
 		}
 		branchText, protojsonText := split[0], split[1]
 
 		var planNode queryPlanNodeWithStatsTyped
 		if err := json.Unmarshal([]byte(protojsonText), &planNode); err != nil {
-			result = append(result, QueryPlanRow{Text: line, TextOnly: true})
-			continue
+			return nil, fmt.Errorf("unexpected JSON unmarshal error, tree line = %q", line)
 		}
 
 		var text string
@@ -159,16 +158,20 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) []QueryPlanRow {
 			LatencyTotal: fmt.Sprintf("%s %s", planNode.ExecutionStats.Latency.Total, planNode.ExecutionStats.Latency.Unit),
 		})
 	}
-	return result
+	return result, nil
 }
 
 func (n *Node) IsVisible() bool {
 	operator := n.PlanNode.DisplayName
-	if operator == "Function" || operator == "Reference" || operator == "Constant" || operator == "Array Constructor" {
+	if operator == "Function" || operator == "Reference" || operator == "Constant" || operator == "Array Constructor" || operator == "Parameter" {
 		return false
 	}
 
 	return true
+}
+
+func (n *Node) IsRoot() bool {
+	return n.PlanNode.Index == 0
 }
 
 func (n *Node) String() string {
@@ -240,18 +243,31 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	str := "\t" + string(b)
 
 	if len(node.Children) > 0 {
-		branch := tree.AddBranch(str)
+		var branch treeprint.Tree
+		if node.IsRoot() {
+			tree.SetValue(str)
+			branch = tree
+		} else {
+			branch = tree.AddBranch(str)
+		}
 		for _, child := range node.Children {
 			renderTreeWithStats(branch, child.Type, child.Dest)
 		}
 	} else {
-		tree.AddNode(str)
+		if node.IsRoot() {
+			tree.SetValue(str)
+		} else {
+			tree.AddNode(str)
+		}
 	}
 }
 
-func getMaxVisibleNodeID(planNodes []*pb.PlanNode) int32 {
+func getMaxVisibleNodeID(plan *pb.QueryPlan) int32 {
 	var maxVisibleNodeID int32
-	for _, planNode := range planNodes {
+	// We assume that plan_nodes[] is pre-sorted in ascending order.
+	// See QueryPlan.plan_nodes[] in the document.
+	// https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1?hl=en#google.spanner.v1.QueryPlan.FIELDS.repeated.google.spanner.v1.PlanNode.google.spanner.v1.QueryPlan.plan_nodes
+	for _, planNode := range plan.GetPlanNodes() {
 		if (&Node{PlanNode: planNode}).IsVisible() {
 			maxVisibleNodeID = planNode.Index
 		}

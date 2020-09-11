@@ -6,6 +6,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 func mustNewStruct(m map[string]interface{}) *structpb.Struct {
@@ -80,41 +82,46 @@ func TestRenderTreeWithStats(t *testing.T) {
 				},
 			},
 			want: []QueryPlanRow{
-				{Text: ".", TextOnly: true},
 				{
 					ID:           0,
-					Text:         "+- Distributed Union",
+					Text:         "Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           1,
-					Text:         "    +- Local Distributed Union",
+					Text:         "+- Local Distributed Union",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           2,
-					Text:         "        +- Serialize Result",
+					Text:         "   +- Serialize Result",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 				{
 					ID:           3,
-					Text:         "            +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
+					Text:         "      +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 					RowsTotal:    "9",
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
 			}},
 	} {
-		tree := BuildQueryPlanTree(test.plan, 0)
-		if got := tree.RenderTreeWithStats(test.plan.GetPlanNodes()); !cmp.Equal(test.want, got) {
-			t.Errorf("%s: node.RenderTreeWithStats() differ: %s", test.title, cmp.Diff(test.want, got))
-		}
+		t.Run(test.title, func(t *testing.T) {
+			tree := BuildQueryPlanTree(test.plan, 0)
+			got, err := tree.RenderTreeWithStats(test.plan.GetPlanNodes())
+			if err != nil {
+				t.Errorf("error should be nil, but got = %v", err)
+			}
+			if !cmp.Equal(test.want, got) {
+				t.Errorf("node.RenderTreeWithStats() differ: %s", cmp.Diff(test.want, got))
+			}
+		})
 	}
 }
 func TestNodeString(t *testing.T) {
@@ -181,6 +188,31 @@ func TestNodeString(t *testing.T) {
 	} {
 		if got := test.node.String(); got != test.want {
 			t.Errorf("%s: node.String() = %q but want %q", test.title, got, test.want)
+		}
+	}
+}
+
+func TestGetMaxVisibleNodeID(t *testing.T) {
+	for _, tt := range []struct {
+		desc  string
+		input *pb.QueryPlan
+		want  int32
+	}{
+		{
+			desc: "pre-sorted order",
+			input: &pb.QueryPlan{
+				PlanNodes: []*pb.PlanNode{
+					{Index: 1, DisplayName: "Index Scan"},
+					{Index: 2, DisplayName: "Index Scan"},
+					{Index: 3, DisplayName: "Index Scan"},
+					{Index: 4, DisplayName: "Constant"}, // This is not visible
+				},
+			},
+			want: 3,
+		},
+	} {
+		if got := getMaxVisibleNodeID(tt.input); got != tt.want {
+			t.Errorf("getMaxVisibleNodeID(%s) = %d, but want = %d", tt.input, got, tt.want)
 		}
 	}
 }
