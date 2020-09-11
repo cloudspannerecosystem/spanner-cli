@@ -777,7 +777,10 @@ func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 		timestamp = txnResult.Timestamp
 	}
 
-	rows, predicates := processPlanWithoutStats(queryPlan)
+	rows, predicates, err := processPlanWithoutStats(queryPlan)
+	if err != nil {
+		return nil, err
+	}
 	result := &Result{
 		IsMutation:   true,
 		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
@@ -839,7 +842,10 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 		timestamp = txnResult.Timestamp
 	}
 
-	rows, predicates := processPlanWithStats(queryPlan)
+	rows, predicates, err := processPlanWithStats(queryPlan)
+	if err != nil {
+		return nil, err
+	}
 	result := &Result{
 		IsMutation:   true,
 		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
