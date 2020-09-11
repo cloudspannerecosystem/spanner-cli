@@ -128,18 +128,17 @@ func BuildStatement(input string) (Statement, error) {
 		return &ShowTablesStatement{}, nil
 	case explainRe.MatchString(input):
 		matched := explainRe.FindStringSubmatch(input)
-		if matched[1] == "" {
-			if dmlRe.MatchString(matched[2]) {
-				return &ExplainDmlStatement{Dml: matched[2]}, nil
-			} else {
-				return &ExplainStatement{Explain: matched[2]}, nil
-			}
-		} else {
-			if dmlRe.MatchString(matched[2]) {
-				return &ExplainAnalyzeDmlStatement{Dml: matched[2]}, nil
-			} else {
-				return &ExplainAnalyzeStatement{Query: matched[2]}, nil
-			}
+		isAnalyze := matched[1] != ""
+		isDML := dmlRe.MatchString(matched[2])
+		switch {
+		case isAnalyze && isDML:
+			return &ExplainAnalyzeDmlStatement{Dml: matched[2]}, nil
+		case isAnalyze:
+			return &ExplainAnalyzeStatement{Query: matched[2]}, nil
+		case isDML:
+			return &ExplainDmlStatement{Dml: matched[2]}, nil
+		default:
+			return &ExplainStatement{Explain: matched[2]}, nil
 		}
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
