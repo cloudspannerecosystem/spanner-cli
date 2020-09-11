@@ -747,10 +747,10 @@ func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 	if session.InRwTxn() {
 		queryPlan, err = session.rwTxn.AnalyzeQuery(session.ctx, stmt)
 		if err != nil {
-			// Abort transaction.
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
 			rollback.Execute(session)
-			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
+			return nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
 	} else {
 		// Start implicit transaction.
@@ -808,10 +808,10 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 		defer iter.Stop()
 		err = iter.Do(func(r *spanner.Row) error { return nil })
 		if err != nil {
-			// Abort transaction.
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
 			rollback.Execute(session)
-			return nil, fmt.Errorf("error has happend during update, so transaction was aborted: %v", err)
+			return nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
 		queryPlan = iter.QueryPlan
 	} else {
