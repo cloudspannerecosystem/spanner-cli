@@ -739,41 +739,12 @@ type ExplainDmlStatement struct {
 }
 
 func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
-	stmt := spanner.NewStatement(s.Dml)
-
-	var timestamp time.Time
-	var queryPlan *pb.QueryPlan
-	var err error
-	if session.InRwTxn() {
-		queryPlan, err = session.rwTxn.AnalyzeQuery(session.ctx, stmt)
-		if err != nil {
-			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
-			rollback := &RollbackStatement{}
-			rollback.Execute(session)
-			return nil, fmt.Errorf("transaction was aborted: %v", err)
-		}
-	} else {
-		// Start implicit transaction.
-		begin := BeginRwStatement{}
-		if _, err = begin.Execute(session); err != nil {
-			return nil, err
-		}
-
-		queryPlan, err = session.rwTxn.AnalyzeQuery(session.ctx, stmt)
-		if err != nil {
-			// once error has happened, escape from implicit transaction
-			rollback := &RollbackStatement{}
-			rollback.Execute(session)
-			return nil, err
-		}
-
-		rollback := RollbackStatement{}
-		txnResult, err := rollback.Execute(session)
-		if err != nil {
-			return nil, err
-		}
-
-		timestamp = txnResult.Timestamp
+	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
+		plan, err := session.rwTxn.AnalyzeQuery(session.ctx, spanner.NewStatement(s.Dml))
+		return 0, plan, err
+	} )
+	if err != nil {
+		return nil, err
 	}
 
 	rows, predicates, err := processPlanWithoutStats(queryPlan)
@@ -783,7 +754,7 @@ func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{
 		IsMutation:   true,
 		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
-		AffectedRows: 1,
+		AffectedRows: 0,
 		Rows:         rows,
 		Predicates:   predicates,
 		Timestamp:    timestamp,
@@ -799,46 +770,17 @@ type ExplainAnalyzeDmlStatement struct {
 func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Dml)
 
-	var timestamp time.Time
-	var queryPlan *pb.QueryPlan
-	var iter *spanner.RowIterator
-	var err error
-	if session.InRwTxn() {
-		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
+	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
+		iter := session.rwTxn.QueryWithStats(session.ctx, stmt)
 		defer iter.Stop()
-		err = iter.Do(func(r *spanner.Row) error { return nil })
+		err := iter.Do(func(r *spanner.Row) error { return nil })
 		if err != nil {
-			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
-			rollback := &RollbackStatement{}
-			rollback.Execute(session)
-			return nil, fmt.Errorf("transaction was aborted: %v", err)
+			return 1, nil, err
 		}
-		queryPlan = iter.QueryPlan
-	} else {
-		// Start implicit transaction.
-		begin := BeginRwStatement{}
-		if _, err = begin.Execute(session); err != nil {
-			return nil, err
-		}
-
-		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
-		defer iter.Stop()
-		err = iter.Do(func(r *spanner.Row) error { return nil })
-		queryPlan = iter.QueryPlan
-		if err != nil {
-			// once error has happened, escape from implicit transaction
-			rollback := &RollbackStatement{}
-			rollback.Execute(session)
-			return nil, err
-		}
-
-		commit := CommitStatement{}
-		txnResult, err := commit.Execute(session)
-		if err != nil {
-			return nil, err
-		}
-
-		timestamp = txnResult.Timestamp
+		return iter.RowCount, iter.QueryPlan, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	rows, predicates, err := processPlanWithStats(queryPlan)
@@ -849,13 +791,49 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 		IsMutation:   true,
 		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
 		ForceVerbose: true,
-		AffectedRows: 1,
+		AffectedRows: int(affectedRows),
 		Rows:         rows,
 		Predicates:   predicates,
 		Timestamp:    timestamp,
 	}
 
 	return result, nil
+}
+
+// runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
+// It execute a function in the current RW transaction or an implicit RW transaction.
+func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
+	if session.InRwTxn() {
+		affected, plan, err := f()
+		if err != nil {
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return 0, time.Time{}, nil, fmt.Errorf("transaction was aborted: %v", err)
+		}
+		return affected, time.Time{}, plan, nil
+	} else {
+		// Start implicit transaction.
+		begin := BeginRwStatement{}
+		if _, err := begin.Execute(session); err != nil {
+			return 0, time.Time{}, nil, err
+		}
+
+		affected, plan, err := f()
+		if err != nil {
+			// once error has happened, escape from implicit transaction
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return 0, time.Time{}, nil, err
+		}
+
+		commit := CommitStatement{}
+		txnResult, err := commit.Execute(session)
+		if err != nil {
+			return 0, time.Time{}, nil, err
+		}
+		return affected, txnResult.Timestamp, plan, nil
+	}
 }
 
 type BeginRwStatement struct{}
