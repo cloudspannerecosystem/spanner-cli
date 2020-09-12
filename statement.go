@@ -95,6 +95,11 @@ var (
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(ANALYZE\s+)?(.+)$`)
 )
 
+var (
+	explainColumnNames = []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"}
+	explainAnalyzeColumnNames = []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"}
+)
+
 func BuildStatement(input string) (Statement, error) {
 	switch {
 	case exitRe.MatchString(input):
@@ -465,7 +470,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		ColumnNames:  explainColumnNames,
 		AffectedRows: 1,
 		Rows:         rows,
 		Predicates:   predicates,
@@ -525,7 +530,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ColumnNames:  explainAnalyzeColumnNames,
 		ForceVerbose: true,
 		AffectedRows: rowsReturned,
 		Stats:        queryStats,
@@ -753,7 +758,7 @@ func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 	}
 	result := &Result{
 		IsMutation:   true,
-		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		ColumnNames:  explainColumnNames,
 		AffectedRows: 0,
 		Rows:         rows,
 		Predicates:   predicates,
@@ -789,7 +794,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 	}
 	result := &Result{
 		IsMutation:   true,
-		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ColumnNames:  explainAnalyzeColumnNames,
 		ForceVerbose: true,
 		AffectedRows: int(affectedRows),
 		Rows:         rows,
