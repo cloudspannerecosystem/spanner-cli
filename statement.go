@@ -780,7 +780,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 		defer iter.Stop()
 		err := iter.Do(func(r *spanner.Row) error { return nil })
 		if err != nil {
-			return 1, nil, err
+			return 0, nil, err
 		}
 		return iter.RowCount, iter.QueryPlan, nil
 	})
