@@ -143,7 +143,9 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, er
 		var predicates []string
 		for _, cl := range planNodes[planNode.ID].GetChildLinks() {
 			child := planNodes[cl.ChildIndex]
-			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
+			// Known predicates are Condition(Filter) or Seek Condition/Residual Condition(FilterScan) or Split Range(Distributed Union).
+			// Agg is a Function but not a predicate.
+			if child.DisplayName != "Function" || (!strings.HasSuffix(cl.GetType(), "Condition") && cl.GetType() != "Split Range") {
 				continue
 			}
 			predicates = append(predicates, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
