@@ -27,7 +27,9 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 		want  []QueryPlanRow
 	}{
 		{
-			title: "Simple Query",
+			// Original Query:
+			// SELECT s.LastName FROM (SELECT s.LastName FROM Singers AS s WHERE s.FirstName LIKE 'A%' LIMIT 3) s WHERE s.LastName LIKE 'Rich%';
+			title: "With Filter Operator",
 			file: "testdata/plans/filter.input.json",
 			want: []QueryPlanRow{
 				{
