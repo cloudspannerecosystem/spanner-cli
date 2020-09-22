@@ -58,6 +58,14 @@ type executionStatsValue struct {
 	Total string `json:"total"`
 }
 
+func (v executionStatsValue) String() string {
+	if v.Unit == "" {
+		return v.Total
+	} else {
+		return fmt.Sprintf("%s %s", v.Total, v.Unit)
+	}
+}
+
 // queryPlanNodeWithStatsTyped is proto-free typed representation of QueryPlanNodeWithStats
 type queryPlanNodeWithStatsTyped struct {
 	ID             int32 `json:"id"`
@@ -157,7 +165,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, er
 			Text:         branchText + text,
 			RowsTotal:    planNode.ExecutionStats.Rows.Total,
 			Execution:    planNode.ExecutionStats.ExecutionSummary.NumExecutions,
-			LatencyTotal: fmt.Sprintf("%s %s", planNode.ExecutionStats.Latency.Total, planNode.ExecutionStats.Latency.Unit),
+			LatencyTotal: planNode.ExecutionStats.Latency.String(),
 		})
 	}
 	return result, nil
