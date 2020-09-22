@@ -1,10 +1,12 @@
 package main
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genproto/googleapis/spanner/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
@@ -15,6 +17,75 @@ func mustNewStruct(m map[string]interface{}) *structpb.Struct {
 		panic(err)
 	} else {
 		return s
+	}
+}
+
+func TestRenderTreeUsingTestdataPlans(t *testing.T) {
+	for _, test := range []struct {
+		title string
+		file  string
+		want  []QueryPlanRow
+	}{
+		{
+			title: "Simple Query",
+			file: "testdata/plans/filter.input.json",
+			want: []QueryPlanRow{
+				{
+					ID:           0,
+					Text:         "Serialize Result",
+				},
+				{
+					ID:           1,
+					Text:         "+- Filter",
+					Predicates: []string{"Condition: STARTS_WITH($LastName, 'Rich')"},
+				},
+				{
+					ID:           2,
+					Text:         "   +- Global Limit",
+				},
+				{
+					ID:           3,
+					Text:         "      +- Distributed Union",
+					Predicates: []string{"Split Range: STARTS_WITH($FirstName, 'A')"},
+				},
+				{
+					ID:           4,
+					Text:         "         +- Local Limit",
+				},
+				{
+					ID:           5,
+					Text:         "            +- Local Distributed Union",
+				},
+				{
+					ID:           6,
+					Text:         "               +- FilterScan",
+					Predicates: []string{"Seek Condition: STARTS_WITH($FirstName, 'A')"},
+				},
+				{
+					ID:           7,
+					Text:         "                  +- Index Scan (Index: SingersByFirstLastName)",
+				},
+			}},
+	} {
+		t.Run(test.title, func(t *testing.T) {
+			b, err := ioutil.ReadFile(test.file)
+			if err != nil {
+				t.Error(err)
+			}
+			var plan pb.QueryPlan
+			err = protojson.Unmarshal(b, &plan)
+			if err != nil {
+				t.Error(err)
+			}
+			tree := BuildQueryPlanTree(&plan, 0)
+			got, err := tree.RenderTreeWithStats(plan.GetPlanNodes())
+			if err != nil {
+				t.Errorf("error should be nil, but got = %v", err)
+			}
+			if !cmp.Equal(test.want, got) {
+				t.Errorf("node.RenderTreeWithStats() differ: %s", cmp.Diff(test.want, got))
+			}
+		})
 	}
 }
 
