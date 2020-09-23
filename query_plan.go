@@ -58,6 +58,14 @@ type executionStatsValue struct {
 	Total string `json:"total"`
 }
 
+func (v executionStatsValue) String() string {
+	if v.Unit == "" {
+		return v.Total
+	} else {
+		return fmt.Sprintf("%s %s", v.Total, v.Unit)
+	}
+}
+
 // queryPlanNodeWithStatsTyped is proto-free typed representation of QueryPlanNodeWithStats
 type queryPlanNodeWithStatsTyped struct {
 	ID             int32 `json:"id"`
@@ -112,6 +120,19 @@ type QueryPlanRow struct {
 	Predicates   []string
 }
 
+func isPredicate(planNodes []*pb.PlanNode, childLink *pb.PlanNode_ChildLink) bool {
+	// Known predicates are Condition(Filter) or Seek Condition/Residual Condition(FilterScan) or Split Range(Distributed Union).
+	// Agg is a Function but not a predicate.
+	child := planNodes[childLink.ChildIndex]
+	if child.DisplayName != "Function" {
+		return false
+	}
+	if strings.HasSuffix(childLink.GetType(), "Condition") || childLink.GetType() == "Split Range" {
+		return true
+	}
+	return false
+}
+
 func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, error) {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
@@ -142,11 +163,10 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, er
 
 		var predicates []string
 		for _, cl := range planNodes[planNode.ID].GetChildLinks() {
-			child := planNodes[cl.ChildIndex]
-			if child.DisplayName != "Function" || !(cl.GetType() == "Residual Condition" || cl.GetType() == "Seek Condition" || cl.GetType() == "Split Range") {
+			if !isPredicate(planNodes, cl) {
 				continue
 			}
-			predicates = append(predicates, fmt.Sprintf("%s: %s", cl.GetType(), child.GetShortRepresentation().GetDescription()))
+			predicates = append(predicates, fmt.Sprintf("%s: %s", cl.GetType(), planNodes[cl.ChildIndex].GetShortRepresentation().GetDescription()))
 		}
 
 		result = append(result, QueryPlanRow{
@@ -155,7 +175,7 @@ func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, er
 			Text:         branchText + text,
 			RowsTotal:    planNode.ExecutionStats.Rows.Total,
 			Execution:    planNode.ExecutionStats.ExecutionSummary.NumExecutions,
-			LatencyTotal: fmt.Sprintf("%s %s", planNode.ExecutionStats.Latency.Total, planNode.ExecutionStats.Latency.Unit),
+			LatencyTotal: planNode.ExecutionStats.Latency.String(),
 		})
 	}
 	return result, nil

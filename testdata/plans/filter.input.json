@@ -1,0 +1,277 @@
+{
+  "planNodes": [
+    {
+      "childLinks": [
+        {
+          "childIndex": 1
+        },
+        {
+          "childIndex": 22
+        }
+      ],
+      "displayName": "Serialize Result",
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 2
+        },
+        {
+          "childIndex": 19,
+          "type": "Condition"
+        }
+      ],
+      "displayName": "Filter",
+      "index": 1,
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 3
+        },
+        {
+          "childIndex": 18,
+          "type": "Limit"
+        }
+      ],
+      "displayName": "Limit",
+      "index": 2,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Global"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 4
+        },
+        {
+          "childIndex": 15,
+          "type": "Split Range"
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 3,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "subquery_cluster_node": "4"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 5
+        },
+        {
+          "childIndex": 14,
+          "type": "Limit"
+        }
+      ],
+      "displayName": "Limit",
+      "index": 4,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 6
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 5,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local",
+        "subquery_cluster_node": "6"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 7
+        },
+        {
+          "childIndex": 13,
+          "type": "Seek Condition"
+        }
+      ],
+      "displayName": "FilterScan",
+      "index": 6,
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 8,
+          "variable": "FirstName"
+        },
+        {
+          "childIndex": 9,
+          "variable": "LastName"
+        }
+      ],
+      "displayName": "Scan",
+      "index": 7,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "scan_target": "SingersByFirstLastName",
+        "scan_type": "IndexScan"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 8,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "FirstName"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 9,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "LastName"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 11
+        },
+        {
+          "childIndex": 12
+        }
+      ],
+      "displayName": "Function",
+      "index": 10,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "STARTS_WITH($FirstName, 'A')"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 11,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$FirstName"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 12,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "'A'"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 10
+        }
+      ],
+      "displayName": "Function",
+      "index": 13,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "STARTS_WITH($FirstName, 'A')"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 14,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "3"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 16
+        },
+        {
+          "childIndex": 17
+        }
+      ],
+      "displayName": "Function",
+      "index": 15,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "STARTS_WITH($FirstName, 'A')"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 16,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$FirstName"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 17,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "'A'"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 18,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "3"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 20
+        },
+        {
+          "childIndex": 21
+        }
+      ],
+      "displayName": "Function",
+      "index": 19,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "STARTS_WITH($LastName, 'Rich')"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 20,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$LastName"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 21,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "'Rich'"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 22,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$LastName"
+      }
+    }
+  ]
+}
