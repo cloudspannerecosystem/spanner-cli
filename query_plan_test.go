@@ -30,42 +30,42 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 			// Original Query:
 			// SELECT s.LastName FROM (SELECT s.LastName FROM Singers AS s WHERE s.FirstName LIKE 'A%' LIMIT 3) s WHERE s.LastName LIKE 'Rich%';
 			title: "With Filter Operator",
-			file: "testdata/plans/filter.input.json",
+			file:  "testdata/plans/filter.input.json",
 			want: []QueryPlanRow{
 				{
-					ID:           0,
-					Text:         "Serialize Result",
+					ID:   0,
+					Text: "Serialize Result",
 				},
 				{
-					ID:           1,
-					Text:         "+- Filter",
+					ID:         1,
+					Text:       "+- Filter",
 					Predicates: []string{"Condition: STARTS_WITH($LastName, 'Rich')"},
 				},
 				{
-					ID:           2,
-					Text:         "   +- Global Limit",
+					ID:   2,
+					Text: "   +- Global Limit",
 				},
 				{
-					ID:           3,
-					Text:         "      +- Distributed Union",
+					ID:         3,
+					Text:       "      +- Distributed Union",
 					Predicates: []string{"Split Range: STARTS_WITH($FirstName, 'A')"},
 				},
 				{
-					ID:           4,
-					Text:         "         +- Local Limit",
+					ID:   4,
+					Text: "         +- Local Limit",
 				},
 				{
-					ID:           5,
-					Text:         "            +- Local Distributed Union",
+					ID:   5,
+					Text: "            +- Local Distributed Union",
 				},
 				{
-					ID:           6,
-					Text:         "               +- FilterScan",
+					ID:         6,
+					Text:       "               +- FilterScan",
 					Predicates: []string{"Seek Condition: STARTS_WITH($FirstName, 'A')"},
 				},
 				{
-					ID:           7,
-					Text:         "                  +- Index Scan (Index: SingersByFirstLastName)",
+					ID:   7,
+					Text: "                  +- Index Scan (Index: SingersByFirstLastName)",
 				},
 			}},
 	} {
