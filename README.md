@@ -161,7 +161,9 @@ The syntax is case-insensitive.
 | DML | `INSERT / UPDATE / DELETE ...;` | |
 | Partitioned DML | | Not supported yet |
 | Show Query Execution Plan | `EXPLAIN SELECT ...;` | |
+| Show DML Execution Plan | `EXPLAIN INSERT / UPDATE / DELETE ...;` | EXPERIMENTAL |
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | EXPERIMENTAL |
+| Show DML Execution Plan with Stats | `EXPLAIN ANALYZE INSERT / UPDATE / DELETE ...;` | EXPERIMENTAL |
 | Start Read-Write Transaction | `BEGIN (RW);` | |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |

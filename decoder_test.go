@@ -17,6 +17,7 @@
 package main
 
 import (
+	"math/big"
 	"testing"
 	"time"
 
@@ -95,6 +96,11 @@ func TestDecodeColumn(t *testing.T) {
 			want:  "123",
 		},
 		{
+			desc:  "numeric",
+			value: big.NewRat(123, 100),
+			want:  "1.23",
+		},
+		{
 			desc:  "string",
 			value: "foo",
 			want:  "foo",
@@ -129,6 +135,11 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null int64",
 			value: spanner.NullInt64{Int64: 0, Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null numeric",
+			value: spanner.NullNumeric{Numeric: big.Rat{}, Valid: false},
 			want:  "NULL",
 		},
 		{
@@ -172,6 +183,11 @@ func TestDecodeColumn(t *testing.T) {
 			desc:  "array int64",
 			value: []int64{123, 456},
 			want:  "[123, 456]",
+		},
+		{
+			desc:  "array numeric",
+			value: []*big.Rat{big.NewRat(123, 100), big.NewRat(456, 1)},
+			want:  "[1.23, 456]",
 		},
 		{
 			desc:  "array string",
@@ -225,6 +241,11 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null array int64",
 			value: []int64(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array numeric",
+			value: []*big.Rat(nil),
 			want:  "NULL",
 		},
 		{
