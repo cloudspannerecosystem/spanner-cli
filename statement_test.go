@@ -115,6 +115,36 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"},
 		},
 		{
+			desc:  "EXPLAIN INSERT statement",
+			input: "EXPLAIN INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
+			want:  &ExplainDmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
+		},
+		{
+			desc:  "EXPLAIN UPDATE statement",
+			input: "EXPLAIN UPDATE t1 SET name = hello WHERE id = 1",
+			want:  &ExplainDmlStatement{Dml: "UPDATE t1 SET name = hello WHERE id = 1"},
+		},
+		{
+			desc:  "EXPLAIN DELETE statement",
+			input: "EXPLAIN DELETE FROM t1 WHERE id = 1",
+			want:  &ExplainDmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"},
+		},
+		{
+			desc:  "EXPLAIN ANALYZE INSERT statement",
+			input: "EXPLAIN ANALYZE INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
+			want:  &ExplainAnalyzeDmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
+		},
+		{
+			desc:  "EXPLAIN ANALYZE UPDATE statement",
+			input: "EXPLAIN ANALYZE UPDATE t1 SET name = hello WHERE id = 1",
+			want:  &ExplainAnalyzeDmlStatement{Dml: "UPDATE t1 SET name = hello WHERE id = 1"},
+		},
+		{
+			desc:  "EXPLAIN ANALYZE DELETE statement",
+			input: "EXPLAIN ANALYZE DELETE FROM t1 WHERE id = 1",
+			want:  &ExplainAnalyzeDmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"},
+		},
+		{
 			desc:  "BEGIN statement",
 			input: "BEGIN",
 			want:  &BeginRwStatement{},

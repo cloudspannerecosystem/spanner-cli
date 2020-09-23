@@ -75,9 +75,7 @@ var (
 	dropIndexRe      = regexp.MustCompile(`(?is)^DROP\s+INDEX\s.+$`)
 
 	// DML
-	insertRe = regexp.MustCompile(`(?is)^INSERT\s+.+$`)
-	updateRe = regexp.MustCompile(`(?is)^UPDATE\s+.+$`)
-	deleteRe = regexp.MustCompile(`(?is)^DELETE\s+.+$`)
+	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
 
 	// Transaction
 	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
@@ -94,8 +92,12 @@ var (
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
-	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+((?:WITH|@{.+|SELECT)\s+.+)$`)
-	explainAnalyzeRe  = regexp.MustCompile(`(?is)^EXPLAIN\s+ANALYZE\s+(.+)$`)
+	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(ANALYZE\s+)?(.+)$`)
+)
+
+var (
+	explainColumnNames = []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"}
+	explainAnalyzeColumnNames = []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"}
 )
 
 func BuildStatement(input string) (Statement, error) {
@@ -131,21 +133,25 @@ func BuildStatement(input string) (Statement, error) {
 		return &ShowTablesStatement{}, nil
 	case explainRe.MatchString(input):
 		matched := explainRe.FindStringSubmatch(input)
-		return &ExplainStatement{Explain: matched[1]}, nil
-	case explainAnalyzeRe.MatchString(input):
-		matched := explainAnalyzeRe.FindStringSubmatch(input)
-		return &ExplainAnalyzeStatement{Query: matched[1]}, nil
+		isAnalyze := matched[1] != ""
+		isDML := dmlRe.MatchString(matched[2])
+		switch {
+		case isAnalyze && isDML:
+			return &ExplainAnalyzeDmlStatement{Dml: matched[2]}, nil
+		case isAnalyze:
+			return &ExplainAnalyzeStatement{Query: matched[2]}, nil
+		case isDML:
+			return &ExplainDmlStatement{Dml: matched[2]}, nil
+		default:
+			return &ExplainStatement{Explain: matched[2]}, nil
+		}
 	case showColumnsRe.MatchString(input):
 		matched := showColumnsRe.FindStringSubmatch(input)
 		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showIndexRe.MatchString(input):
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
-	case insertRe.MatchString(input):
-		return &DmlStatement{Dml: input}, nil
-	case updateRe.MatchString(input):
-		return &DmlStatement{Dml: input}, nil
-	case deleteRe.MatchString(input):
+	case dmlRe.MatchString(input):
 		return &DmlStatement{Dml: input}, nil
 	case beginRwRe.MatchString(input):
 		return &BeginRwStatement{}, nil
@@ -464,7 +470,7 @@ func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames:  []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"},
+		ColumnNames:  explainColumnNames,
 		AffectedRows: 1,
 		Rows:         rows,
 		Predicates:   predicates,
@@ -524,7 +530,7 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	result := &Result{
-		ColumnNames:  []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"},
+		ColumnNames:  explainAnalyzeColumnNames,
 		ForceVerbose: true,
 		AffectedRows: rowsReturned,
 		Stats:        queryStats,
@@ -731,6 +737,108 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	result.AffectedRows = int(numRows)
 
 	return result, nil
+}
+
+type ExplainDmlStatement struct {
+	Dml string
+}
+
+func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
+	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
+		plan, err := session.rwTxn.AnalyzeQuery(session.ctx, spanner.NewStatement(s.Dml))
+		return 0, plan, err
+	} )
+	if err != nil {
+		return nil, err
+	}
+
+	rows, predicates, err := processPlanWithoutStats(queryPlan)
+	if err != nil {
+		return nil, err
+	}
+	result := &Result{
+		IsMutation:   true,
+		ColumnNames:  explainColumnNames,
+		AffectedRows: 0,
+		Rows:         rows,
+		Predicates:   predicates,
+		Timestamp:    timestamp,
+	}
+
+	return result, nil
+}
+
+type ExplainAnalyzeDmlStatement struct {
+	Dml string
+}
+
+func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) {
+	stmt := spanner.NewStatement(s.Dml)
+
+	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
+		iter := session.rwTxn.QueryWithStats(session.ctx, stmt)
+		defer iter.Stop()
+		err := iter.Do(func(r *spanner.Row) error { return nil })
+		if err != nil {
+			return 0, nil, err
+		}
+		return iter.RowCount, iter.QueryPlan, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	rows, predicates, err := processPlanWithStats(queryPlan)
+	if err != nil {
+		return nil, err
+	}
+	result := &Result{
+		IsMutation:   true,
+		ColumnNames:  explainAnalyzeColumnNames,
+		ForceVerbose: true,
+		AffectedRows: int(affectedRows),
+		Rows:         rows,
+		Predicates:   predicates,
+		Timestamp:    timestamp,
+	}
+
+	return result, nil
+}
+
+// runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
+// It execute a function in the current RW transaction or an implicit RW transaction.
+func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
+	if session.InRwTxn() {
+		affected, plan, err := f()
+		if err != nil {
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return 0, time.Time{}, nil, fmt.Errorf("transaction was aborted: %v", err)
+		}
+		return affected, time.Time{}, plan, nil
+	} else {
+		// Start implicit transaction.
+		begin := BeginRwStatement{}
+		if _, err := begin.Execute(session); err != nil {
+			return 0, time.Time{}, nil, err
+		}
+
+		affected, plan, err := f()
+		if err != nil {
+			// once error has happened, escape from implicit transaction
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+			return 0, time.Time{}, nil, err
+		}
+
+		commit := CommitStatement{}
+		txnResult, err := commit.Execute(session)
+		if err != nil {
+			return 0, time.Time{}, nil, err
+		}
+		return affected, txnResult.Timestamp, plan, nil
+	}
 }
 
 type BeginRwStatement struct{}
