@@ -72,12 +72,12 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 		t.Run(test.title, func(t *testing.T) {
 			b, err := ioutil.ReadFile(test.file)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			var plan pb.QueryPlan
 			err = protojson.Unmarshal(b, &plan)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			tree := BuildQueryPlanTree(&plan, 0)
 			got, err := tree.RenderTreeWithStats(plan.GetPlanNodes())
