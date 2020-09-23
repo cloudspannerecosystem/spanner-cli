@@ -92,6 +92,17 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			for _, v := range vs {
 				decoded = append(decoded, nullInt64ToString(v))
 			}
+		case sppb.TypeCode_NUMERIC:
+			var vs []spanner.NullNumeric
+			if err := column.Decode(&vs); err != nil {
+				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
+			}
+			for _, v := range vs {
+				decoded = append(decoded, nullNumericToString(v))
+			}
 		case sppb.TypeCode_STRING:
 			var vs []spanner.NullString
 			if err := column.Decode(&vs); err != nil {
@@ -168,6 +179,12 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			return "", err
 		}
 		return nullInt64ToString(v), nil
+	case sppb.TypeCode_NUMERIC:
+		var v spanner.NullNumeric
+		if err := column.Decode(&v); err != nil {
+			return "", err
+		}
+		return nullNumericToString(v), nil
 	case sppb.TypeCode_STRING:
 		var v spanner.NullString
 		if err := column.Decode(&v); err != nil {
@@ -218,6 +235,16 @@ func nullFloat64ToString(v spanner.NullFloat64) string {
 func nullInt64ToString(v spanner.NullInt64) string {
 	if v.Valid {
 		return fmt.Sprintf("%d", v.Int64)
+	} else {
+		return "NULL"
+	}
+}
+
+func nullNumericToString(v spanner.NullNumeric) string {
+	if v.Valid {
+		s := v.Numeric.FloatString(spanner.NumericScaleDigits)
+		s = strings.TrimRight(s, "0")     // trim trailing 0: 123.000000000 => 123.
+		return strings.TrimSuffix(s, ".") // trim unused dot: 123. => 123
 	} else {
 		return "NULL"
 	}
