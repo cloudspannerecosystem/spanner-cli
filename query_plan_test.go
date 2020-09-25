@@ -68,6 +68,46 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					Text: "                  +- Index Scan (Index: SingersByFirstLastName)",
 				},
 			}},
+		{
+			/*
+				Original Query:
+				SELECT a.AlbumTitle, s.SongName
+				FROM Albums AS a HASH JOIN Songs AS s
+				ON a.SingerId = s.SingerId AND a.AlbumId = s.AlbumId;
+			*/
+			title: "Hash Join",
+			file:  "testdata/plans/hash_join.input.json",
+			want: []QueryPlanRow{
+				{
+					ID:   0,
+					Text: "Distributed Union",
+				},
+				{
+					ID:         1,
+					Text:       "+- Serialize Result",
+				},
+				{
+					ID:   2,
+					Text: "   +- Hash Join (join_type: INNER)",
+					Predicates: []string{"Condition: (($SingerId = $SingerId_1) AND ($AlbumId = $AlbumId_1))"},
+				},
+				{
+					ID:         3,
+					Text:       "      +- [Build] Local Distributed Union",
+				},
+				{
+					ID:   4,
+					Text: "      |  +- Table Scan (Full scan: true, Table: Albums)",
+				},
+				{
+					ID:   8,
+					Text: "      +- [Probe] Local Distributed Union",
+				},
+				{
+					ID:         9,
+					Text:       "         +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
+				},
+			}},
 	} {
 		t.Run(test.title, func(t *testing.T) {
 			b, err := ioutil.ReadFile(test.file)
