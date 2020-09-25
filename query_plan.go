@@ -121,7 +121,7 @@ type QueryPlanRow struct {
 }
 
 func isPredicate(planNodes []*pb.PlanNode, childLink *pb.PlanNode_ChildLink) bool {
-	// Known predicates are Condition(Filter) or Seek Condition/Residual Condition(FilterScan) or Split Range(Distributed Union).
+	// Known predicates are Condition(Filter/Hash Join) or Seek Condition/Residual Condition(FilterScan) or Split Range(Distributed Union).
 	// Agg is a Function but not a predicate.
 	child := planNodes[childLink.ChildIndex]
 	if child.DisplayName != "Function" {
