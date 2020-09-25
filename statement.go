@@ -96,7 +96,7 @@ var (
 )
 
 var (
-	explainColumnNames = []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"}
+	explainColumnNames        = []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"}
 	explainAnalyzeColumnNames = []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"}
 )
 
@@ -747,7 +747,7 @@ func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
 		plan, err := session.rwTxn.AnalyzeQuery(session.ctx, spanner.NewStatement(s.Dml))
 		return 0, plan, err
-	} )
+	})
 	if err != nil {
 		return nil, err
 	}

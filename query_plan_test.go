@@ -83,17 +83,17 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					Text: "Distributed Union",
 				},
 				{
-					ID:         1,
-					Text:       "+- Serialize Result",
+					ID:   1,
+					Text: "+- Serialize Result",
 				},
 				{
-					ID:   2,
-					Text: "   +- Hash Join (join_type: INNER)",
+					ID:         2,
+					Text:       "   +- Hash Join (join_type: INNER)",
 					Predicates: []string{"Condition: (($SingerId = $SingerId_1) AND ($AlbumId = $AlbumId_1))"},
 				},
 				{
-					ID:         3,
-					Text:       "      +- [Build] Local Distributed Union",
+					ID:   3,
+					Text: "      +- [Build] Local Distributed Union",
 				},
 				{
 					ID:   4,
@@ -104,8 +104,8 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					Text: "      +- [Probe] Local Distributed Union",
 				},
 				{
-					ID:         9,
-					Text:       "         +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
+					ID:   9,
+					Text: "         +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 				},
 			}},
 	} {
