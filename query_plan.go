@@ -270,7 +270,12 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 		} else {
 			branch = tree.AddBranch(str)
 		}
-		for _, child := range node.Children {
+		for i, child := range node.Children {
+			// Serialize Result with scalar subqueries can have duplicate children
+			// so process only the first child and children have Scalar type.
+			if node.PlanNode.DisplayName == "Serialize Result" && !(i == 0 || child.Type == "Scalar") {
+				continue
+			}
 			renderTreeWithStats(branch, child.Type, child.Dest)
 		}
 	} else {
