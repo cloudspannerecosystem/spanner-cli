@@ -1,0 +1,371 @@
+{
+  "planNodes": [
+    {
+      "childLinks": [
+        {
+          "childIndex": 1
+        },
+        {
+          "childIndex": 28,
+          "type": "Split Range"
+        }
+      ],
+      "displayName": "Distributed Union",
+      "kind": "RELATIONAL",
+      "metadata": {
+        "subquery_cluster_node": "1"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 2
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 1,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local",
+        "subquery_cluster_node": "2"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 3
+        },
+        {
+          "childIndex": 5
+        },
+        {
+          "childIndex": 6
+        },
+        {
+          "childIndex": 10,
+          "type": "Scalar"
+        }
+      ],
+      "displayName": "Serialize Result",
+      "index": 2,
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 4,
+          "variable": "FirstName"
+        }
+      ],
+      "displayName": "Scan",
+      "index": 3,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "Full scan": "true",
+        "scan_target": "SingersByFirstLastName",
+        "scan_type": "IndexScan"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 4,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "FirstName"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 5,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$FirstName"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 7
+        },
+        {
+          "childIndex": 10
+        },
+        {
+          "childIndex": 27
+        }
+      ],
+      "displayName": "Function",
+      "index": 6,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "IF(($FirstName = 'Alice'), $sv_1, 0)",
+        "subqueries": {
+          "$sv_1": 10
+        }
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 8
+        },
+        {
+          "childIndex": 9
+        }
+      ],
+      "displayName": "Function",
+      "index": 7,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "($FirstName = 'Alice')"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 8,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$FirstName"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 9,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "'Alice'"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 11
+        },
+        {
+          "childIndex": 26
+        }
+      ],
+      "displayName": "Scalar Subquery",
+      "index": 10,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$sv_1"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 12
+        },
+        {
+          "childIndex": 24,
+          "type": "Agg",
+          "variable": "agg1"
+        }
+      ],
+      "displayName": "Aggregate",
+      "index": 11,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Global",
+        "iterator_type": "Stream",
+        "scalar_aggregate": "true"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 13
+        },
+        {
+          "childIndex": 23,
+          "type": "Split Range"
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 12,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "subquery_cluster_node": "13"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 14
+        },
+        {
+          "childIndex": 22,
+          "type": "Agg",
+          "variable": "v1"
+        }
+      ],
+      "displayName": "Aggregate",
+      "index": 13,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local",
+        "iterator_type": "Stream",
+        "scalar_aggregate": "true"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 15
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 14,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local",
+        "subquery_cluster_node": "15"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 16
+        },
+        {
+          "childIndex": 21,
+          "type": "Residual Condition"
+        }
+      ],
+      "displayName": "FilterScan",
+      "index": 15,
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 17,
+          "variable": "Duration"
+        }
+      ],
+      "displayName": "Scan",
+      "index": 16,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "Full scan": "true",
+        "scan_target": "Songs",
+        "scan_type": "TableScan"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 17,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "Duration"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 19
+        },
+        {
+          "childIndex": 20
+        }
+      ],
+      "displayName": "Function",
+      "index": 18,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "($Duration > 300)"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 19,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$Duration"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 20,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "300"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 18
+        }
+      ],
+      "displayName": "Function",
+      "index": 21,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "($Duration > 300)"
+      }
+    },
+    {
+      "displayName": "Function",
+      "index": 22,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "COUNT()"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 23,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "true"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 25
+        }
+      ],
+      "displayName": "Function",
+      "index": 24,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "COUNT_FINAL($v1)"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 25,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$v1"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 26,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$agg1"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 27,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "0"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 28,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "true"
+      }
+    }
+  ]
+}

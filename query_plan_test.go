@@ -108,6 +108,118 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					Text: "         +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 				},
 			}},
+		{
+			/*
+				Original Query: https://cloud.google.com/spanner/docs/query-execution-operators?hl=en#array_subqueries
+				SELECT a.AlbumId,
+				ARRAY(SELECT ConcertDate
+				      FROM Concerts
+				      WHERE Concerts.SingerId = a.SingerId)
+				FROM Albums AS a;
+			*/
+			title: "Array Subqueries",
+			file:  "testdata/plans/array_subqueries.input.json",
+			want: []QueryPlanRow{
+				{
+					ID:   0,
+					Text: "Distributed Union",
+				},
+				{
+					ID:   1,
+					Text: "+- Local Distributed Union",
+				},
+				{
+					ID:   2,
+					Text: "   +- Serialize Result",
+				},
+				{
+					ID:   3,
+					Text: "      +- Index Scan (Full scan: true, Index: AlbumsByAlbumTitle)",
+				},
+				{
+					ID:   7,
+					Text: "      +- [Scalar] Array Subquery",
+				},
+				{
+					ID:         8,
+					Text:       "         +- Distributed Union",
+					Predicates: []string{"Split Range: ($SingerId_1 = $SingerId)"},
+				},
+				{
+					ID:   9,
+					Text: "            +- Local Distributed Union",
+				},
+				{
+					ID:         10,
+					Text:       "               +- FilterScan",
+					Predicates: []string{"Seek Condition: ($SingerId_1 = $SingerId)"},
+				},
+				{
+					ID:   11,
+					Text: "                  +- Index Scan (Index: ConcertsBySingerId)",
+				},
+			}},
+		{
+			/*
+				Original Query: https://cloud.google.com/spanner/docs/query-execution-operators?hl=en#scalar_subqueries
+				SELECT FirstName,
+				IF(FirstName='Alice',
+				   (SELECT COUNT(*)
+				    FROM Songs
+				    WHERE Duration > 300),
+				   0)
+				FROM Singers;
+			*/
+			title: "Scalar Subqueries",
+			file:  "testdata/plans/scalar_subqueries.input.json",
+			want: []QueryPlanRow{
+				{
+					Text: "Distributed Union",
+				},
+				{
+					ID:   1,
+					Text: "+- Local Distributed Union",
+				},
+				{
+					ID:   2,
+					Text: "   +- Serialize Result",
+				},
+				{
+					ID:   3,
+					Text: "      +- Index Scan (Full scan: true, Index: SingersByFirstLastName)",
+				},
+				{
+					ID:   10,
+					Text: "      +- [Scalar] Scalar Subquery",
+				},
+				{
+					ID:   11,
+					Text: "         +- Global Stream Aggregate (scalar_aggregate: true)",
+				},
+				{
+					ID:   12,
+					Text: "            +- Distributed Union",
+				},
+				{
+					ID:   13,
+					Text: "               +- Local Stream Aggregate (scalar_aggregate: true)",
+				},
+				{
+					ID:   14,
+					Text: "                  +- Local Distributed Union",
+				},
+				{
+					ID:   15,
+					Text: "                     +- FilterScan",
+					Predicates: []string{
+						"Residual Condition: ($Duration > 300)",
+					},
+				},
+				{
+					ID:   16,
+					Text: "                        +- Table Scan (Full scan: true, Table: Songs)",
+				},
+			}},
 	} {
 		t.Run(test.title, func(t *testing.T) {
 			b, err := ioutil.ReadFile(test.file)
