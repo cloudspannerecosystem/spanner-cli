@@ -1,0 +1,287 @@
+{
+  "planNodes": [
+    {
+      "childLinks": [
+        {
+          "childIndex": 1
+        },
+        {
+          "childIndex": 22,
+          "type": "Split Range"
+        }
+      ],
+      "displayName": "Distributed Union",
+      "kind": "RELATIONAL",
+      "metadata": {
+        "subquery_cluster_node": "1"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 2
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 1,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local",
+        "subquery_cluster_node": "2"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 3
+        },
+        {
+          "childIndex": 6
+        },
+        {
+          "childIndex": 7
+        },
+        {
+          "childIndex": 7,
+          "type": "Scalar"
+        }
+      ],
+      "displayName": "Serialize Result",
+      "index": 2,
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 4,
+          "variable": "AlbumId"
+        },
+        {
+          "childIndex": 5,
+          "variable": "SingerId"
+        }
+      ],
+      "displayName": "Scan",
+      "index": 3,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "Full scan": "true",
+        "scan_target": "AlbumsByAlbumTitle",
+        "scan_type": "IndexScan"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 4,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "AlbumId"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 5,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "SingerId"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 6,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$AlbumId"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 8
+        },
+        {
+          "childIndex": 21
+        }
+      ],
+      "displayName": "Array Subquery",
+      "index": 7,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$sv_1"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 9
+        },
+        {
+          "childIndex": 18,
+          "type": "Split Range"
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 8,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "subquery_cluster_node": "9"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 10
+        }
+      ],
+      "displayName": "Distributed Union",
+      "index": 9,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "call_type": "Local",
+        "subquery_cluster_node": "10"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 11
+        },
+        {
+          "childIndex": 17,
+          "type": "Seek Condition"
+        }
+      ],
+      "displayName": "FilterScan",
+      "index": 10,
+      "kind": "RELATIONAL"
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 12,
+          "variable": "ConcertDate"
+        },
+        {
+          "childIndex": 13,
+          "variable": "SingerId_1"
+        }
+      ],
+      "displayName": "Scan",
+      "index": 11,
+      "kind": "RELATIONAL",
+      "metadata": {
+        "scan_target": "ConcertsBySingerId",
+        "scan_type": "IndexScan"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 12,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "ConcertDate"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 13,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "SingerId"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 15
+        },
+        {
+          "childIndex": 16
+        }
+      ],
+      "displayName": "Function",
+      "index": 14,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "($SingerId_1 = $SingerId)"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 15,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$SingerId_1"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 16,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$SingerId"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 14
+        }
+      ],
+      "displayName": "Function",
+      "index": 17,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "($SingerId_1 = $SingerId)"
+      }
+    },
+    {
+      "childLinks": [
+        {
+          "childIndex": 19
+        },
+        {
+          "childIndex": 20
+        }
+      ],
+      "displayName": "Function",
+      "index": 18,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "($SingerId_1 = $SingerId)"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 19,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$SingerId_1"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 20,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$SingerId"
+      }
+    },
+    {
+      "displayName": "Reference",
+      "index": 21,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "$ConcertDate"
+      }
+    },
+    {
+      "displayName": "Constant",
+      "index": 22,
+      "kind": "SCALAR",
+      "shortRepresentation": {
+        "description": "true"
+      }
+    }
+  ]
+}
