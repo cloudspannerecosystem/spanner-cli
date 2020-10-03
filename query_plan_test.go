@@ -494,7 +494,7 @@ func TestNodeString(t *testing.T) {
 	}
 }
 
-func TestGetMaxVisibleNodeID(t *testing.T) {
+func TestGetMaxRelationalNodeID(t *testing.T) {
 	for _, tt := range []struct {
 		desc  string
 		input *pb.QueryPlan
