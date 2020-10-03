@@ -222,6 +222,7 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 			}},
 		{
 			/*
+				Original Query:
 				SELECT si.*,
 				  ARRAY(SELECT AS STRUCT a.*,
 				        ARRAY(SELECT AS STRUCT so.*
@@ -294,6 +295,73 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 				{
 					ID:   35,
 					Text: "                           +- Table Scan (Table: Songs)",
+				},
+			},
+		},
+		{
+			/*
+				Original Query:
+				SELECT so.* FROM Songs so
+				WHERE IF(so.SongGenre = "ROCKS", TRUE, EXISTS(SELECT * FROM Concerts c WHERE c.SingerId = so.SingerId))
+			*/
+			title: "Scalar Subquery with FilterScan",
+			file:  "testdata/plans/scalar_subquery_with_filter_scan.input.json",
+			want: []QueryPlanRow{
+				{
+					Text: "Distributed Union",
+				},
+				{
+					ID:   1,
+					Text: "+- Local Distributed Union",
+				},
+				{
+					ID:   2,
+					Text: "   +- Serialize Result",
+				},
+				{
+					ID:   3,
+					Text: "      +- FilterScan",
+					Predicates: []string{
+						"Residual Condition: IF(($SongGenre = 'ROCKS'), true, $sv_1)",
+					},
+				},
+				{
+					ID:   4,
+					Text: "         +- Table Scan (Full scan: true, Table: Songs)",
+				},
+				{
+					ID:   16,
+					Text: "         +- [Scalar] Scalar Subquery",
+				},
+				{
+					ID:   17,
+					Text: "            +- Global Stream Aggregate (scalar_aggregate: true)",
+				},
+				{
+					ID:   18,
+					Text: "               +- Distributed Union",
+					Predicates: []string{
+						"Split Range: ($SingerId_1 = $SingerId)",
+					},
+				},
+				{
+					ID:   19,
+					Text: "                  +- Local Stream Aggregate (scalar_aggregate: true)",
+				},
+				{
+					ID:   20,
+					Text: "                     +- Local Distributed Union",
+				},
+				{
+					ID:   21,
+					Text: "                        +- FilterScan",
+					Predicates: []string{
+						"Seek Condition: ($SingerId_1 = $SingerId)",
+					},
+				},
+				{
+					ID:   22,
+					Text: "                           +- Index Scan (Index: ConcertsBySingerId)",
 				},
 			},
 		},
