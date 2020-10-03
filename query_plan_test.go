@@ -220,6 +220,83 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					Text: "                        +- Table Scan (Full scan: true, Table: Songs)",
 				},
 			}},
+		{
+			/*
+				SELECT si.*,
+				  ARRAY(SELECT AS STRUCT a.*,
+				        ARRAY(SELECT AS STRUCT so.*
+				              FROM Songs so
+				              WHERE a.SingerId = so.SingerId AND a.AlbumId = so.AlbumId)
+				        FROM Albums a
+				        WHERE a.SingerId = si.SingerId)
+				FROM Singers si;
+			*/
+			title: "Array Subquery with Compute Struct",
+			file:  "testdata/plans/array_subqueries_with_compute_struct.input.json",
+			want: []QueryPlanRow{
+				{
+					Text: "Distributed Union",
+				},
+				{
+					ID:   1,
+					Text: "+- Local Distributed Union",
+				},
+				{
+					ID:   2,
+					Text: "   +- Serialize Result",
+				},
+				{
+					ID:   3,
+					Text: "      +- Table Scan (Full scan: true, Table: Singers)",
+				},
+				{
+					ID:   14,
+					Text: "      +- [Scalar] Array Subquery",
+				},
+				{
+					ID:   15,
+					Text: "         +- Local Distributed Union",
+				},
+				{
+					ID:   16,
+					Text: "            +- Compute Struct",
+				},
+				{
+					ID:   17,
+					Text: "               +- FilterScan",
+					Predicates: []string{
+						"Seek Condition: ($SingerId_1 = $SingerId)",
+					},
+				},
+				{
+					ID:   18,
+					Text: "               |  +- Table Scan (Table: Albums)",
+				},
+				{
+					ID:   31,
+					Text: "               +- [Scalar] Array Subquery",
+				},
+				{
+					ID:   32,
+					Text: "                  +- Local Distributed Union",
+				},
+				{
+					ID:   33,
+					Text: "                     +- Compute Struct",
+				},
+				{
+					ID:   34,
+					Text: "                        +- FilterScan",
+					Predicates: []string{
+						"Seek Condition: (($SingerId_2 = $SingerId_1) AND ($AlbumId_1 = $AlbumId))",
+					},
+				},
+				{
+					ID:   35,
+					Text: "                           +- Table Scan (Table: Songs)",
+				},
+			},
+		},
 	} {
 		t.Run(test.title, func(t *testing.T) {
 			b, err := ioutil.ReadFile(test.file)
@@ -427,17 +504,18 @@ func TestGetMaxVisibleNodeID(t *testing.T) {
 			desc: "pre-sorted order",
 			input: &pb.QueryPlan{
 				PlanNodes: []*pb.PlanNode{
-					{Index: 1, DisplayName: "Index Scan"},
-					{Index: 2, DisplayName: "Index Scan"},
-					{Index: 3, DisplayName: "Index Scan"},
-					{Index: 4, DisplayName: "Constant"}, // This is not visible
+					{Index: 0, DisplayName: "Scalar Subquery", Kind: pb.PlanNode_SCALAR},
+					{Index: 1, DisplayName: "Index Scan", Kind: pb.PlanNode_RELATIONAL},
+					{Index: 2, DisplayName: "Index Scan", Kind: pb.PlanNode_RELATIONAL},
+					{Index: 3, DisplayName: "Index Scan", Kind: pb.PlanNode_RELATIONAL},
+					{Index: 4, DisplayName: "Constant", Kind: pb.PlanNode_SCALAR}, // This is not visible
 				},
 			},
 			want: 3,
 		},
 	} {
-		if got := getMaxVisibleNodeID(tt.input); got != tt.want {
-			t.Errorf("getMaxVisibleNodeID(%s) = %d, but want = %d", tt.input, got, tt.want)
+		if got := getMaxRelationalNodeID(tt.input); got != tt.want {
+			t.Errorf("getMaxRelationalNodeID(%s) = %d, but want = %d", tt.input, got, tt.want)
 		}
 	}
 }
