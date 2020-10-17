@@ -685,7 +685,7 @@ func TestTruncateTable(t *testing.T) {
 
 	// We don't use the TRUNCATE TABLE's result since PartitionedUpdate may return estimated affected row counts.
 	// Instead, we check if rows are remained in the table.
-	var count int
+	var count int64
 	countStmt := spanner.NewStatement(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableId))
 	if err := session.client.Single().Query(ctx, countStmt).Do(func(r *spanner.Row) error {
 		return r.Column(0, &count)
