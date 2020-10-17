@@ -392,11 +392,18 @@ func resultLine(result *Result, verbose bool) string {
 	}
 
 	if result.IsMutation {
-		if verbose && timestamp != "" {
-			return fmt.Sprintf("Query OK, %d rows affected (%s)\ntimestamp: %s\n", result.AffectedRows,
-				result.Stats.ElapsedTime, timestamp)
+		var affectedRowsPrefix string
+		if result.AffectedRowsType == rowCountTypeLowerBound {
+			// For Partitioned DML the result's row count is lower bounded number, so we add "at least" to express ambiguity.
+			// See https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1?hl=en#resultsetstats
+			affectedRowsPrefix = "at least "
 		}
-		return fmt.Sprintf("Query OK, %d rows affected (%s)\n", result.AffectedRows, result.Stats.ElapsedTime)
+		if verbose && timestamp != "" {
+			return fmt.Sprintf("Query OK, %s%d rows affected (%s)\ntimestamp: %s\n",
+				affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime, timestamp)
+		}
+		return fmt.Sprintf("Query OK, %s%d rows affected (%s)\n",
+			affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime)
 	}
 
 	var set string
