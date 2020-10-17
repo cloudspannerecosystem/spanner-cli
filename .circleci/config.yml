@@ -3,7 +3,7 @@ jobs:
   build:
     docker:
       - image: circleci/golang:1.14
-      - image: gcr.io/cloud-spanner-emulator/emulator:0.7.3
+      - image: gcr.io/cloud-spanner-emulator/emulator:1.1.1
     steps:
       - checkout
       - run: go mod download

@@ -73,6 +73,7 @@ var (
 	dropTableRe      = regexp.MustCompile(`(?is)^DROP\s+TABLE\s.+$`)
 	createIndexRe    = regexp.MustCompile(`(?is)^CREATE\s+(UNIQUE\s+)?(NULL_FILTERED\s+)?INDEX\s.+$`)
 	dropIndexRe      = regexp.MustCompile(`(?is)^DROP\s+INDEX\s.+$`)
+	truncateTableRe  = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
 
 	// DML
 	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
@@ -124,6 +125,9 @@ func BuildStatement(input string) (Statement, error) {
 		return &DdlStatement{Ddl: input}, nil
 	case dropIndexRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
+	case truncateTableRe.MatchString(input):
+		matched := truncateTableRe.FindStringSubmatch(input)
+		return &TruncateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showDatabasesRe.MatchString(input):
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):
@@ -689,6 +693,31 @@ WHERE
 		ColumnNames:  columnNames,
 		Rows:         rows,
 		AffectedRows: len(rows),
+	}, nil
+}
+
+type TruncateTableStatement struct {
+	Table string
+}
+
+func (s *TruncateTableStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
+		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-write transaction`)
+	}
+	if session.InRoTxn() {
+		// Just for user-friendly.
+		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-only transaction`)
+	}
+
+	stmt := spanner.NewStatement(fmt.Sprintf("DELETE FROM `%s` WHERE true", s.Table))
+	count, err := session.client.PartitionedUpdate(session.ctx, stmt)
+	if err != nil {
+		return nil, err
+	}
+	return &Result{
+		IsMutation:   true,
+		AffectedRows: int(count),
 	}, nil
 }
 
