@@ -78,6 +78,11 @@ var (
 	// DML
 	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
 
+	// Partitioned DML
+	// In fact, INSERT is not supported in a Partitioned DML, but accept it for showing better error message.
+	// https://cloud.google.com/spanner/docs/dml-partitioned#features_that_arent_supported
+	pdmlRe = regexp.MustCompile(`(?is)^PARTITIONED\s+((?:INSERT|UPDATE|DELETE)\s+.+$)`)
+
 	// Transaction
 	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
 	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?$`)
@@ -157,6 +162,9 @@ func BuildStatement(input string) (Statement, error) {
 		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case dmlRe.MatchString(input):
 		return &DmlStatement{Dml: input}, nil
+	case pdmlRe.MatchString(input):
+		matched := pdmlRe.FindStringSubmatch(input)
+		return &PartitionedDmlStatement{Dml: matched[1]}, nil
 	case beginRwRe.MatchString(input):
 		return &BeginRwStatement{}, nil
 	case beginRoRe.MatchString(input):
@@ -766,6 +774,31 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	result.AffectedRows = int(numRows)
 
 	return result, nil
+}
+
+type PartitionedDmlStatement struct {
+	Dml string
+}
+
+func (s *PartitionedDmlStatement) Execute(session *Session) (*Result, error) {
+	if session.InRwTxn() {
+		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
+		return nil, errors.New(`Partitioned DML statement can not be run in a read-write transaction`)
+	}
+	if session.InRoTxn() {
+		// Just for user-friendly.
+		return nil, errors.New(`Partitioned DML statement can not be run in a read-only transaction`)
+	}
+
+	stmt := spanner.NewStatement(s.Dml)
+	count, err := session.client.PartitionedUpdate(session.ctx, stmt)
+	if err != nil {
+		return nil, err
+	}
+	return &Result{
+		IsMutation:   true,
+		AffectedRows: int(count),
+	}, nil
 }
 
 type ExplainDmlStatement struct {

@@ -696,3 +696,37 @@ func TestTruncateTable(t *testing.T) {
 		t.Errorf("TRUNCATE TABLE executed, but %d rows are remained", count)
 	}
 }
+
+func TestPartitionedDML(t *testing.T) {
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	session, tableId, tearDown := setup(t, ctx, []string{
+		"INSERT INTO [[TABLE]] (id, active) VALUES (1, false)",
+	})
+	defer tearDown()
+
+	stmt, err := BuildStatement(fmt.Sprintf("PARTITIONED UPDATE %s SET active = true WHERE true", tableId))
+	if err != nil {
+		t.Fatalf("invalid statement: %v", err)
+	}
+
+	if _, err := stmt.Execute(session); err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	selectStmt := spanner.NewStatement(fmt.Sprintf("SELECT active FROM %s", tableId))
+	var got bool
+	if err := session.client.Single().Query(ctx, selectStmt).Do(func(r *spanner.Row) error {
+		return r.Column(0, &got)
+	}); err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if want := true; want != got {
+		t.Errorf("PARTITIONED UPDATE was executed, but rows were not updated")
+	}
+}

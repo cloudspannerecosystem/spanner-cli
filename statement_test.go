@@ -120,6 +120,16 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"},
 		},
 		{
+			desc:  "PARTITIONED UPDATE statement",
+			input: "PARTITIONED UPDATE t1 SET name = hello WHERE id > 1",
+			want:  &PartitionedDmlStatement{Dml: "UPDATE t1 SET name = hello WHERE id > 1"},
+		},
+		{
+			desc:  "PARTITIONED DELETE statement",
+			input: "PARTITIONED DELETE FROM t1 WHERE id > 1",
+			want:  &PartitionedDmlStatement{Dml: "DELETE FROM t1 WHERE id > 1"},
+		},
+		{
 			desc:  "EXPLAIN INSERT statement",
 			input: "EXPLAIN INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
 			want:  &ExplainDmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
