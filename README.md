@@ -155,6 +155,7 @@ The syntax is case-insensitive.
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |
+| Truncate table | `TRUNCATE TABLE <table>;` | Only rows are deleted. |
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
 | Query | `SELECT ...;` | |

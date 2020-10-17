@@ -660,3 +660,39 @@ func TestShowIndexes(t *testing.T) {
 		IsMutation:   false,
 	})
 }
+
+func TestTruncateTable(t *testing.T) {
+	if skipIntegrateTest {
+		t.Skip("Integration tests skipped")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	session, tableId, tearDown := setup(t, ctx, []string{
+		"INSERT INTO [[TABLE]] (id, active) VALUES (1, true), (2, false)",
+	})
+	defer tearDown()
+
+	stmt, err := BuildStatement(fmt.Sprintf("TRUNCATE TABLE %s", tableId))
+	if err != nil {
+		t.Fatalf("invalid statement: %v", err)
+	}
+
+	if _, err := stmt.Execute(session); err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+
+	// We don't use the TRUNCATE TABLE's result since PartitionedUpdate may return estimated affected row counts.
+	// Instead, we check if rows are remained in the table.
+	var count int
+	countStmt := spanner.NewStatement(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableId))
+	if err := session.client.Single().Query(ctx, countStmt).Do(func(r *spanner.Row) error {
+		return r.Column(0, &count)
+	}); err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("TRUNCATE TABLE executed, but %d rows are remained", count)
+	}
+}

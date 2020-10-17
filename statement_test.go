@@ -100,6 +100,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "DROP INDEX idx_name"},
 		},
 		{
+			desc:  "TRUNCATE TABLE statement",
+			input: "TRUNCATE TABLE t1",
+			want:  &TruncateTableStatement{Table: "t1"},
+		},
+		{
 			desc:  "INSERT statement",
 			input: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
 			want:  &DmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
