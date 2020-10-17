@@ -705,6 +705,10 @@ func (s *TruncateTableStatement) Execute(session *Session) (*Result, error) {
 		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
 		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-write transaction`)
 	}
+	if session.InRoTxn() {
+		// Just for user-friendly.
+		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-only transaction`)
+	}
 
 	stmt := spanner.NewStatement(fmt.Sprintf("DELETE FROM `%s` WHERE true", s.Table))
 	count, err := session.client.PartitionedUpdate(session.ctx, stmt)
