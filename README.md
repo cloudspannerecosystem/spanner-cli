@@ -155,7 +155,7 @@ The syntax is case-insensitive.
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |
-| Truncate table | `TRUNCATE TABLE <table>;` | Only rows are deleted. |
+| Truncate table | `TRUNCATE TABLE <table>;` | Only rows are deleted. Note: Non-atomically because executed as a [partitioned DML statement](https://cloud.google.com/spanner/docs/dml-partitioned?hl=en). |
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
 | Query | `SELECT ...;` | |
