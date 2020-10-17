@@ -35,15 +35,26 @@ type Statement interface {
 	Execute(session *Session) (*Result, error)
 }
 
+// rowCountType is type of modified rows count by DML.
+type rowCountType int
+
+const (
+	// rowCountTypeExact is exact count type for DML result.
+	rowCountTypeExact rowCountType = iota
+	// rowCountTypeLowerBound is lower bound type for Partitioned DML result.
+	rowCountTypeLowerBound
+)
+
 type Result struct {
-	ColumnNames  []string
-	Rows         []Row
-	Predicates   []string
-	AffectedRows int
-	Stats        QueryStats
-	IsMutation   bool
-	Timestamp    time.Time
-	ForceVerbose bool
+	ColumnNames      []string
+	Rows             []Row
+	Predicates       []string
+	AffectedRows     int
+	AffectedRowsType rowCountType
+	Stats            QueryStats
+	IsMutation       bool
+	Timestamp        time.Time
+	ForceVerbose     bool
 }
 
 type Row struct {
@@ -796,8 +807,9 @@ func (s *PartitionedDmlStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 	return &Result{
-		IsMutation:   true,
-		AffectedRows: int(count),
+		IsMutation:       true,
+		AffectedRows:     int(count),
+		AffectedRowsType: rowCountTypeLowerBound,
 	}, nil
 }
 
