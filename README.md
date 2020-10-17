@@ -159,12 +159,12 @@ The syntax is case-insensitive.
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
 | Query | `SELECT ...;` | |
-| DML | `(INSERT|UPDATE|DELETE) ...;` | |
-| Partitioned DML | `PARTITIONED (UPDATE|DELETE) ...;` | |
+| DML | `(INSERT\|UPDATE\|DELETE) ...;` | |
+| Partitioned DML | `PARTITIONED (UPDATE\|DELETE) ...;` | |
 | Show Query Execution Plan | `EXPLAIN SELECT ...;` | |
 | Show DML Execution Plan | `EXPLAIN INSERT / UPDATE / DELETE ...;` | EXPERIMENTAL |
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | EXPERIMENTAL |
-| Show DML Execution Plan with Stats | `EXPLAIN ANALYZE (INSERT|UPDATE|DELETE) ...;` | EXPERIMENTAL |
+| Show DML Execution Plan with Stats | `EXPLAIN ANALYZE (INSERT\|UPDATE\|DELETE) ...;` | EXPERIMENTAL |
 | Start Read-Write Transaction | `BEGIN (RW);` | |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
