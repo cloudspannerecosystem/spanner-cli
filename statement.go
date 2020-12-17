@@ -219,6 +219,11 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 
 	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
+		if session.InRwTxn() {
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+		}
 		return nil, err
 	}
 	result := &Result{
