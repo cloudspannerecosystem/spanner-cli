@@ -29,6 +29,7 @@ import (
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	"google.golang.org/grpc/codes"
 )
 
 type Statement interface {
@@ -219,6 +220,11 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 
 	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
+		if session.InRwTxn() && spanner.ErrCode(err) == codes.Aborted {
+			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
+			rollback := &RollbackStatement{}
+			rollback.Execute(session)
+		}
 		return nil, err
 	}
 	result := &Result{
