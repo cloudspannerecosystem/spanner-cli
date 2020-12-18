@@ -19,19 +19,28 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"cloud.google.com/go/spanner"
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
 type txnFinishResult struct {
 	CommitTimestamp time.Time
 	Err             error
+}
+
+var clientConfig = spanner.ClientConfig{
+	SessionPoolConfig: spanner.SessionPoolConfig{
+		MinOpened: 1,
+		MaxOpened: 10, // FIXME: integration_test requires more than a single session
+	},
+}
+
+var defaultClientOpts = []option.ClientOption{
+	option.WithGRPCConnectionPool(1),
 }
 
 type Session struct {
@@ -41,6 +50,7 @@ type Session struct {
 	databaseId  string
 	client      *spanner.Client
 	adminClient *adminapi.DatabaseAdminClient
+	clientOpts  []option.ClientOption
 
 	// for read-write transaction
 	rwTxn         *spanner.ReadWriteStmtBasedTransaction
@@ -50,20 +60,13 @@ type Session struct {
 	roTxn *spanner.ReadOnlyTransaction
 }
 
-func NewSession(ctx context.Context, projectId string, instanceId string, databaseId string, clientConfig spanner.ClientConfig, opts ...option.ClientOption) (*Session, error) {
+func NewSession(ctx context.Context, projectId string, instanceId string, databaseId string, opts ...option.ClientOption) (*Session, error) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
+	opts = append(opts, defaultClientOpts...)
+
 	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, opts...)
 	if err != nil {
 		return nil, err
-	}
-
-	if emulatorAddr := os.Getenv("SPANNER_EMULATOR_HOST"); emulatorAddr != "" {
-		emulatorOpts := []option.ClientOption{
-			option.WithEndpoint(emulatorAddr),
-			option.WithGRPCDialOption(grpc.WithInsecure()),
-			option.WithoutAuthentication(),
-		}
-		opts = append(opts, emulatorOpts...)
 	}
 
 	adminClient, err := adminapi.NewDatabaseAdminClient(ctx, opts...)
@@ -77,6 +80,7 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 		instanceId:  instanceId,
 		databaseId:  databaseId,
 		client:      client,
+		clientOpts:  opts,
 		adminClient: adminClient,
 	}, nil
 }
@@ -139,6 +143,17 @@ func (s *Session) DatabaseExists() (bool, error) {
 	default:
 		return false, fmt.Errorf("checking database existence failed: %v", err)
 	}
+}
+
+// RecreateClient closes the current client and creates a new client for the session.
+func (s *Session) RecreateClient() error {
+	c, err := spanner.NewClientWithConfig(s.ctx, s.DatabasePath(), clientConfig, s.clientOpts...)
+	if err != nil {
+		return err
+	}
+	s.client.Close()
+	s.client = c
+	return nil
 }
 
 // StartHeartbeat starts heartbeat for read-write transaction.

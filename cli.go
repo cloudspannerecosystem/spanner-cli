@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/codes"
 	"io"
 	"os"
 	"regexp"
@@ -66,14 +67,6 @@ type Cli struct {
 type command struct {
 	Stmt     Statement
 	Vertical bool
-}
-
-var defaultClientConfig = spanner.ClientConfig{
-	NumChannels: 1,
-	SessionPoolConfig: spanner.SessionPoolConfig{
-		MaxOpened: 1,
-		MinOpened: 1,
-	},
 }
 
 func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool) (*Cli, error) {
@@ -184,6 +177,13 @@ func (c *Cli) RunInteractive() int {
 		elapsed := time.Since(t0).Seconds()
 		stop()
 		if err != nil {
+			if spanner.ErrCode(err) == codes.Aborted {
+				// Once the transaction is aborted, the underlying session gains higher lock priority for the next transaction.
+				// This makes the result of subsequent transaction in spanner-cli inconsistent, so we recreate the client to replace
+				// the Cloud Spanner's session with new one to revert the lock priority of the session.
+				// See: https://cloud.google.com/spanner/docs/reference/rest/v1/TransactionOptions#retrying-aborted-transactions
+				c.Session.RecreateClient()
+			}
 			c.PrintInteractiveError(err)
 			continue
 		}
@@ -293,9 +293,9 @@ func (c *Cli) getInterpolatedPrompt() string {
 func createSession(ctx context.Context, projectId string, instanceId string, databaseId string, credential []byte) (*Session, error) {
 	if credential != nil {
 		credentialOption := option.WithCredentialsJSON(credential)
-		return NewSession(ctx, projectId, instanceId, databaseId, defaultClientConfig, credentialOption)
+		return NewSession(ctx, projectId, instanceId, databaseId, credentialOption)
 	} else {
-		return NewSession(ctx, projectId, instanceId, databaseId, defaultClientConfig)
+		return NewSession(ctx, projectId, instanceId, databaseId)
 	}
 }
 
