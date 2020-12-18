@@ -34,8 +34,8 @@ type txnFinishResult struct {
 
 var clientConfig = spanner.ClientConfig{
 	SessionPoolConfig: spanner.SessionPoolConfig{
-		MaxOpened: 1,
 		MinOpened: 1,
+		MaxOpened: 10, // FIXME: integration_test requires more than a single session
 	},
 }
 
