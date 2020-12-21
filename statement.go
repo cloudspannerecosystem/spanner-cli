@@ -929,7 +929,9 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 		return result, nil
 	}
 
-	session.RollbackReadWriteTransaction()
+	if err := session.RollbackReadWriteTransaction(); err != nil {
+		return nil, err
+	}
 
 	return result, nil
 }
@@ -1004,7 +1006,9 @@ func (s *CloseStatement) Execute(session *Session) (*Result, error) {
 		return result, nil
 	}
 
-	session.CloseReadOnlyTransaction()
+	if err := session.CloseReadOnlyTransaction(); err != nil {
+		return nil, err
+	}
 
 	return result, nil
 }

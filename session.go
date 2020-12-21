@@ -296,9 +296,9 @@ func (s *Session) RecreateClient() error {
 // This "SELECT 1" query prevents the transaction from being considered idle.
 // cf. https://godoc.org/cloud.google.com/go/spanner#hdr-Idle_transactions
 //
-// We send an actual heartbeat only if the transaction is active and
-// at least one user-initialized SQL query has been executed.
-// See: https://github.com/cloudspannerecosystem/spanner-cli/issues/100
+// We send an actual heartbeat only if the read-write transaction is active and
+// at least one user-initialized SQL query has been executed on the transaction.
+// Background: https://github.com/cloudspannerecosystem/spanner-cli/issues/100
 func (s *Session) startHeartbeat() {
 	interval := time.NewTicker(5 * time.Second)
 	defer interval.Stop()
