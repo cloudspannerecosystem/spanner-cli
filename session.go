@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -51,7 +52,9 @@ type Session struct {
 	clientOpts  []option.ClientOption
 
 	// for read-write transaction
-	rwTxn         *spanner.ReadWriteStmtBasedTransaction
+	rwTxn *spanner.ReadWriteStmtBasedTransaction
+	// rwTxn is supposed to be accessed concurrently from transaction handling and heartbeat,
+	// so we will use mutex to guard a critical section.
 	rwTxnMutex    sync.Mutex
 	sendHeartbeat bool
 
@@ -87,15 +90,22 @@ func NewSession(ctx context.Context, projectId string, instanceId string, databa
 	return session, nil
 }
 
+// InReadWriteTransaction returns true if the session is running read-write transaction.
 func (s *Session) InReadWriteTransaction() bool {
 	return s.rwTxn != nil
 }
 
+// InReadOnlyTransaction returns true if the session is running read-only transaction.
 func (s *Session) InReadOnlyTransaction() bool {
 	return s.roTxn != nil
 }
 
+// BeginReadWriteTransaction starts read-write transaction.
 func (s *Session) BeginReadWriteTransaction() error {
+	if s.rwTxn != nil {
+		return errors.New("read-write transaction is already running")
+	}
+
 	txn, err := spanner.NewReadWriteStmtBasedTransaction(s.ctx, s.client)
 	if err != nil {
 		return err
@@ -104,9 +114,10 @@ func (s *Session) BeginReadWriteTransaction() error {
 	return nil
 }
 
+// CommitReadWriteTransaction commits read-write transaction and returns commit timestamp if successful.
 func (s *Session) CommitReadWriteTransaction() (time.Time, error) {
 	if s.rwTxn == nil {
-		// TODO: error
+		return time.Time{}, errors.New("read-write transaction is not running")
 	}
 
 	s.rwTxnMutex.Lock()
@@ -118,9 +129,10 @@ func (s *Session) CommitReadWriteTransaction() (time.Time, error) {
 	return ts, err
 }
 
-func (s *Session) RollbackReadWriteTransaction() {
+// RollbackReadWriteTransaction rollbacks read-write transaction.
+func (s *Session) RollbackReadWriteTransaction() error {
 	if s.rwTxn == nil {
-		// TODO: error
+		return errors.New("read-write transaction is not running")
 	}
 
 	s.rwTxnMutex.Lock()
@@ -129,9 +141,16 @@ func (s *Session) RollbackReadWriteTransaction() {
 	s.rwTxn.Rollback(s.ctx)
 	s.rwTxn = nil
 	s.sendHeartbeat = false
+
+	return nil
 }
 
+// BeginReadOnlyTransaction starts read-only transaction and returns the snapshot timestamp for the transaction if successful.
 func (s *Session) BeginReadOnlyTransaction(typ timestampBoundType, staleness time.Duration, timestamp time.Time) (time.Time, error) {
+	if s.roTxn != nil {
+		return time.Time{}, errors.New("read-only transaction is already running")
+	}
+
 	txn := s.client.ReadOnlyTransaction()
 	switch typ {
 	case strong:
@@ -155,57 +174,74 @@ func (s *Session) BeginReadOnlyTransaction(typ timestampBoundType, staleness tim
 	return txn.Timestamp()
 }
 
-func (s *Session) CloseReadOnlyTransaction() {
+// CloseReadOnlyTransaction closes a running read-only transaction.
+func (s *Session) CloseReadOnlyTransaction() error {
 	if s.roTxn == nil {
-		// TODO: error
+		return errors.New("read-only transaction is not running")
 	}
+
 	s.roTxn.Close()
 	s.roTxn = nil
+	return nil
 }
 
+// RunQueryWithStats executes a statement with stats either on the running transaction or on the temporal read-only transaction.
+// It returns row iterator and read-only transaction if the statement was executed on the read-only transaction.
 func (s *Session) RunQueryWithStats(stmt spanner.Statement) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.rwTxn != nil {
-		defer func() { s.sendHeartbeat = true }()
-		return s.rwTxn.QueryWithStats(s.ctx, stmt), nil
-	} else if s.roTxn != nil {
-		return s.roTxn.QueryWithStats(s.ctx, stmt), s.roTxn
-	} else {
-		txn := s.client.Single()
-		return txn.QueryWithStats(s.ctx, stmt), txn
+		iter := s.rwTxn.QueryWithStats(s.ctx, stmt)
+		s.sendHeartbeat = true
+		return iter, nil
 	}
+	if s.roTxn != nil {
+		return s.roTxn.QueryWithStats(s.ctx, stmt), s.roTxn
+	}
+
+	txn := s.client.Single()
+	return txn.QueryWithStats(s.ctx, stmt), txn
 }
 
+// RunQuery executes a statement either on the running transaction or on the temporal read-only transaction.
+// It returns row iterator and read-only transaction if the statement was executed on the read-only transaction.
 func (s *Session) RunQuery(stmt spanner.Statement) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.rwTxn != nil {
-		defer func() { s.sendHeartbeat = true }()
-		return s.rwTxn.Query(s.ctx, stmt), nil
-	} else if s.roTxn != nil {
-		return s.roTxn.Query(s.ctx, stmt), s.roTxn
-	} else {
-		txn := s.client.Single()
-		return txn.Query(s.ctx, stmt), txn
+		iter := s.rwTxn.Query(s.ctx, stmt)
+		s.sendHeartbeat = true
+		return iter, nil
 	}
+	if s.roTxn != nil {
+		return s.roTxn.Query(s.ctx, stmt), s.roTxn
+	}
+
+	txn := s.client.Single()
+	return txn.Query(s.ctx, stmt), txn
 }
 
+// RunAnalyzeQuery analyzes a statement either on the running transaction or on the temporal read-only transaction.
 func (s *Session) RunAnalyzeQuery(stmt spanner.Statement) (*pb.QueryPlan, error) {
 	if s.rwTxn != nil {
-		defer func() { s.sendHeartbeat = true }()
-		return s.rwTxn.AnalyzeQuery(s.ctx, stmt)
-	} else if s.roTxn != nil {
-		return s.roTxn.AnalyzeQuery(s.ctx, stmt)
-	} else {
-		txn := s.client.Single()
-		return txn.AnalyzeQuery(s.ctx, stmt)
+		plan, err := s.rwTxn.AnalyzeQuery(s.ctx, stmt)
+		s.sendHeartbeat = true
+		return plan, err
 	}
+	if s.roTxn != nil {
+		return s.roTxn.AnalyzeQuery(s.ctx, stmt)
+	}
+
+	txn := s.client.Single()
+	return txn.AnalyzeQuery(s.ctx, stmt)
 }
 
+// RunUpdate executes a DML statement on the running read-write transaction.
+// It returns error if there is no running read-write transaction.
 func (s *Session) RunUpdate(stmt spanner.Statement) (int64, error) {
 	if s.rwTxn == nil {
-		// TODO: error
+		return 0, errors.New("read-write transaction is not running")
 	}
 
-	defer func() { s.sendHeartbeat = true }()
-	return s.rwTxn.Update(s.ctx, stmt)
+	rowCount, err := s.rwTxn.Update(s.ctx, stmt)
+	s.sendHeartbeat = true
+	return rowCount, err
 }
 
 func (s *Session) Close() {
@@ -259,6 +295,10 @@ func (s *Session) RecreateClient() error {
 // If no reads or DMLs happen within 10 seconds, the rw-transaction is considered idle at Cloud Spanner server.
 // This "SELECT 1" query prevents the transaction from being considered idle.
 // cf. https://godoc.org/cloud.google.com/go/spanner#hdr-Idle_transactions
+//
+// We send an actual heartbeat only if the transaction is active and
+// at least one user-initialized SQL query has been executed.
+// See: https://github.com/cloudspannerecosystem/spanner-cli/issues/100
 func (s *Session) startHeartbeat() {
 	interval := time.NewTicker(5 * time.Second)
 	defer interval.Stop()
