@@ -17,7 +17,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -204,23 +203,13 @@ type SelectStatement struct {
 
 func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
-	var iter *spanner.RowIterator
 
-	var targetRoTxn *spanner.ReadOnlyTransaction
-	if session.InRwTxn() {
-		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
-	} else if session.InRoTxn() {
-		targetRoTxn = session.roTxn
-		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
-	} else {
-		targetRoTxn = session.client.Single()
-		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
-	}
+	iter, roTxn := session.RunQueryWithStats(stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
-		if session.InRwTxn() && spanner.ErrCode(err) == codes.Aborted {
+		if session.InReadWriteTransaction() && spanner.ErrCode(err) == codes.Aborted {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
 			rollback.Execute(session)
@@ -242,8 +231,8 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 	result.Stats = queryStats
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
-	if targetRoTxn != nil {
-		result.Timestamp, _ = targetRoTxn.Timestamp()
+	if roTxn != nil {
+		result.Timestamp, _ = roTxn.Timestamp()
 	}
 
 	return result, nil
@@ -452,7 +441,7 @@ func isCreateTableDDL(ddl string, table string) bool {
 type ShowTablesStatement struct{}
 
 func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		// INFORMATION_SCHEMA can not be used in read-write transaction.
 		// https://cloud.google.com/spanner/docs/information-schema
 		return nil, errors.New(`"SHOW TABLES" can not be used in a read-write transaction`)
@@ -461,13 +450,7 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	stmt := spanner.NewStatement(fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias))
 
-	var txn *spanner.ReadOnlyTransaction
-	if session.InRoTxn() {
-		txn = session.roTxn
-	} else {
-		txn = session.client.Single()
-	}
-	iter := txn.Query(session.ctx, stmt)
+	iter, _ := session.RunQuery(stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -514,19 +497,9 @@ type ExplainAnalyzeStatement struct {
 
 func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
-	var iter *spanner.RowIterator
 
-	var targetRoTxn *spanner.ReadOnlyTransaction
-	if session.InRwTxn() {
-		iter = session.rwTxn.QueryWithStats(session.ctx, stmt)
-	} else if session.InRoTxn() {
-		targetRoTxn = session.roTxn
-		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
-	} else {
-		targetRoTxn = session.client.Single()
-		iter = targetRoTxn.QueryWithStats(session.ctx, stmt)
-	}
-	defer iter.Stop()
+	iter, roTxn := session.RunQueryWithStats(stmt)
+
 	// consume iter
 	err := iter.Do(func(*spanner.Row) error {
 		return nil
@@ -554,8 +527,8 @@ func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
 
 	// ReadOnlyTransaction.Timestamp() is invalid until read.
 	var timestamp time.Time
-	if targetRoTxn != nil {
-		timestamp, _ = targetRoTxn.Timestamp()
+	if roTxn != nil {
+		timestamp, _ = roTxn.Timestamp()
 	}
 
 	result := &Result{
@@ -619,7 +592,7 @@ type ShowColumnsStatement struct {
 }
 
 func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		// INFORMATION_SCHEMA can not be used in read-write transaction.
 		// https://cloud.google.com/spanner/docs/information-schema
 		return nil, errors.New(`"SHOW COLUMNS" can not be used in a read-write transaction`)
@@ -646,13 +619,7 @@ ORDER BY
   C.ORDINAL_POSITION ASC`,
 		Params: map[string]interface{}{"table_name": s.Table}}
 
-	var txn *spanner.ReadOnlyTransaction
-	if session.InRoTxn() {
-		txn = session.roTxn
-	} else {
-		txn = session.client.Single()
-	}
-	iter := txn.Query(session.ctx, stmt)
+	iter, _ := session.RunQuery(stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -675,7 +642,7 @@ type ShowIndexStatement struct {
 }
 
 func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		// INFORMATION_SCHEMA can not be used in read-write transaction.
 		// https://cloud.google.com/spanner/docs/information-schema
 		return nil, errors.New(`"SHOW INDEX" can not be used in a read-write transaction`)
@@ -696,14 +663,7 @@ WHERE
   I.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
 		Params: map[string]interface{}{"table_name": s.Table}}
 
-	var txn *spanner.ReadOnlyTransaction
-	if session.InRoTxn() {
-		txn = session.roTxn
-	} else {
-		txn = session.client.Single()
-	}
-
-	iter := txn.Query(session.ctx, stmt)
+	iter, _ := session.RunQuery(stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -726,11 +686,11 @@ type TruncateTableStatement struct {
 }
 
 func (s *TruncateTableStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
 		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-write transaction`)
 	}
-	if session.InRoTxn() {
+	if session.InReadOnlyTransaction() {
 		// Just for user-friendly.
 		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-only transaction`)
 	}
@@ -757,8 +717,8 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 
 	var numRows int64
 	var err error
-	if session.InRwTxn() {
-		numRows, err = session.rwTxn.Update(session.ctx, stmt)
+	if session.InReadWriteTransaction() {
+		numRows, err = session.RunUpdate(stmt)
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
@@ -772,7 +732,7 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 			return nil, err
 		}
 
-		numRows, err = session.rwTxn.Update(session.ctx, stmt)
+		numRows, err = session.RunUpdate(stmt)
 		if err != nil {
 			// once error has happened, escape from implicit transaction
 			rollback := &RollbackStatement{}
@@ -798,11 +758,11 @@ type PartitionedDmlStatement struct {
 }
 
 func (s *PartitionedDmlStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
 		return nil, errors.New(`Partitioned DML statement can not be run in a read-write transaction`)
 	}
-	if session.InRoTxn() {
+	if session.InReadOnlyTransaction() {
 		// Just for user-friendly.
 		return nil, errors.New(`Partitioned DML statement can not be run in a read-only transaction`)
 	}
@@ -825,7 +785,7 @@ type ExplainDmlStatement struct {
 
 func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
 	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
-		plan, err := session.rwTxn.AnalyzeQuery(session.ctx, spanner.NewStatement(s.Dml))
+		plan, err := session.RunAnalyzeQuery(spanner.NewStatement(s.Dml))
 		return 0, plan, err
 	})
 	if err != nil {
@@ -856,7 +816,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 	stmt := spanner.NewStatement(s.Dml)
 
 	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
-		iter := session.rwTxn.QueryWithStats(session.ctx, stmt)
+		iter, _ := session.RunQueryWithStats(stmt)
 		defer iter.Stop()
 		err := iter.Do(func(r *spanner.Row) error { return nil })
 		if err != nil {
@@ -888,7 +848,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 // runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
 // It execute a function in the current RW transaction or an implicit RW transaction.
 func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		affected, plan, err := f()
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
@@ -924,19 +884,16 @@ func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, p
 type BeginRwStatement struct{}
 
 func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		return nil, errors.New("you're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
-	if session.InRoTxn() {
+	if session.InReadOnlyTransaction() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	txn, err := spanner.NewReadWriteStmtBasedTransaction(session.ctx, session.client)
-	if err != nil {
+	if err := session.BeginReadWriteTransaction(); err != nil {
 		return nil, err
 	}
-	session.StartRwTxn(txn)
-	session.StartHeartbeat()
 
 	return &Result{IsMutation: true}, nil
 }
@@ -945,24 +902,19 @@ type CommitStatement struct{}
 
 func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{IsMutation: true}
-	if session.InRoTxn() {
+	if session.InReadOnlyTransaction() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
-	if !session.InRwTxn() {
+	if !session.InReadWriteTransaction() {
 		return result, nil
 	}
 
-	// Stop heartbeat before calling commit
-	// because once commit has finished there is no guarantee that transaction object can be used.
-	session.StopHeartbeat()
-
-	ts, err := session.rwTxn.Commit(session.ctx)
-	session.FinishRwTxn()
+	ts, err := session.CommitReadWriteTransaction()
 	if err != nil {
 		return nil, err
 	}
-	result.Timestamp = ts
 
+	result.Timestamp = ts
 	return result, nil
 }
 
@@ -970,19 +922,16 @@ type RollbackStatement struct{}
 
 func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 	result := &Result{IsMutation: true}
-	if session.InRoTxn() {
+	if session.InReadOnlyTransaction() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
-	if !session.InRwTxn() {
+	if !session.InReadWriteTransaction() {
 		return result, nil
 	}
 
-	// Stop heartbeat before calling rollback
-	// because once rollback has finished there is no guarantee that transaction object can be used.
-	session.StopHeartbeat()
-
-	session.rwTxn.Rollback(session.ctx)
-	session.FinishRwTxn()
+	if err := session.RollbackReadWriteTransaction(); err != nil {
+		return nil, err
+	}
 
 	return result, nil
 }
@@ -1024,55 +973,42 @@ func newBeginRoStatement(input string) *BeginRoStatement {
 }
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
-	if session.InRoTxn() {
+	if session.InReadOnlyTransaction() {
 		// close current transaction implicitly
 		close := &CloseStatement{}
 		close.Execute(session)
 	}
 
-	txn := session.client.ReadOnlyTransaction()
-	switch s.TimestampBoundType {
-	case strong:
-		txn = txn.WithTimestampBound(spanner.StrongRead())
-	case exactStaleness:
-		txn = txn.WithTimestampBound(spanner.ExactStaleness(s.Staleness))
-	case readTimestamp:
-		txn = txn.WithTimestampBound(spanner.ReadTimestamp(s.Timestamp))
+	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp)
+	if err != nil {
+		return nil, err
 	}
-	session.StartRoTxn(txn)
 
 	return &Result{
 		IsMutation: true,
-		Timestamp:  determineReadTimestamp(session.ctx, txn),
+		Timestamp:  ts,
 	}, nil
-}
-
-// determineReadTimestamp ensures BeginTransaction RPC is called
-// and returns the read timestamp of the read only transaction
-func determineReadTimestamp(ctx context.Context, txn *spanner.ReadOnlyTransaction) time.Time {
-	iter := txn.Query(ctx, spanner.NewStatement("SELECT 1"))
-	defer iter.Stop()
-	ts, _ := txn.Timestamp()
-	return ts
 }
 
 type CloseStatement struct{}
 
 func (s *CloseStatement) Execute(session *Session) (*Result, error) {
-	if session.InRwTxn() {
+	if session.InReadWriteTransaction() {
 		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
 
 	result := &Result{IsMutation: true}
 
-	if !session.InRoTxn() {
+	if !session.InReadOnlyTransaction() {
 		return result, nil
 	}
 
-	session.FinishRoTxn()
+	if err := session.CloseReadOnlyTransaction(); err != nil {
+		return nil, err
+	}
 
 	return result, nil
 }

@@ -279,9 +279,9 @@ func (c *Cli) getInterpolatedPrompt() string {
 	prompt = promptReInstanceId.ReplaceAllString(prompt, c.Session.instanceId)
 	prompt = promptReDatabaseId.ReplaceAllString(prompt, c.Session.databaseId)
 
-	if c.Session.InRwTxn() {
+	if c.Session.InReadWriteTransaction() {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
-	} else if c.Session.InRoTxn() {
+	} else if c.Session.InReadOnlyTransaction() {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "(ro txn)")
 	} else {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "")
