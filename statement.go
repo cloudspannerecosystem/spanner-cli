@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -30,6 +31,10 @@ import (
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc/codes"
 )
+
+// Partitioned DML tends to take long time to be finished.
+// See: https://github.com/cloudspannerecosystem/spanner-cli/issues/102
+const pdmlTimeout = time.Hour * 24
 
 type Statement interface {
 	Execute(session *Session) (*Result, error)
@@ -696,7 +701,10 @@ func (s *TruncateTableStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	stmt := spanner.NewStatement(fmt.Sprintf("DELETE FROM `%s` WHERE true", s.Table))
-	count, err := session.client.PartitionedUpdate(session.ctx, stmt)
+	ctx, cancel := context.WithTimeout(session.ctx, pdmlTimeout)
+	defer cancel()
+
+	count, err := session.client.PartitionedUpdate(ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -768,7 +776,10 @@ func (s *PartitionedDmlStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	stmt := spanner.NewStatement(s.Dml)
-	count, err := session.client.PartitionedUpdate(session.ctx, stmt)
+	ctx, cancel := context.WithTimeout(session.ctx, pdmlTimeout)
+	defer cancel()
+
+	count, err := session.client.PartitionedUpdate(ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
