@@ -399,8 +399,8 @@ func resultLine(result *Result, verbose bool) string {
 			affectedRowsPrefix = "at least "
 		}
 		if verbose && timestamp != "" {
-			return fmt.Sprintf("Query OK, %s%d rows affected (%s)\ntimestamp: %s\n",
-				affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime, timestamp)
+			return fmt.Sprintf("Query OK, %s%d rows affected (%s)\ntimestamp: %s\nmutation count: %d\n",
+				affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime, timestamp, result.MutationCount)
 		}
 		return fmt.Sprintf("Query OK, %s%d rows affected (%s)\n",
 			affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime)

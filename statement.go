@@ -59,6 +59,7 @@ type Result struct {
 	Stats            QueryStats
 	IsMutation       bool
 	Timestamp        time.Time
+	MutationCount    int64
 	ForceVerbose     bool
 }
 
@@ -754,6 +755,7 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 			return nil, err
 		}
 		result.Timestamp = txnResult.Timestamp
+		result.MutationCount = txnResult.MutationCount
 	}
 
 	result.AffectedRows = int(numRows)
@@ -925,7 +927,8 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 		return nil, err
 	}
 
-	result.Timestamp = ts
+	result.Timestamp = ts.CommitTs
+	result.MutationCount = ts.CommitStats.GetMutationCount()
 	return result, nil
 }
 
