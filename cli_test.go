@@ -263,7 +263,7 @@ func TestResultLine(t *testing.T) {
 			want:    fmt.Sprintf("Query OK, 3 rows affected (10 msec)\ntimestamp:      %s\n", timestamp),
 		},
 		{
-			desc: "mutation in verbose mode (timestamp and mutation count exist)",
+			desc: "mutation in verbose mode (both of timestamp and mutation count exist)",
 			result: &Result{
 				AffectedRows: 3,
 				IsMutation:   true,
@@ -271,7 +271,7 @@ func TestResultLine(t *testing.T) {
 					ElapsedTime: "10 msec",
 				},
 				CommitStats: &sppb.CommitResponse_CommitStats{MutationCount: 6},
-				Timestamp: ts,
+				Timestamp:   ts,
 			},
 			verbose: true,
 			want:    fmt.Sprintf("Query OK, 3 rows affected (10 msec)\ntimestamp:      %s\nmutation_count: 6\n", timestamp),
