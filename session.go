@@ -106,7 +106,8 @@ func (s *Session) BeginReadWriteTransaction() error {
 		return errors.New("read-write transaction is already running")
 	}
 
-	txn, err := spanner.NewReadWriteStmtBasedTransactionWithOptions(s.ctx, s.client, spanner.TransactionOptions{CommitOptions: spanner.CommitOptions{ReturnCommitStats: true}})
+	txn, err := spanner.NewReadWriteStmtBasedTransactionWithOptions(s.ctx, s.client,
+		spanner.TransactionOptions{CommitOptions: spanner.CommitOptions{ReturnCommitStats: true}})
 	if err != nil {
 		return err
 	}
