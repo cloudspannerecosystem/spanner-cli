@@ -27,6 +27,7 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/google/go-cmp/cmp"
+	sppb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type nopCloser struct {
@@ -259,7 +260,21 @@ func TestResultLine(t *testing.T) {
 				Timestamp: ts,
 			},
 			verbose: true,
-			want:    fmt.Sprintf("Query OK, 3 rows affected (10 msec)\ntimestamp: %s\n", timestamp),
+			want:    fmt.Sprintf("Query OK, 3 rows affected (10 msec)\ntimestamp:      %s\n", timestamp),
+		},
+		{
+			desc: "mutation in verbose mode (both of timestamp and mutation count exist)",
+			result: &Result{
+				AffectedRows: 3,
+				IsMutation:   true,
+				Stats: QueryStats{
+					ElapsedTime: "10 msec",
+				},
+				CommitStats: &sppb.CommitResponse_CommitStats{MutationCount: 6},
+				Timestamp:   ts,
+			},
+			verbose: true,
+			want:    fmt.Sprintf("Query OK, 3 rows affected (10 msec)\ntimestamp:      %s\nmutation_count: 6\n", timestamp),
 		},
 		{
 			desc: "mutation in verbose mode (timestamp not exist)",

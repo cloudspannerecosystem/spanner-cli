@@ -143,6 +143,8 @@ func compareResult(t *testing.T, got *Result, expected *Result) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Result{}, "Stats"),
 		cmpopts.IgnoreFields(Result{}, "Timestamp"),
+		// Commit Stats is only provided by real instances
+		cmpopts.IgnoreFields(Result{}, "CommitStats"),
 	}
 	if !cmp.Equal(got, expected, opts...) {
 		t.Errorf("diff: %s", cmp.Diff(got, expected, opts...))

@@ -398,12 +398,18 @@ func resultLine(result *Result, verbose bool) string {
 			// See https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1?hl=en#resultsetstats
 			affectedRowsPrefix = "at least "
 		}
-		if verbose && timestamp != "" {
-			return fmt.Sprintf("Query OK, %s%d rows affected (%s)\ntimestamp: %s\n",
-				affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime, timestamp)
+
+		var detail string
+		if verbose {
+			if timestamp != "" {
+				detail += fmt.Sprintf("timestamp:      %s\n", timestamp)
+			}
+			if result.CommitStats != nil {
+				detail += fmt.Sprintf("mutation_count: %d\n", result.CommitStats.GetMutationCount())
+			}
 		}
-		return fmt.Sprintf("Query OK, %s%d rows affected (%s)\n",
-			affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime)
+		return fmt.Sprintf("Query OK, %s%d rows affected (%s)\n%s",
+			affectedRowsPrefix, result.AffectedRows, result.Stats.ElapsedTime, detail)
 	}
 
 	var set string

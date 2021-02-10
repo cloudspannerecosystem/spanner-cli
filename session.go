@@ -106,7 +106,8 @@ func (s *Session) BeginReadWriteTransaction() error {
 		return errors.New("read-write transaction is already running")
 	}
 
-	txn, err := spanner.NewReadWriteStmtBasedTransaction(s.ctx, s.client)
+	txn, err := spanner.NewReadWriteStmtBasedTransactionWithOptions(s.ctx, s.client,
+		spanner.TransactionOptions{CommitOptions: spanner.CommitOptions{ReturnCommitStats: true}})
 	if err != nil {
 		return err
 	}
@@ -115,18 +116,18 @@ func (s *Session) BeginReadWriteTransaction() error {
 }
 
 // CommitReadWriteTransaction commits read-write transaction and returns commit timestamp if successful.
-func (s *Session) CommitReadWriteTransaction() (time.Time, error) {
+func (s *Session) CommitReadWriteTransaction() (spanner.CommitResponse, error) {
 	if s.rwTxn == nil {
-		return time.Time{}, errors.New("read-write transaction is not running")
+		return spanner.CommitResponse{}, errors.New("read-write transaction is not running")
 	}
 
 	s.rwTxnMutex.Lock()
 	defer s.rwTxnMutex.Unlock()
 
-	ts, err := s.rwTxn.Commit(s.ctx)
+	resp, err := s.rwTxn.CommitWithReturnResp(s.ctx)
 	s.rwTxn = nil
 	s.sendHeartbeat = false
-	return ts, err
+	return resp, err
 }
 
 // RollbackReadWriteTransaction rollbacks read-write transaction.
