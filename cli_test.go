@@ -318,20 +318,22 @@ func TestResultLine(t *testing.T) {
 				AffectedRows: 3,
 				IsMutation:   false,
 				Stats: QueryStats{
-					ElapsedTime:      "10 msec",
-					CPUTime:          "5 msec",
-					RowsScanned:      "10",
-					RowsReturned:     "3",
-					OptimizerVersion: "2",
+					ElapsedTime:        "10 msec",
+					CPUTime:            "5 msec",
+					RowsScanned:        "10",
+					RowsReturned:       "3",
+					DeletedRowsScanned: "1",
+					OptimizerVersion:   "2",
 				},
 				Timestamp: ts,
 			},
 			verbose: true,
 			want: fmt.Sprintf(`3 rows in set (10 msec)
-timestamp: %s
-cpu:       5 msec
-scanned:   10 rows
-optimizer: 2
+timestamp:            %s
+cpu time:             5 msec
+rows scanned:         10 rows
+deleted rows scanned: 1 rows
+optimizer version:    2
 `, timestamp),
 		},
 		{
@@ -346,7 +348,7 @@ optimizer: 2
 				Timestamp: ts,
 			},
 			verbose: true,
-			want:    fmt.Sprintf("3 rows in set (10 msec)\ntimestamp: %s\n", timestamp),
+			want:    fmt.Sprintf("3 rows in set (10 msec)\ntimestamp:            %s\n", timestamp),
 		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
