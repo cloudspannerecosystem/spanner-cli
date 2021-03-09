@@ -420,19 +420,22 @@ func resultLine(result *Result, verbose bool) string {
 	}
 
 	if verbose {
-		// detail is aligned with max length of key (current: 9)
+		// detail is aligned with max length of key (current: 20)
 		var detail string
 		if timestamp != "" {
-			detail += fmt.Sprintf("timestamp: %s\n", timestamp)
+			detail += fmt.Sprintf("timestamp:            %s\n", timestamp)
 		}
 		if result.Stats.CPUTime != "" {
-			detail += fmt.Sprintf("cpu:       %s\n", result.Stats.CPUTime)
+			detail += fmt.Sprintf("cpu time:             %s\n", result.Stats.CPUTime)
 		}
 		if result.Stats.RowsScanned != "" {
-			detail += fmt.Sprintf("scanned:   %s rows\n", result.Stats.RowsScanned)
+			detail += fmt.Sprintf("rows scanned:         %s rows\n", result.Stats.RowsScanned)
+		}
+		if result.Stats.DeletedRowsScanned != "" {
+			detail += fmt.Sprintf("deleted rows scanned: %s rows\n", result.Stats.DeletedRowsScanned)
 		}
 		if result.Stats.OptimizerVersion != "" {
-			detail += fmt.Sprintf("optimizer: %s\n", result.Stats.OptimizerVersion)
+			detail += fmt.Sprintf("optimizer version:    %s\n", result.Stats.OptimizerVersion)
 		}
 		return fmt.Sprintf("%s (%s)\n%s", set, result.Stats.ElapsedTime, detail)
 	}

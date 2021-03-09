@@ -71,11 +71,12 @@ type Row struct {
 // Some fields may not have a valid value depending on the environment.
 // For example, only ElapsedTime and RowsReturned has valid value for Cloud Spanner Emulator.
 type QueryStats struct {
-	ElapsedTime      string
-	CPUTime          string
-	RowsReturned     string
-	RowsScanned      string
-	OptimizerVersion string
+	ElapsedTime        string
+	CPUTime            string
+	RowsReturned       string
+	RowsScanned        string
+	DeletedRowsScanned string
+	OptimizerVersion   string
 }
 
 var (
@@ -292,6 +293,12 @@ func parseQueryStats(stats map[string]interface{}) QueryStats {
 	if v, ok := stats["rows_scanned"]; ok {
 		if scanned, ok := v.(string); ok {
 			queryStats.RowsScanned = scanned
+		}
+	}
+
+	if v, ok := stats["deleted_rows_scanned"]; ok {
+		if deletedRowsScanned, ok := v.(string); ok {
+			queryStats.DeletedRowsScanned = deletedRowsScanned
 		}
 	}
 
