@@ -420,7 +420,7 @@ func resultLine(result *Result, verbose bool) string {
 	}
 
 	if verbose {
-		// detail is aligned with max length of key (current: 9)
+		// detail is aligned with max length of key (current: 20)
 		var detail string
 		if timestamp != "" {
 			detail += fmt.Sprintf("timestamp:            %s\n", timestamp)
