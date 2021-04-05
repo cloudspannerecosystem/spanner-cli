@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 func TestBuildStatement(t *testing.T) {
@@ -170,6 +172,20 @@ func TestBuildStatement(t *testing.T) {
 			want:  &BeginRwStatement{},
 		},
 		{
+			desc:  "BEGIN PRIORITY statement",
+			input: "BEGIN PRIORITY MEDIUM",
+			want: &BeginRwStatement{
+				Priority: pb.RequestOptions_PRIORITY_MEDIUM,
+			},
+		},
+		{
+			desc:  "BEGIN RW PRIORITY statement",
+			input: "BEGIN RW PRIORITY LOW",
+			want: &BeginRwStatement{
+				Priority: pb.RequestOptions_PRIORITY_LOW,
+			},
+		},
+		{
 			desc:  "BEGIN RO statement",
 			input: "BEGIN RO",
 			want:  &BeginRoStatement{TimestampBoundType: strong},
@@ -184,6 +200,20 @@ func TestBuildStatement(t *testing.T) {
 			input:         "BEGIN RO 2020-03-30T22:54:44.834017+09:00",
 			want:          &BeginRoStatement{Timestamp: timestamp, TimestampBoundType: readTimestamp},
 			skipLowerCase: true,
+		},
+		{
+			desc:  "BEGIN RO PRIORITY statement",
+			input: "BEGIN RO PRIORITY LOW",
+			want:  &BeginRoStatement{TimestampBoundType: strong, Priority: pb.RequestOptions_PRIORITY_LOW},
+		},
+		{
+			desc:  "BEGIN RO staleness with PRIORITY statement",
+			input: "BEGIN RO 10 PRIORITY HIGH",
+			want: &BeginRoStatement{
+				Staleness:          time.Duration(10 * time.Second),
+				TimestampBoundType: exactStaleness,
+				Priority:           pb.RequestOptions_PRIORITY_HIGH,
+			},
 		},
 		{
 			desc:  "COMMIT statement",
@@ -325,6 +355,7 @@ func TestBuildStatement(t *testing.T) {
 		{"FOO BAR"},
 		{"SELEC T FROM t1"},
 		{"SET @a = 1"},
+		{"BEGIN PRIORITY CRITICAL"},
 	} {
 		got, err := BuildStatement(test.input)
 		if err == nil {

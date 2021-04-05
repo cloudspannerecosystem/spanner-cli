@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	flags "github.com/jessevdk/go-flags"
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type globalOptions struct {
@@ -41,6 +42,7 @@ type spannerOptions struct {
 	Verbose    bool   `short:"v" long:"verbose" description:"Display verbose output."`
 	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
+	Priority   string `long:"priority" description:"Set the default request priority (HIGH, MEDIUM, or LOW)"`
 }
 
 func main() {
@@ -72,7 +74,16 @@ func main() {
 		}
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose)
+	var priority pb.RequestOptions_Priority
+	if opts.Priority != "" {
+		var err error
+		priority, err = parsePriority(opts.Priority)
+		if err != nil {
+			exitf("priority must be either HIGH, MEDIUM, or LOW\n")
+		}
+	}
+
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority)
 	if err != nil {
 		exitf("Failed to connect to Spanner: %v", err)
 	}

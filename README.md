@@ -36,6 +36,7 @@ spanner:
   -v, --verbose     Display verbose output.
       --credential= Use the specific credential file
       --prompt=     Set the prompt to the specified format
+      --priority=   Set the default request priority (HIGH, MEDIUM, or LOW)
 
 Help Options:
   -h, --help        Show this help message
@@ -166,6 +167,7 @@ The syntax is case-insensitive.
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | EXPERIMENTAL |
 | Show DML Execution Plan with Stats | `EXPLAIN ANALYZE (INSERT\|UPDATE\|DELETE) ...;` | EXPERIMENTAL |
 | Start Read-Write Transaction | `BEGIN (RW);` | The `RW` is optional, meaning this is equivalent to `BEGIN;` |
+| Start Read-Write Transaction (with Priority) | `BEGIN PRIORITY LOW;` | Transaction-level priority takes precedence over command-level priority (`--priority`) |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO;` | |

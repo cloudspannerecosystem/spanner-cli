@@ -32,6 +32,8 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/option"
+
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type DisplayMode int
@@ -62,6 +64,7 @@ type Cli struct {
 	OutStream  io.Writer
 	ErrStream  io.Writer
 	Verbose    bool
+	Priority   pb.RequestOptions_Priority
 }
 
 type command struct {
@@ -69,9 +72,9 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority) (*Cli, error) {
 	ctx := context.Background()
-	session, err := createSession(ctx, projectId, instanceId, databaseId, credential)
+	session, err := createSession(ctx, projectId, instanceId, databaseId, credential, priority)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +138,7 @@ func (c *Cli) RunInteractive() int {
 
 		if s, ok := stmt.(*UseStatement); ok {
 			ctx := context.Background()
-			newSession, err := createSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, c.Credential)
+			newSession, err := createSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -290,12 +293,12 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
-func createSession(ctx context.Context, projectId string, instanceId string, databaseId string, credential []byte) (*Session, error) {
+func createSession(ctx context.Context, projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority) (*Session, error) {
 	if credential != nil {
 		credentialOption := option.WithCredentialsJSON(credential)
-		return NewSession(ctx, projectId, instanceId, databaseId, credentialOption)
+		return NewSession(ctx, projectId, instanceId, databaseId, priority, credentialOption)
 	} else {
-		return NewSession(ctx, projectId, instanceId, databaseId)
+		return NewSession(ctx, projectId, instanceId, databaseId, priority)
 	}
 }
 
