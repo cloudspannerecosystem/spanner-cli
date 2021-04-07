@@ -113,6 +113,11 @@ func (s *Session) BeginReadWriteTransaction(priority pb.RequestOptions_Priority)
 		return errors.New("read-write transaction is already running")
 	}
 
+	// Use session's priority if transaction priority is not set.
+	if priority == pb.RequestOptions_PRIORITY_UNSPECIFIED {
+		priority = s.priority
+	}
+
 	opts := spanner.TransactionOptions{
 		CommitOptions:  spanner.CommitOptions{ReturnCommitStats: true},
 		CommitPriority: priority,
@@ -172,9 +177,15 @@ func (s *Session) BeginReadOnlyTransaction(typ timestampBoundType, staleness tim
 		txn = txn.WithTimestampBound(spanner.ReadTimestamp(timestamp))
 	}
 
+	// Use session's priority if transaction priority is not set.
+	if priority == pb.RequestOptions_PRIORITY_UNSPECIFIED {
+		priority = s.priority
+	}
+
 	// Because google-cloud-go/spanner defers calling BeginTransaction RPC until an actual query is run,
 	// we explicitly run a "SELECT 1" query so that we can determine the timestamp of read-only transaction.
-	if err := txn.Query(s.ctx, spanner.NewStatement("SELECT 1")).Do(func(r *spanner.Row) error {
+	opts := spanner.QueryOptions{Priority: priority}
+	if err := txn.QueryWithOptions(s.ctx, spanner.NewStatement("SELECT 1"), opts).Do(func(r *spanner.Row) error {
 		return nil
 	}); err != nil {
 		return time.Time{}, err
@@ -207,6 +218,38 @@ func (s *Session) RunQueryWithStats(stmt spanner.Statement) (*spanner.RowIterato
 		Mode:     &mode,
 		Priority: s.currentPriority(),
 	}
+	return s.runQueryWithOptions(stmt, opts)
+}
+
+// RunQuery executes a statement either on the running transaction or on the temporal read-only transaction.
+// It returns row iterator and read-only transaction if the statement was executed on the read-only transaction.
+func (s *Session) RunQuery(stmt spanner.Statement) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
+	opts := spanner.QueryOptions{
+		Priority: s.currentPriority(),
+	}
+	return s.runQueryWithOptions(stmt, opts)
+}
+
+// RunAnalyzeQuery analyzes a statement either on the running transaction or on the temporal read-only transaction.
+func (s *Session) RunAnalyzeQuery(stmt spanner.Statement) (*pb.QueryPlan, error) {
+	mode := pb.ExecuteSqlRequest_PLAN
+	opts := spanner.QueryOptions{
+		Mode:     &mode,
+		Priority: s.currentPriority(),
+	}
+	iter, _ := s.runQueryWithOptions(stmt, opts)
+
+	// Need to read rows from iterator to get the query plan.
+	iter.Do(func(r *spanner.Row) error {
+		return nil
+	})
+	if iter.QueryPlan == nil {
+		return nil, errors.New("query plan unavailable")
+	}
+	return iter.QueryPlan, nil
+}
+
+func (s *Session) runQueryWithOptions(stmt spanner.Statement, opts spanner.QueryOptions) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.InReadWriteTransaction() {
 		iter := s.tc.rwTxn.QueryWithOptions(s.ctx, stmt, opts)
 		s.tc.sendHeartbeat = true
@@ -218,40 +261,6 @@ func (s *Session) RunQueryWithStats(stmt spanner.Statement) (*spanner.RowIterato
 
 	txn := s.client.Single()
 	return txn.QueryWithOptions(s.ctx, stmt, opts), txn
-}
-
-// RunQuery executes a statement either on the running transaction or on the temporal read-only transaction.
-// It returns row iterator and read-only transaction if the statement was executed on the read-only transaction.
-func (s *Session) RunQuery(stmt spanner.Statement) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
-	opts := spanner.QueryOptions{
-		Priority: s.currentPriority(),
-	}
-	if s.InReadWriteTransaction() {
-		iter := s.tc.rwTxn.QueryWithOptions(s.ctx, stmt, opts)
-		s.tc.sendHeartbeat = true
-		return iter, nil
-	}
-	if s.InReadOnlyTransaction() {
-		return s.tc.roTxn.QueryWithOptions(s.ctx, stmt, opts), s.tc.roTxn
-	}
-
-	txn := s.client.Single()
-	return txn.Query(s.ctx, stmt), txn
-}
-
-// RunAnalyzeQuery analyzes a statement either on the running transaction or on the temporal read-only transaction.
-func (s *Session) RunAnalyzeQuery(stmt spanner.Statement) (*pb.QueryPlan, error) {
-	if s.InReadWriteTransaction() {
-		plan, err := s.tc.rwTxn.AnalyzeQuery(s.ctx, stmt)
-		s.tc.sendHeartbeat = true
-		return plan, err
-	}
-	if s.InReadOnlyTransaction() {
-		return s.tc.roTxn.AnalyzeQuery(s.ctx, stmt)
-	}
-
-	txn := s.client.Single()
-	return txn.AnalyzeQuery(s.ctx, stmt)
 }
 
 // RunUpdate executes a DML statement on the running read-write transaction.
