@@ -42,6 +42,7 @@ var defaultClientOpts = []option.ClientOption{
 	option.WithGRPCConnectionPool(1),
 }
 
+// Use MEDIUM priority not to disturb regular workloads on the database.
 const defaultPriority = pb.RequestOptions_PRIORITY_MEDIUM
 
 type Session struct {
@@ -59,7 +60,7 @@ type Session struct {
 
 type transactionContext struct {
 	priority      pb.RequestOptions_Priority
-	sendHeartbeat bool // Only becomes true after a user-driven query/update is executed.
+	sendHeartbeat bool // Becomes true only after a user-driven query is executed on the transaction.
 	rwTxn         *spanner.ReadWriteStmtBasedTransaction
 	roTxn         *spanner.ReadOnlyTransaction
 }
@@ -296,7 +297,7 @@ func (s *Session) DatabaseExists() (bool, error) {
 	// check database existence by running an actual query.
 	// cf. https://github.com/cloudspannerecosystem/spanner-cli/issues/10
 	stmt := spanner.NewStatement("SELECT 1")
-	iter := s.client.Single().Query(s.ctx, stmt)
+	iter := s.client.Single().QueryWithOptions(s.ctx, stmt, spanner.QueryOptions{Priority: s.currentPriority()})
 	defer iter.Stop()
 
 	_, err := iter.Next()
@@ -349,15 +350,15 @@ func (s *Session) startHeartbeat() {
 		case <-interval.C:
 			s.tcMutex.Lock()
 			if s.tc != nil && s.tc.rwTxn != nil && s.tc.sendHeartbeat {
-				heartbeat(s.ctx, s.tc.rwTxn)
+				heartbeat(s.ctx, s.tc.rwTxn, s.currentPriority())
 			}
 			s.tcMutex.Unlock()
 		}
 	}
 }
 
-func heartbeat(ctx context.Context, txn *spanner.ReadWriteStmtBasedTransaction) error {
-	iter := txn.Query(ctx, spanner.NewStatement("SELECT 1"))
+func heartbeat(ctx context.Context, txn *spanner.ReadWriteStmtBasedTransaction, priority pb.RequestOptions_Priority) error {
+	iter := txn.QueryWithOptions(ctx, spanner.NewStatement("SELECT 1"), spanner.QueryOptions{Priority: priority})
 	defer iter.Stop()
 	_, err := iter.Next()
 	return err

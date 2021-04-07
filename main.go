@@ -42,7 +42,7 @@ type spannerOptions struct {
 	Verbose    bool   `short:"v" long:"verbose" description:"Display verbose output."`
 	Credential string `long:"credential" description:"Use the specific credential file"`
 	Prompt     string `long:"prompt" description:"Set the prompt to the specified format"`
-	Priority   string `long:"priority" description:"Set the default request priority (HIGH, MEDIUM, or LOW)"`
+	Priority   string `long:"priority" description:"Set default request priority (HIGH|MEDIUM|LOW)"`
 }
 
 func main() {

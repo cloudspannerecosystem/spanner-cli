@@ -36,7 +36,7 @@ spanner:
   -v, --verbose     Display verbose output.
       --credential= Use the specific credential file
       --prompt=     Set the prompt to the specified format
-      --priority=   Set the default request priority (HIGH, MEDIUM, or LOW)
+      --priority=   Set default request priority (HIGH|MEDIUM|LOW)
 
 Help Options:
   -h, --help        Show this help message
@@ -167,12 +167,13 @@ The syntax is case-insensitive.
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | EXPERIMENTAL |
 | Show DML Execution Plan with Stats | `EXPLAIN ANALYZE (INSERT\|UPDATE\|DELETE) ...;` | EXPERIMENTAL |
 | Start Read-Write Transaction | `BEGIN (RW);` | The `RW` is optional, meaning this is equivalent to `BEGIN;` |
-| Start Read-Write Transaction (with Priority) | `BEGIN PRIORITY LOW;` | Transaction-level priority takes precedence over command-level priority (`--priority`) |
+| Start Read-Write Transaction (with Priority) | `BEGIN PRIORITY LOW;` | See [Request Priority](#request-priority) for details. |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO;` | |
 | Start Read-Only Transaction (Exact Staleness) | `BEGIN RO <seconds>;` | |
 | Start Read-Only Transaction (Read Timestamp) | `BEGIN RO <RFC3339-formatted time>;` | See [RFC3339](https://tools.ietf.org/html/rfc3339) (ISO 8601) |
+| Start Read-Only Transaction (with Priority) | `BEGIN RO PRIORITY LOW;` | See [Request Priority](#request-priority) for details. |
 | End Read-Only Transaction | `CLOSE;` | |
 | Exit CLI | `EXIT;` | |
 
@@ -231,6 +232,33 @@ prompt = "[\\p:\\i:\\d]\\t> "
 2. Environment variables
 3. `.spanner_cli.cnf` in current directory
 4. `.spanner_cli.cnf` in home directory(lowest)
+
+## Request Priority
+
+You can set [request priority](https://cloud.google.com/spanner/docs/reference/rest/v1/RequestOptions#Priority) for command level or transaction level.
+By default `MEDIUM` priority is used for every request.
+
+To set a priority for command line level, you can use `--priority=[HIGH|MEDIUM|LOW]` command line option.
+
+To set a priority for transaction level, you can use `BEGIN PRIORITY [HIGH|MEDIUM|LOW]` syntax.
+
+Here are some examples for transaction-level priority.
+
+```
+# Read-write transaction with low priority
+BEGIN PRIORITY LOW;
+
+# Read-only transaction with low priority
+BEGIN RO PRIORITY LOW;
+
+# Read-only transaction with 60s stale read and medium priority
+BEGIN RO 60 PRIORITY MEDIUM;
+
+# Read-only transaction with exact timestamp and medium priority
+BEGIN RO 2021-04-01T23:47:44+00:00 PRIORITY MEDIUM;
+```
+
+Note that transaction-level priority takes precedence over command-level priority.
 
 ## How to develop
 
