@@ -140,10 +140,11 @@ $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;' -t
 
 ## Syntax
 
-The syntax is case-insensitive. In the following syntax, we use `<>` for a placeholder, `[]` for an optional keyword,
+In the following syntax, we use `<>` for a placeholder, `[]` for an optional keyword,
 and `{}` for a mutually exclusive keyword.
 
-`\G` delimiter is also supported for displaying results vertically.
+* The syntax is case-insensitive.
+* `\G` delimiter is also supported for displaying results vertically.
 
 | Usage | Syntax | Note |
 | --- | --- | --- |
