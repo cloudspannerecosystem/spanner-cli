@@ -140,8 +140,10 @@ $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;' -t
 
 ## Syntax
 
-The syntax is case-insensitive.  
-`\G` delimiter is also supported for dispalying results vertically.
+The syntax is case-insensitive. In the following syntax, we use `<>` for a placeholder, `[]` for an optional keyword,
+and `{}` for a mutually exclusive keyword.
+
+`\G` delimiter is also supported for displaying results vertically.
 
 | Usage | Syntax | Note |
 | --- | --- | --- |
@@ -160,20 +162,16 @@ The syntax is case-insensitive.
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
 | Query | `SELECT ...;` | |
-| DML | `(INSERT\|UPDATE\|DELETE) ...;` | |
-| Partitioned DML | `PARTITIONED (UPDATE\|DELETE) ...;` | |
+| DML | `{INSERT\|UPDATE\|DELETE} ...;` | |
+| Partitioned DML | `PARTITIONED {UPDATE\|DELETE} ...;` | |
 | Show Query Execution Plan | `EXPLAIN SELECT ...;` | |
-| Show DML Execution Plan | `EXPLAIN INSERT / UPDATE / DELETE ...;` | EXPERIMENTAL |
-| Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | EXPERIMENTAL |
-| Show DML Execution Plan with Stats | `EXPLAIN ANALYZE (INSERT\|UPDATE\|DELETE) ...;` | EXPERIMENTAL |
-| Start Read-Write Transaction | `BEGIN (RW);` | The `RW` is optional, meaning this is equivalent to `BEGIN;` |
-| Start Read-Write Transaction (with Priority) | `BEGIN PRIORITY LOW;` | See [Request Priority](#request-priority) for details. |
+| Show DML Execution Plan | `EXPLAIN {INSERT\|UPDATE\|DELETE} ...;` | |
+| Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | |
+| Show DML Execution Plan with Stats | `EXPLAIN ANALYZE {INSERT\|UPDATE\|DELETE} ...;` | |
+| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}];` | See [Request Priority](#request-priority) for details on the priority. |
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
-| Start Read-Only Transaction | `BEGIN RO;` | |
-| Start Read-Only Transaction (Exact Staleness) | `BEGIN RO <seconds>;` | |
-| Start Read-Only Transaction (Read Timestamp) | `BEGIN RO <RFC3339-formatted time>;` | See [RFC3339](https://tools.ietf.org/html/rfc3339) (ISO 8601) |
-| Start Read-Only Transaction (with Priority) | `BEGIN RO PRIORITY LOW;` | See [Request Priority](#request-priority) for details. |
+| Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. |
 | End Read-Only Transaction | `CLOSE;` | |
 | Exit CLI | `EXIT;` | |
 
