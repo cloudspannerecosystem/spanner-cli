@@ -30,7 +30,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 const (
@@ -83,7 +85,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	if testCredential != "" {
 		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
 	}
-	session, err := NewSession(ctx, testProjectId, testInstanceId, testDatabaseId, options...)
+	session, err := NewSession(ctx, testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}

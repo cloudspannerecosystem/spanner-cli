@@ -102,8 +102,8 @@ var (
 	pdmlRe = regexp.MustCompile(`(?is)^PARTITIONED\s+((?:INSERT|UPDATE|DELETE)\s+.+$)`)
 
 	// Transaction
-	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(\s+RW)?$`)
-	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?$`)
+	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?$`)
+	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?$`)
 	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
 	closeRe    = regexp.MustCompile(`(?is)^CLOSE$`)
@@ -184,11 +184,9 @@ func BuildStatement(input string) (Statement, error) {
 		matched := pdmlRe.FindStringSubmatch(input)
 		return &PartitionedDmlStatement{Dml: matched[1]}, nil
 	case beginRwRe.MatchString(input):
-		return &BeginRwStatement{}, nil
+		return newBeginRwStatement(input)
 	case beginRoRe.MatchString(input):
-		if s := newBeginRoStatement(input); s != nil {
-			return s, nil
-		}
+		return newBeginRoStatement(input)
 	case commitRe.MatchString(input):
 		return &CommitStatement{}, nil
 	case rollbackRe.MatchString(input):
@@ -901,7 +899,25 @@ func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, p
 	}
 }
 
-type BeginRwStatement struct{}
+type BeginRwStatement struct {
+	Priority pb.RequestOptions_Priority
+}
+
+func newBeginRwStatement(input string) (*BeginRwStatement, error) {
+	matched := beginRwRe.FindStringSubmatch(input)
+	if matched[1] == "" {
+		return &BeginRwStatement{}, nil
+	}
+
+	priority, err := parsePriority(matched[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return &BeginRwStatement{
+		Priority: priority,
+	}, nil
+}
 
 func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
@@ -911,7 +927,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	if err := session.BeginReadWriteTransaction(); err != nil {
+	if err := session.BeginReadWriteTransaction(s.Priority); err != nil {
 		return nil, err
 	}
 
@@ -969,28 +985,39 @@ type BeginRoStatement struct {
 	TimestampBoundType timestampBoundType
 	Staleness          time.Duration
 	Timestamp          time.Time
+	Priority           pb.RequestOptions_Priority
 }
 
-func newBeginRoStatement(input string) *BeginRoStatement {
+func newBeginRoStatement(input string) (*BeginRoStatement, error) {
+	stmt := &BeginRoStatement{
+		TimestampBoundType: strong,
+	}
+
 	matched := beginRoRe.FindStringSubmatch(input)
-	if matched[1] == "" {
-		return &BeginRoStatement{
-			TimestampBoundType: strong,
+	if matched[1] != "" {
+		if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
+			stmt = &BeginRoStatement{
+				TimestampBoundType: readTimestamp,
+				Timestamp:          t,
+			}
+		}
+		if i, err := strconv.Atoi(matched[1]); err == nil {
+			stmt = &BeginRoStatement{
+				TimestampBoundType: exactStaleness,
+				Staleness:          time.Duration(i) * time.Second,
+			}
 		}
 	}
-	if t, err := time.Parse(time.RFC3339Nano, matched[1]); err == nil {
-		return &BeginRoStatement{
-			TimestampBoundType: readTimestamp,
-			Timestamp:          t,
+
+	if matched[2] != "" {
+		priority, err := parsePriority(matched[2])
+		if err != nil {
+			return nil, err
 		}
+		stmt.Priority = priority
 	}
-	if i, err := strconv.Atoi(matched[1]); err == nil {
-		return &BeginRoStatement{
-			TimestampBoundType: exactStaleness,
-			Staleness:          time.Duration(time.Duration(i) * time.Second),
-		}
-	}
-	return nil
+
+	return stmt, nil
 }
 
 func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
@@ -1003,7 +1030,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 		close.Execute(session)
 	}
 
-	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp)
+	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority)
 	if err != nil {
 		return nil, err
 	}
@@ -1048,4 +1075,17 @@ type ExitStatement struct {
 type UseStatement struct {
 	Database string
 	NopStatement
+}
+
+func parsePriority(priority string) (pb.RequestOptions_Priority, error) {
+	switch strings.ToUpper(priority) {
+	case "HIGH":
+		return pb.RequestOptions_PRIORITY_HIGH, nil
+	case "MEDIUM":
+		return pb.RequestOptions_PRIORITY_MEDIUM, nil
+	case "LOW":
+		return pb.RequestOptions_PRIORITY_LOW, nil
+	default:
+		return pb.RequestOptions_PRIORITY_UNSPECIFIED, fmt.Errorf("invalid priority: %q", priority)
+	}
 }
