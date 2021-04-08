@@ -239,7 +239,7 @@ By default `MEDIUM` priority is used for every request.
 
 To set a priority for command line level, you can use `--priority=[HIGH|MEDIUM|LOW]` command line option.
 
-To set a priority for transaction level, you can use `BEGIN PRIORITY [HIGH|MEDIUM|LOW]` syntax.
+To set a priority for transaction level, you can use `PRIORITY {HIGH\|MEDIUM\|LOW}` keyword.
 
 Here are some examples for transaction-level priority.
 
