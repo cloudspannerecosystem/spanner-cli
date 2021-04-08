@@ -237,7 +237,7 @@ prompt = "[\\p:\\i:\\d]\\t> "
 You can set [request priority](https://cloud.google.com/spanner/docs/reference/rest/v1/RequestOptions#Priority) for command level or transaction level.
 By default `MEDIUM` priority is used for every request.
 
-To set a priority for command line level, you can use `--priority=[HIGH|MEDIUM|LOW]` command line option.
+To set a priority for command line level, you can use `--priority={HIGH\|MEDIUM\|LOW}` command line option.
 
 To set a priority for transaction level, you can use `PRIORITY {HIGH\|MEDIUM\|LOW}` keyword.
 
