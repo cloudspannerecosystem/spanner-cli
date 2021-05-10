@@ -86,6 +86,7 @@ var (
 	// DDL
 	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
 	dropDatabaseRe   = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
+	alterDatabaseRe  = regexp.MustCompile(`(?is)^ALTER\s+DATABASE\s.+$`)
 	createTableRe    = regexp.MustCompile(`(?is)^CREATE\s+TABLE\s.+$`)
 	alterTableRe     = regexp.MustCompile(`(?is)^ALTER\s+TABLE\s.+$`)
 	dropTableRe      = regexp.MustCompile(`(?is)^DROP\s+TABLE\s.+$`)
@@ -138,6 +139,8 @@ func BuildStatement(input string) (Statement, error) {
 	case dropDatabaseRe.MatchString(input):
 		matched := dropDatabaseRe.FindStringSubmatch(input)
 		return &DropDatabaseStatement{DatabaseId: unquoteIdentifier(matched[1])}, nil
+	case alterDatabaseRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
 	case createTableRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case alterTableRe.MatchString(input):
