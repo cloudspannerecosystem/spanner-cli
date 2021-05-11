@@ -77,6 +77,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DropDatabaseStatement{DatabaseId: "TABLE"},
 		},
 		{
+			desc:  "ALTER DATABASE statement",
+			input: "ALTER DATABASE d1 SET OPTIONS ( version_retention_period = '7d' )",
+			want:  &DdlStatement{Ddl: "ALTER DATABASE d1 SET OPTIONS ( version_retention_period = '7d' )"},
+		},
+		{
 			desc:  "CREATE TABLE statement",
 			input: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)",
 			want:  &DdlStatement{Ddl: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)"},
