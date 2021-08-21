@@ -112,6 +112,21 @@ func TestBuildStatement(t *testing.T) {
 			want:  &TruncateTableStatement{Table: "t1"},
 		},
 		{
+			desc:  "CREATE VIEW statement",
+			input: "CREATE VIEW t1view SQL SECURITY INVOKER AS SELECT t1.Id FROM t1",
+			want:  &DdlStatement{Ddl: "CREATE VIEW t1view SQL SECURITY INVOKER AS SELECT t1.Id FROM t1"},
+		},
+		{
+			desc:  "CREATE OR REPLACE VIEW statement",
+			input: "CREATE OR REPLACE VIEW t1view SQL SECURITY INVOKER AS SELECT t1.Id FROM t1",
+			want:  &DdlStatement{Ddl: "CREATE OR REPLACE VIEW t1view SQL SECURITY INVOKER AS SELECT t1.Id FROM t1"},
+		},
+		{
+			desc:  "DROP VIEW statement",
+			input: "DROP VIEW t1view",
+			want:  &DdlStatement{Ddl: "DROP VIEW t1view"},
+		},
+		{
 			desc:  "INSERT statement",
 			input: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
 			want:  &DmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
