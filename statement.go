@@ -71,12 +71,13 @@ type Row struct {
 // Some fields may not have a valid value depending on the environment.
 // For example, only ElapsedTime and RowsReturned has valid value for Cloud Spanner Emulator.
 type QueryStats struct {
-	ElapsedTime        string
-	CPUTime            string
-	RowsReturned       string
-	RowsScanned        string
-	DeletedRowsScanned string
-	OptimizerVersion   string
+	ElapsedTime                string
+	CPUTime                    string
+	RowsReturned               string
+	RowsScanned                string
+	DeletedRowsScanned         string
+	OptimizerVersion           string
+	OptimizerStatisticsPackage string
 }
 
 var (
@@ -96,6 +97,7 @@ var (
 	createViewRe          = regexp.MustCompile(`(?is)^CREATE\s+VIEW\s.+$`)
 	createOrReplaceViewRe = regexp.MustCompile(`(?is)^CREATE\s+OR\s+REPLACE\s+VIEW\s.+$`)
 	dropViewRe            = regexp.MustCompile(`(?is)^DROP\s+VIEW\s.+$`)
+	alterStatisticsRe     = regexp.MustCompile(`(?is)^ALTER\s+STATISTICS\s.+$`)
 
 	// DML
 	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
@@ -158,6 +160,8 @@ func BuildStatement(input string) (Statement, error) {
 		matched := truncateTableRe.FindStringSubmatch(input)
 		return &TruncateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case createViewRe.MatchString(input), createOrReplaceViewRe.MatchString(input), dropViewRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case alterStatisticsRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case showDatabasesRe.MatchString(input):
 		return &ShowDatabasesStatement{}, nil
@@ -317,6 +321,12 @@ func parseQueryStats(stats map[string]interface{}) QueryStats {
 	if v, ok := stats["optimizer_version"]; ok {
 		if version, ok := v.(string); ok {
 			queryStats.OptimizerVersion = version
+		}
+	}
+
+	if v, ok := stats["optimizer_statistics_package"]; ok {
+		if pkg, ok := v.(string); ok {
+			queryStats.OptimizerStatisticsPackage = pkg
 		}
 	}
 

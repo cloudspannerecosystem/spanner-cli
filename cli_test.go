@@ -318,12 +318,13 @@ func TestResultLine(t *testing.T) {
 				AffectedRows: 3,
 				IsMutation:   false,
 				Stats: QueryStats{
-					ElapsedTime:        "10 msec",
-					CPUTime:            "5 msec",
-					RowsScanned:        "10",
-					RowsReturned:       "3",
-					DeletedRowsScanned: "1",
-					OptimizerVersion:   "2",
+					ElapsedTime:                "10 msec",
+					CPUTime:                    "5 msec",
+					RowsScanned:                "10",
+					RowsReturned:               "3",
+					DeletedRowsScanned:         "1",
+					OptimizerVersion:           "2",
+					OptimizerStatisticsPackage: "auto_20210829_05_22_28UTC",
 				},
 				Timestamp: ts,
 			},
@@ -334,6 +335,7 @@ cpu time:             5 msec
 rows scanned:         10 rows
 deleted rows scanned: 1 rows
 optimizer version:    2
+optimizer statistics: auto_20210829_05_22_28UTC
 `, timestamp),
 		},
 		{
