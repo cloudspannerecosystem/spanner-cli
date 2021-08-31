@@ -68,6 +68,10 @@ func equalStringSlice(a []string, b []string) bool {
 	return true
 }
 
+type jsonMessage struct {
+	Msg string `json:"msg"`
+}
+
 func TestDecodeColumn(t *testing.T) {
 	tests := []struct {
 		desc  string
@@ -115,6 +119,16 @@ func TestDecodeColumn(t *testing.T) {
 			value: civil.DateOf(time.Unix(1516676400, 0)),
 			want:  "2018-01-23",
 		},
+		{
+			desc:  "json",
+			value: spanner.NullJSON{Value: jsonMessage{Msg: "foo"}, Valid: true},
+			want:  `{"msg":"foo"}`,
+		},
+		{
+			desc:  "json null is not NULL",
+			value: spanner.NullJSON{Value: nil, Valid: true},
+			want:  `null`,
+		},
 
 		// nullable
 		{
@@ -155,6 +169,11 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null date",
 			value: spanner.NullDate{Date: civil.DateOf(time.Unix(0, 0)), Valid: false},
+			want:  "NULL",
+		},
+		{
+			desc:  "null json",
+			value: spanner.NullJSON{Value: nil, Valid: false},
 			want:  "NULL",
 		},
 
@@ -221,6 +240,14 @@ func TestDecodeColumn(t *testing.T) {
 			},
 			want: "[[10, Hello], [20, NULL]]",
 		},
+		{
+			desc: "array json",
+			value: []spanner.NullJSON{
+				{Value: jsonMessage{Msg: "foo"}, Valid: true},
+				{Value: jsonMessage{Msg: "bar"}, Valid: true},
+			},
+			want: `[{"msg":"foo"}, {"msg":"bar"}]`,
+		},
 
 		// array nullable
 		{
@@ -261,6 +288,11 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null array date",
 			value: []civil.Date(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array json",
+			value: []spanner.NullJSON(nil),
 			want:  "NULL",
 		},
 	}
