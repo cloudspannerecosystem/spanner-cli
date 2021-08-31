@@ -153,6 +153,17 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 				}
 				decoded = append(decoded, fmt.Sprintf("[%s]", strings.Join(columns, ", ")))
 			}
+		case sppb.TypeCode_JSON:
+			var vs []spanner.NullJSON
+			if err := column.Decode(&vs); err != nil {
+				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
+			}
+			for _, v := range vs {
+				decoded = append(decoded, nullJSONToString(v))
+			}
 		}
 		return fmt.Sprintf("[%s]", strings.Join(decoded, ", ")), nil
 	case sppb.TypeCode_BOOL:
@@ -203,6 +214,12 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			return "", err
 		}
 		return nullDateToString(v), nil
+	case sppb.TypeCode_JSON:
+		var v spanner.NullJSON
+		if err := column.Decode(&v); err != nil {
+			return "", err
+		}
+		return nullJSONToString(v), nil
 	default:
 		return fmt.Sprintf("%s", column.Value), nil
 	}
@@ -269,6 +286,14 @@ func nullTimeToString(v spanner.NullTime) string {
 func nullDateToString(v spanner.NullDate) string {
 	if v.Valid {
 		return strings.Trim(v.String(), `"`)
+	} else {
+		return "NULL"
+	}
+}
+
+func nullJSONToString(v spanner.NullJSON) string {
+	if v.Valid {
+		return v.String()
 	} else {
 		return "NULL"
 	}
