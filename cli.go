@@ -440,6 +440,9 @@ func resultLine(result *Result, verbose bool) string {
 		if result.Stats.OptimizerVersion != "" {
 			detail += fmt.Sprintf("optimizer version:    %s\n", result.Stats.OptimizerVersion)
 		}
+		if result.Stats.OptimizerStatisticsPackage != "" {
+			detail += fmt.Sprintf("optimizer statistics: %s\n", result.Stats.OptimizerStatisticsPackage)
+		}
 		return fmt.Sprintf("%s (%s)\n%s", set, result.Stats.ElapsedTime, detail)
 	}
 	return fmt.Sprintf("%s (%s)\n", set, result.Stats.ElapsedTime)
