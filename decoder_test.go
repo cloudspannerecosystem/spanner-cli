@@ -124,6 +124,11 @@ func TestDecodeColumn(t *testing.T) {
 			value: spanner.NullJSON{Value: jsonMessage{Msg: "foo"}, Valid: true},
 			want:  `{"msg":"foo"}`,
 		},
+		{
+			desc:  "json null is not NULL",
+			value: spanner.NullJSON{Value: nil, Valid: true},
+			want:  `null`,
+		},
 
 		// nullable
 		{
