@@ -235,7 +235,7 @@ func nullBoolToString(v spanner.NullBool) string {
 
 func nullBytesToString(v []byte) string {
 	if v != nil {
-		return base64.RawStdEncoding.EncodeToString(v)
+		return base64.StdEncoding.EncodeToString(v)
 	} else {
 		return "NULL"
 	}

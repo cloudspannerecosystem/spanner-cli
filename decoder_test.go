@@ -86,8 +86,8 @@ func TestDecodeColumn(t *testing.T) {
 		},
 		{
 			desc:  "bytes",
-			value: []byte{'a', 'b', 'c'},
-			want:  "YWJj", // base64 encoded 'abc'
+			value: []byte{'a', 'b', 'c', 'd'},
+			want:  "YWJjZA==", // base64 encoded 'abc'
 		},
 		{
 			desc:  "float64",
@@ -190,8 +190,8 @@ func TestDecodeColumn(t *testing.T) {
 		},
 		{
 			desc:  "array bytes",
-			value: [][]byte{{'a', 'b', 'c'}, {'e', 'f', 'g'}},
-			want:  "[YWJj, ZWZn]",
+			value: [][]byte{{'a', 'b', 'c', 'd'}, {'e', 'f', 'g', 'h'}},
+			want:  "[YWJjZA==, ZWZnaA==]",
 		},
 		{
 			desc:  "array float64",
