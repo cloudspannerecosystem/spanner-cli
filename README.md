@@ -12,10 +12,10 @@ You can control your Spanner databases with idiomatic SQL commands.
 
 ## Install
 
-If you have `go`, you can install using `go get`.
+If you have `go`, you can install using `go install`.
 
 ```
-go get -u github.com/cloudspannerecosystem/spanner-cli
+go install github.com/cloudspannerecosystem/spanner-cli@latest
 ```
 
 Otherwise, you can download the binary from the [releases page](https://github.com/cloudspannerecosystem/spanner-cli/releases).
