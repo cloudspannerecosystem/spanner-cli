@@ -259,6 +259,18 @@ BEGIN RO 2021-04-01T23:47:44+00:00 PRIORITY MEDIUM;
 
 Note that transaction-level priority takes precedence over command-level priority.
 
+## Using with the Cloud Spanner Emulator
+
+This tool supports the [Cloud Spanner Emulator](https://cloud.google.com/spanner/docs/emulator) via the [`SPANNER_EMULATOR_HOST` environment variable](https://cloud.google.com/spanner/docs/emulator#client-libraries).
+
+```sh
+$ export SPANNER_EMULATOR_HOST=localhost:9010
+# Or with gcloud env-init:
+$ $(gcloud emulators spanner env-init)
+
+$ spanner-cli -p myproject -i myinstance -d mydb
+```
+
 ## How to develop
 
 Run unit tests.
