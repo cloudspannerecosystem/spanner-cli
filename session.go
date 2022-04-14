@@ -59,10 +59,12 @@ type Session struct {
 }
 
 type transactionContext struct {
-	priority      pb.RequestOptions_Priority
-	sendHeartbeat bool // Becomes true only after a user-driven query is executed on the transaction.
-	rwTxn         *spanner.ReadWriteStmtBasedTransaction
-	roTxn         *spanner.ReadOnlyTransaction
+	requestTag     string
+	transactionTag string
+	priority       pb.RequestOptions_Priority
+	sendHeartbeat  bool // Becomes true only after a user-driven query is executed on the transaction.
+	rwTxn          *spanner.ReadWriteStmtBasedTransaction
+	roTxn          *spanner.ReadOnlyTransaction
 }
 
 func NewSession(ctx context.Context, projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, opts ...option.ClientOption) (*Session, error) {
@@ -129,8 +131,9 @@ func (s *Session) BeginReadWriteTransaction(priority pb.RequestOptions_Priority,
 		return err
 	}
 	s.tc = &transactionContext{
-		priority: priority,
-		rwTxn:    txn,
+		transactionTag: transactionTag,
+		priority:       priority,
+		rwTxn:          txn,
 	}
 	return nil
 }
@@ -164,7 +167,7 @@ func (s *Session) RollbackReadWriteTransaction() error {
 }
 
 // BeginReadOnlyTransaction starts read-only transaction and returns the snapshot timestamp for the transaction if successful.
-func (s *Session) BeginReadOnlyTransaction(typ timestampBoundType, staleness time.Duration, timestamp time.Time, priority pb.RequestOptions_Priority) (time.Time, error) {
+func (s *Session) BeginReadOnlyTransaction(typ timestampBoundType, staleness time.Duration, timestamp time.Time, priority pb.RequestOptions_Priority, requestTag string) (time.Time, error) {
 	if s.InReadOnlyTransaction() {
 		return time.Time{}, errors.New("read-only transaction is already running")
 	}
@@ -194,8 +197,9 @@ func (s *Session) BeginReadOnlyTransaction(typ timestampBoundType, staleness tim
 	}
 
 	s.tc = &transactionContext{
-		priority: priority,
-		roTxn:    txn,
+		requestTag: requestTag,
+		priority:   priority,
+		roTxn:      txn,
 	}
 
 	return txn.Timestamp()
@@ -253,11 +257,20 @@ func (s *Session) RunAnalyzeQuery(stmt spanner.Statement) (*pb.QueryPlan, error)
 
 func (s *Session) runQueryWithOptions(stmt spanner.Statement, opts spanner.QueryOptions) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.InReadWriteTransaction() {
+		if s.tc.transactionTag != "" {
+			// In a read-write transaction, add transaction tags as request tags.
+			opts.RequestTag = s.tc.transactionTag
+		}
 		iter := s.tc.rwTxn.QueryWithOptions(s.ctx, stmt, opts)
 		s.tc.sendHeartbeat = true
 		return iter, nil
 	}
 	if s.InReadOnlyTransaction() {
+		if s.tc.requestTag != "" {
+			// Read-only transactions do not support transaction tags,
+			// so add the same request tags within the same read-only transaction instead.
+			opts.RequestTag = s.tc.requestTag
+		}
 		return s.tc.roTxn.QueryWithOptions(s.ctx, stmt, opts), s.tc.roTxn
 	}
 
@@ -274,6 +287,10 @@ func (s *Session) RunUpdate(stmt spanner.Statement) (int64, error) {
 
 	opts := spanner.QueryOptions{
 		Priority: s.currentPriority(),
+	}
+	if s.tc.transactionTag != "" {
+		// In a read-write transaction, add transaction tags as request tags.
+		opts.RequestTag = s.tc.transactionTag
 	}
 	rowCount, err := s.tc.rwTxn.UpdateWithOptions(s.ctx, stmt, opts)
 	s.tc.sendHeartbeat = true

@@ -109,7 +109,7 @@ var (
 
 	// Transaction
 	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
-	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?$`)
+	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
 	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
 	closeRe    = regexp.MustCompile(`(?is)^CLOSE$`)
@@ -924,21 +924,21 @@ type BeginRwStatement struct {
 
 func newBeginRwStatement(input string) (*BeginRwStatement, error) {
 	matched := beginRwRe.FindStringSubmatch(input)
-	result := &BeginRwStatement{}
+	stmt := &BeginRwStatement{}
 
 	if matched[1] != "" {
 		priority, err := parsePriority(matched[1])
 		if err != nil {
 			return nil, err
 		}
-		result.Priority = priority
+		stmt.Priority = priority
 	}
 
 	if matched[2] != "" {
-		result.TransactionTag = matched[2]
+		stmt.TransactionTag = matched[2]
 	}
 
-	return result, nil
+	return stmt, nil
 }
 
 func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
@@ -1008,6 +1008,7 @@ type BeginRoStatement struct {
 	Staleness          time.Duration
 	Timestamp          time.Time
 	Priority           pb.RequestOptions_Priority
+	RequestTag         string
 }
 
 func newBeginRoStatement(input string) (*BeginRoStatement, error) {
@@ -1039,6 +1040,10 @@ func newBeginRoStatement(input string) (*BeginRoStatement, error) {
 		stmt.Priority = priority
 	}
 
+	if matched[3] != "" {
+		stmt.RequestTag = matched[3]
+	}
+
 	return stmt, nil
 }
 
@@ -1052,7 +1057,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 		close.Execute(session)
 	}
 
-	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority)
+	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority, s.RequestTag)
 	if err != nil {
 		return nil, err
 	}
