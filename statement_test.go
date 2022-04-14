@@ -211,6 +211,57 @@ func TestBuildStatement(t *testing.T) {
 			},
 		},
 		{
+			desc:  "BEGIN statement with TAG",
+			input: "BEGIN TAG app=concert,env=dev",
+			want: &BeginRwStatement{
+				TransactionTag: "app=concert,env=dev",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with TAG",
+			input: "BEGIN RW TAG app=concert,env=dev",
+			want: &BeginRwStatement{
+				TransactionTag: "app=concert,env=dev",
+			},
+		},
+		{
+			desc:  "BEGIN PRIORITY statement with TAG",
+			input: "BEGIN PRIORITY MEDIUM TAG app=concert,env=dev",
+			want: &BeginRwStatement{
+				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
+				TransactionTag: "app=concert,env=dev",
+			},
+		},
+		{
+			desc:  "BEGIN statement with TAG whitespace",
+			input: "BEGIN TAG app=concert env=dev",
+			want: &BeginRwStatement{
+				TransactionTag: "app=concert env=dev",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with TAG whitespace",
+			input: "BEGIN RW TAG app=concert env=dev",
+			want: &BeginRwStatement{
+				TransactionTag: "app=concert env=dev",
+			},
+		},
+		{
+			desc:  "BEGIN PRIORITY statement with TAG whitespace",
+			input: "BEGIN PRIORITY MEDIUM TAG app=concert env=dev",
+			want: &BeginRwStatement{
+				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
+				TransactionTag: "app=concert env=dev",
+			},
+		},
+		{
+			desc:  "BEGIN statement with TAG quoted",
+			input: "BEGIN TAG app=\"concert\" env='dev'",
+			want: &BeginRwStatement{
+				TransactionTag: "app=\"concert\" env='dev'",
+			},
+		},
+		{
 			desc:  "BEGIN RO statement",
 			input: "BEGIN RO",
 			want:  &BeginRoStatement{TimestampBoundType: strong},

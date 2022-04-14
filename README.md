@@ -169,7 +169,7 @@ and `{}` for a mutually exclusive keyword.
 | Show DML Execution Plan | `EXPLAIN {INSERT\|UPDATE\|DELETE} ...;` | |
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | |
 | Show DML Execution Plan with Stats | `EXPLAIN ANALYZE {INSERT\|UPDATE\|DELETE} ...;` | |
-| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}];` | See [Request Priority](#request-priority) for details on the priority. |
+| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <transaction_tags>];` | See [Request Priority](#request-priority) for details on the priority. You can add [transaction tags](https://cloud.google.com/spanner/docs/introspection/troubleshooting-with-tags#transaction_tags?hl=en).|
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. |

@@ -70,7 +70,7 @@ func TestRequestPriority(t *testing.T) {
 			}
 
 			// Read-Write Transaction.
-			if err := session.BeginReadWriteTransaction(test.transactionPriority); err != nil {
+			if err := session.BeginReadWriteTransaction(test.transactionPriority, "app=concert,env=dev"); err != nil {
 				t.Fatalf("failed to begin read write transaction: %v", err)
 			}
 			iter, _ := session.RunQuery(spanner.NewStatement("SELECT * FROM t1"))

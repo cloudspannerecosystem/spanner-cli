@@ -108,7 +108,7 @@ var (
 	pdmlRe = regexp.MustCompile(`(?is)^PARTITIONED\s+((?:INSERT|UPDATE|DELETE)\s+.+$)`)
 
 	// Transaction
-	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?$`)
+	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
 	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?$`)
 	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
@@ -918,23 +918,27 @@ func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, p
 }
 
 type BeginRwStatement struct {
-	Priority pb.RequestOptions_Priority
+	Priority       pb.RequestOptions_Priority
+	TransactionTag string
 }
 
 func newBeginRwStatement(input string) (*BeginRwStatement, error) {
 	matched := beginRwRe.FindStringSubmatch(input)
-	if matched[1] == "" {
-		return &BeginRwStatement{}, nil
+	result := &BeginRwStatement{}
+
+	if matched[1] != "" {
+		priority, err := parsePriority(matched[1])
+		if err != nil {
+			return nil, err
+		}
+		result.Priority = priority
 	}
 
-	priority, err := parsePriority(matched[1])
-	if err != nil {
-		return nil, err
+	if matched[2] != "" {
+		result.TransactionTag = matched[2]
 	}
 
-	return &BeginRwStatement{
-		Priority: priority,
-	}, nil
+	return result, nil
 }
 
 func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
@@ -945,7 +949,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	if err := session.BeginReadWriteTransaction(s.Priority); err != nil {
+	if err := session.BeginReadWriteTransaction(s.Priority, s.TransactionTag); err != nil {
 		return nil, err
 	}
 
