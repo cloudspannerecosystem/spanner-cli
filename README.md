@@ -169,10 +169,10 @@ and `{}` for a mutually exclusive keyword.
 | Show DML Execution Plan | `EXPLAIN {INSERT\|UPDATE\|DELETE} ...;` | |
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | |
 | Show DML Execution Plan with Stats | `EXPLAIN ANALYZE {INSERT\|UPDATE\|DELETE} ...;` | |
-| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <transaction_tags>];` | See [Request Priority](#request-priority) for details on the priority. You can add [transaction tags](https://cloud.google.com/spanner/docs/introspection/troubleshooting-with-tags#transaction_tags?hl=en). The transaction tags are also used as [request tags](https://cloud.google.com/spanner/docs/introspection/troubleshooting-with-tags#request_tags?hl=en) in the transaction.|
+| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tags>];` | See [Request Priority](#request-priority) for details on the priority. The tags you set are used as transaction tags and request tags. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
-| Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <request_tags>];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. You can add [request tags](https://cloud.google.com/spanner/docs/introspection/troubleshooting-with-tags#request_tags?hl=en).|
+| Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tags>];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. The tags you set are used as request tags. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
 | End Read-Only Transaction | `CLOSE;` | |
 | Exit CLI | `EXIT;` | |
 
@@ -258,6 +258,46 @@ BEGIN RO 2021-04-01T23:47:44+00:00 PRIORITY MEDIUM;
 ```
 
 Note that transaction-level priority takes precedence over command-level priority.
+
+## Transaction Tags and Request Tags
+
+In a read-write transaction, you can add arbitrary tags following `BEGIN RW TAG <tags>`.
+spanner-cli adds the tags set in `BEGIN RW TAG` as transaction tags.
+This tag will also be used as request tags within that transaction.
+
+```
+# Read-write transaction
+# transaction_tag = tx1
++--------------------+
+| BEGIN RW TAG tx1;  |
+|                    |
+| SELECT val         |
+| FROM tab1      +-----request_tag = tx1
+| WHERE id = 1;      |
+|                    |
+| UPDATE tab1        |
+| SET val = 10   +-----request_tag = tx1
+| WHERE id = 1;      |
+|                    |
+| COMMIT;            |
++--------------------+
+```
+
+In a read-only transaction, you can add arbitrary tags following `BEGIN RO TAG <tags>`.
+Since read-only transaction doesn't support transaction tags, spanner-cli adds the tag set in `BEGIN RO TAG` as request tags.
+```
+# Read-only transaction
+# transaction_tag = N/A
++--------------------+
+| BEGIN RO TAG tx2;  |
+|                    |
+| SELECT SUM(val)    |
+| FROM tab1      +-----request_tag = tx2
+| WHERE id = 1;      |
+|                    |
+| CLOSE;             |
++--------------------+
+```
 
 ## Using with the Cloud Spanner Emulator
 
