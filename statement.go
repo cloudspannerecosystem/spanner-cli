@@ -918,8 +918,8 @@ func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, p
 }
 
 type BeginRwStatement struct {
-	Priority       pb.RequestOptions_Priority
-	TransactionTag string
+	Priority pb.RequestOptions_Priority
+	Tag      string
 }
 
 func newBeginRwStatement(input string) (*BeginRwStatement, error) {
@@ -935,7 +935,7 @@ func newBeginRwStatement(input string) (*BeginRwStatement, error) {
 	}
 
 	if matched[2] != "" {
-		stmt.TransactionTag = matched[2]
+		stmt.Tag = matched[2]
 	}
 
 	return stmt, nil
@@ -949,7 +949,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	if err := session.BeginReadWriteTransaction(s.Priority, s.TransactionTag); err != nil {
+	if err := session.BeginReadWriteTransaction(s.Priority, s.Tag); err != nil {
 		return nil, err
 	}
 
@@ -1008,7 +1008,7 @@ type BeginRoStatement struct {
 	Staleness          time.Duration
 	Timestamp          time.Time
 	Priority           pb.RequestOptions_Priority
-	RequestTag         string
+	Tag                string
 }
 
 func newBeginRoStatement(input string) (*BeginRoStatement, error) {
@@ -1041,7 +1041,7 @@ func newBeginRoStatement(input string) (*BeginRoStatement, error) {
 	}
 
 	if matched[3] != "" {
-		stmt.RequestTag = matched[3]
+		stmt.Tag = matched[3]
 	}
 
 	return stmt, nil
@@ -1057,7 +1057,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 		close.Execute(session)
 	}
 
-	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority, s.RequestTag)
+	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority, s.Tag)
 	if err != nil {
 		return nil, err
 	}

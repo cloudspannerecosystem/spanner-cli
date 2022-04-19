@@ -214,51 +214,51 @@ func TestBuildStatement(t *testing.T) {
 			desc:  "BEGIN statement with TAG",
 			input: "BEGIN TAG app=spanner-cli,env=test",
 			want: &BeginRwStatement{
-				TransactionTag: "app=spanner-cli,env=test",
+				Tag: "app=spanner-cli,env=test",
 			},
 		},
 		{
 			desc:  "BEGIN RW statement with TAG",
 			input: "BEGIN RW TAG app=spanner-cli,env=test",
 			want: &BeginRwStatement{
-				TransactionTag: "app=spanner-cli,env=test",
+				Tag: "app=spanner-cli,env=test",
 			},
 		},
 		{
 			desc:  "BEGIN PRIORITY statement with TAG",
 			input: "BEGIN PRIORITY MEDIUM TAG app=spanner-cli,env=test",
 			want: &BeginRwStatement{
-				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
-				TransactionTag: "app=spanner-cli,env=test",
+				Priority: pb.RequestOptions_PRIORITY_MEDIUM,
+				Tag:      "app=spanner-cli,env=test",
 			},
 		},
 		{
 			desc:  "BEGIN statement with TAG whitespace",
 			input: "BEGIN TAG app=spanner-cli env=test",
 			want: &BeginRwStatement{
-				TransactionTag: "app=spanner-cli env=test",
+				Tag: "app=spanner-cli env=test",
 			},
 		},
 		{
 			desc:  "BEGIN RW statement with TAG whitespace",
 			input: "BEGIN RW TAG app=spanner-cli env=test",
 			want: &BeginRwStatement{
-				TransactionTag: "app=spanner-cli env=test",
+				Tag: "app=spanner-cli env=test",
 			},
 		},
 		{
 			desc:  "BEGIN PRIORITY statement with TAG whitespace",
 			input: "BEGIN PRIORITY MEDIUM TAG app=spanner-cli env=test",
 			want: &BeginRwStatement{
-				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
-				TransactionTag: "app=spanner-cli env=test",
+				Priority: pb.RequestOptions_PRIORITY_MEDIUM,
+				Tag:      "app=spanner-cli env=test",
 			},
 		},
 		{
 			desc:  "BEGIN statement with TAG quoted",
 			input: "BEGIN TAG app=\"spanner-cli\" env='dev'",
 			want: &BeginRwStatement{
-				TransactionTag: "app=\"spanner-cli\" env='dev'",
+				Tag: "app=\"spanner-cli\" env='dev'",
 			},
 		},
 		{
@@ -296,7 +296,7 @@ func TestBuildStatement(t *testing.T) {
 			input: "BEGIN RO TAG app=spanner-cli,env=test",
 			want: &BeginRoStatement{
 				TimestampBoundType: strong,
-				RequestTag:         "app=spanner-cli,env=test",
+				Tag:                "app=spanner-cli,env=test",
 			},
 		},
 		{
@@ -305,7 +305,7 @@ func TestBuildStatement(t *testing.T) {
 			want: &BeginRoStatement{
 				Staleness:          time.Duration(10 * time.Second),
 				TimestampBoundType: exactStaleness,
-				RequestTag:         "app=spanner-cli,env=test",
+				Tag:                "app=spanner-cli,env=test",
 			},
 		},
 		{
@@ -314,7 +314,7 @@ func TestBuildStatement(t *testing.T) {
 			want: &BeginRoStatement{
 				Timestamp:          timestamp,
 				TimestampBoundType: readTimestamp,
-				RequestTag:         "app=spanner-cli,env=test",
+				Tag:                "app=spanner-cli,env=test",
 			},
 			skipLowerCase: true,
 		},
@@ -324,7 +324,7 @@ func TestBuildStatement(t *testing.T) {
 			want: &BeginRoStatement{
 				TimestampBoundType: strong,
 				Priority:           pb.RequestOptions_PRIORITY_LOW,
-				RequestTag:         "app=spanner-cli,env=test",
+				Tag:                "app=spanner-cli,env=test",
 			},
 		},
 		{
@@ -334,7 +334,7 @@ func TestBuildStatement(t *testing.T) {
 				Staleness:          time.Duration(10 * time.Second),
 				TimestampBoundType: exactStaleness,
 				Priority:           pb.RequestOptions_PRIORITY_HIGH,
-				RequestTag:         "app=spanner-cli,env=test",
+				Tag:                "app=spanner-cli,env=test",
 			},
 		},
 		{

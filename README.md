@@ -169,10 +169,10 @@ and `{}` for a mutually exclusive keyword.
 | Show DML Execution Plan | `EXPLAIN {INSERT\|UPDATE\|DELETE} ...;` | |
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | |
 | Show DML Execution Plan with Stats | `EXPLAIN ANALYZE {INSERT\|UPDATE\|DELETE} ...;` | |
-| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tags>];` | See [Request Priority](#request-priority) for details on the priority. The tags you set are used as transaction tags and request tags. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
+| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | See [Request Priority](#request-priority) for details on the priority. The tag you set is used as both transaction tag and request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
-| Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tags>];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. The tags you set are used as request tags. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
+| Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. The tag you set is used as request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
 | End Read-Only Transaction | `CLOSE;` | |
 | Exit CLI | `EXIT;` | |
 
@@ -261,9 +261,9 @@ Note that transaction-level priority takes precedence over command-level priorit
 
 ## Transaction Tags and Request Tags
 
-In a read-write transaction, you can add arbitrary tags following `BEGIN RW TAG <tags>`.
-spanner-cli adds the tags set in `BEGIN RW TAG` as transaction tags.
-This tag will also be used as request tags within that transaction.
+In a read-write transaction, you can add a tag following `BEGIN RW TAG <tag>`.
+spanner-cli adds the tag set in `BEGIN RW TAG` as a transaction tag.
+The tag will also be used as request tags within the transaction.
 
 ```
 # Read-write transaction
@@ -283,8 +283,8 @@ This tag will also be used as request tags within that transaction.
 +--------------------+
 ```
 
-In a read-only transaction, you can add arbitrary tags following `BEGIN RO TAG <tags>`.
-Since read-only transaction doesn't support transaction tags, spanner-cli adds the tag set in `BEGIN RO TAG` as request tags.
+In a read-only transaction, you can add a tag following `BEGIN RO TAG <tag>`.
+Since read-only transaction doesn't support transaction tag, spanner-cli adds the tag set in `BEGIN RO TAG` as request tags.
 ```
 # Read-only transaction
 # transaction_tag = N/A
