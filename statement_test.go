@@ -211,6 +211,57 @@ func TestBuildStatement(t *testing.T) {
 			},
 		},
 		{
+			desc:  "BEGIN statement with TAG",
+			input: "BEGIN TAG app=spanner-cli,env=test",
+			want: &BeginRwStatement{
+				Tag: "app=spanner-cli,env=test",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with TAG",
+			input: "BEGIN RW TAG app=spanner-cli,env=test",
+			want: &BeginRwStatement{
+				Tag: "app=spanner-cli,env=test",
+			},
+		},
+		{
+			desc:  "BEGIN PRIORITY statement with TAG",
+			input: "BEGIN PRIORITY MEDIUM TAG app=spanner-cli,env=test",
+			want: &BeginRwStatement{
+				Priority: pb.RequestOptions_PRIORITY_MEDIUM,
+				Tag:      "app=spanner-cli,env=test",
+			},
+		},
+		{
+			desc:  "BEGIN statement with TAG whitespace",
+			input: "BEGIN TAG app=spanner-cli env=test",
+			want: &BeginRwStatement{
+				Tag: "app=spanner-cli env=test",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with TAG whitespace",
+			input: "BEGIN RW TAG app=spanner-cli env=test",
+			want: &BeginRwStatement{
+				Tag: "app=spanner-cli env=test",
+			},
+		},
+		{
+			desc:  "BEGIN PRIORITY statement with TAG whitespace",
+			input: "BEGIN PRIORITY MEDIUM TAG app=spanner-cli env=test",
+			want: &BeginRwStatement{
+				Priority: pb.RequestOptions_PRIORITY_MEDIUM,
+				Tag:      "app=spanner-cli env=test",
+			},
+		},
+		{
+			desc:  "BEGIN statement with TAG quoted",
+			input: "BEGIN TAG app=\"spanner-cli\" env='dev'",
+			want: &BeginRwStatement{
+				Tag: "app=\"spanner-cli\" env='dev'",
+			},
+		},
+		{
 			desc:  "BEGIN RO statement",
 			input: "BEGIN RO",
 			want:  &BeginRoStatement{TimestampBoundType: strong},
@@ -238,6 +289,52 @@ func TestBuildStatement(t *testing.T) {
 				Staleness:          time.Duration(10 * time.Second),
 				TimestampBoundType: exactStaleness,
 				Priority:           pb.RequestOptions_PRIORITY_HIGH,
+			},
+		},
+		{
+			desc:  "BEGIN RO statement with TAG",
+			input: "BEGIN RO TAG app=spanner-cli,env=test",
+			want: &BeginRoStatement{
+				TimestampBoundType: strong,
+				Tag:                "app=spanner-cli,env=test",
+			},
+		},
+		{
+			desc:  "BEGIN RO staleness statement with TAG",
+			input: "BEGIN RO 10 TAG app=spanner-cli,env=test",
+			want: &BeginRoStatement{
+				Staleness:          time.Duration(10 * time.Second),
+				TimestampBoundType: exactStaleness,
+				Tag:                "app=spanner-cli,env=test",
+			},
+		},
+		{
+			desc:  "BEGIN RO read timestamp statement with TAG",
+			input: "BEGIN RO 2020-03-30T22:54:44.834017+09:00 TAG app=spanner-cli,env=test",
+			want: &BeginRoStatement{
+				Timestamp:          timestamp,
+				TimestampBoundType: readTimestamp,
+				Tag:                "app=spanner-cli,env=test",
+			},
+			skipLowerCase: true,
+		},
+		{
+			desc:  "BEGIN RO PRIORITY statement with TAG",
+			input: "BEGIN RO PRIORITY LOW TAG app=spanner-cli,env=test",
+			want: &BeginRoStatement{
+				TimestampBoundType: strong,
+				Priority:           pb.RequestOptions_PRIORITY_LOW,
+				Tag:                "app=spanner-cli,env=test",
+			},
+		},
+		{
+			desc:  "BEGIN RO staleness with PRIORITY statement with TAG",
+			input: "BEGIN RO 10 PRIORITY HIGH TAG app=spanner-cli,env=test",
+			want: &BeginRoStatement{
+				Staleness:          time.Duration(10 * time.Second),
+				TimestampBoundType: exactStaleness,
+				Priority:           pb.RequestOptions_PRIORITY_HIGH,
+				Tag:                "app=spanner-cli,env=test",
 			},
 		},
 		{
