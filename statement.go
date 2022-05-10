@@ -126,7 +126,7 @@ var (
 )
 
 var (
-	explainColumnNames        = []string{"ID", "Query_Execution_Plan (EXPERIMENTAL)"}
+	explainColumnNames        = []string{"ID", "Query_Execution_Plan"}
 	explainAnalyzeColumnNames = []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"}
 )
 
