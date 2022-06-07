@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"io"
 	"os"
+	"os/signal"
 	"regexp"
 	"strings"
 	"time"
@@ -73,8 +74,7 @@ type command struct {
 }
 
 func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority) (*Cli, error) {
-	ctx := context.Background()
-	session, err := createSession(ctx, projectId, instanceId, databaseId, credential, priority)
+	session, err := createSession(projectId, instanceId, databaseId, credential, priority)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +121,9 @@ func (c *Cli) RunInteractive() int {
 		if err == io.EOF {
 			return c.Exit()
 		}
+		if err == readline.ErrInterrupt {
+			return c.Exit()
+		}
 		if err != nil {
 			c.PrintInteractiveError(err)
 			continue
@@ -137,8 +140,7 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
-			ctx := context.Background()
-			newSession, err := createSession(ctx, c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority)
+			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -173,10 +175,12 @@ func (c *Cli) RunInteractive() int {
 			}
 		}
 
-		// execute
+		// Execute the statement.
+		ctx, cancel := context.WithCancel(context.Background())
+		go handleInterrupt(cancel)
 		stop := c.PrintProgressingMark()
 		t0 := time.Now()
-		result, err := stmt.Execute(c.Session)
+		result, err := stmt.Execute(ctx, c.Session)
 		elapsed := time.Since(t0).Seconds()
 		stop()
 		if err != nil {
@@ -188,6 +192,7 @@ func (c *Cli) RunInteractive() int {
 				c.Session.RecreateClient()
 			}
 			c.PrintInteractiveError(err)
+			cancel()
 			continue
 		}
 
@@ -203,6 +208,7 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		fmt.Fprintf(c.OutStream, "\n")
+		cancel()
 	}
 }
 
@@ -213,8 +219,11 @@ func (c *Cli) RunBatch(input string, displayTable bool) int {
 		return exitCodeError
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	go handleInterrupt(cancel)
+
 	for _, cmd := range cmds {
-		result, err := cmd.Stmt.Execute(c.Session)
+		result, err := cmd.Stmt.Execute(ctx, c.Session)
 		if err != nil {
 			c.PrintBatchError(err)
 			return exitCodeError
@@ -293,12 +302,12 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
-func createSession(ctx context.Context, projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority) (*Session, error) {
+func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority) (*Session, error) {
 	if credential != nil {
 		credentialOption := option.WithCredentialsJSON(credential)
-		return NewSession(ctx, projectId, instanceId, databaseId, priority, credentialOption)
+		return NewSession(projectId, instanceId, databaseId, priority, credentialOption)
 	} else {
-		return NewSession(ctx, projectId, instanceId, databaseId, priority)
+		return NewSession(projectId, instanceId, databaseId, priority)
 	}
 }
 
@@ -493,4 +502,11 @@ func confirm(out io.Writer, msg string) bool {
 			fmt.Fprint(out, "Please answer yes or no: ")
 		}
 	}
+}
+
+func handleInterrupt(cancel context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+	cancel()
 }

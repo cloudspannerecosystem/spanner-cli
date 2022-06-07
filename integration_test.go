@@ -85,7 +85,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	if testCredential != "" {
 		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
 	}
-	session, err := NewSession(ctx, testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, options...)
+	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}
@@ -114,7 +114,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	for _, dml := range dmls {
 		dml = strings.Replace(dml, "[[TABLE]]", tableId, -1)
 		stmt := spanner.NewStatement(dml)
-		_, err := session.client.ReadWriteTransaction(session.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		_, err := session.client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			_, err = txn.Update(ctx, stmt)
 			if err != nil {
 				t.Fatalf("failed to apply DML: dml=%s, err=%s", dml, err)
@@ -171,7 +171,7 @@ func TestSelect(t *testing.T) {
 		t.Fatalf("invalid statement: error=%s", err)
 	}
 
-	result, err := stmt.Execute(session)
+	result, err := stmt.Execute(ctx, session)
 	if err != nil {
 		t.Fatalf("unexpected error happened: %s", err)
 	}
@@ -203,7 +203,7 @@ func TestDml(t *testing.T) {
 		t.Fatalf("invalid statement: error=%s", err)
 	}
 
-	result, err := stmt.Execute(session)
+	result, err := stmt.Execute(ctx, session)
 	if err != nil {
 		t.Fatalf("unexpected error happened: %s", err)
 	}
@@ -259,7 +259,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err := stmt.Execute(session)
+		result, err := stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -275,7 +275,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err = stmt.Execute(session)
+		result, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -291,7 +291,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err = stmt.Execute(session)
+		result, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -342,7 +342,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err := stmt.Execute(session)
+		result, err := stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -358,7 +358,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err = stmt.Execute(session)
+		result, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -374,7 +374,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err = stmt.Execute(session)
+		result, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -409,7 +409,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		if _, err := stmt.Execute(session); err != nil {
+		if _, err := stmt.Execute(ctx, session); err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
 
@@ -454,7 +454,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err := stmt.Execute(session)
+		result, err := stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -470,7 +470,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err = stmt.Execute(session)
+		result, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -491,7 +491,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err = stmt.Execute(session)
+		result, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -520,7 +520,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 		if err != nil {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
-		if _, err := stmt.Execute(session); err != nil {
+		if _, err := stmt.Execute(ctx, session); err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
 
@@ -530,7 +530,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		if _, err := stmt.Execute(session); err != nil {
+		if _, err := stmt.Execute(ctx, session); err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
 
@@ -540,7 +540,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		result, err := stmt.Execute(session)
+		result, err := stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -562,7 +562,7 @@ func TestReadOnlyTransaction(t *testing.T) {
 			t.Fatalf("invalid statement: error=%s", err)
 		}
 
-		_, err = stmt.Execute(session)
+		_, err = stmt.Execute(ctx, session)
 		if err != nil {
 			t.Fatalf("unexpected error happened: %s", err)
 		}
@@ -585,7 +585,7 @@ func TestShowCreateTable(t *testing.T) {
 		t.Fatalf("invalid statement: error=%s", err)
 	}
 
-	result, err := stmt.Execute(session)
+	result, err := stmt.Execute(ctx, session)
 	if err != nil {
 		t.Fatalf("unexpected error happened: %s", err)
 	}
@@ -616,7 +616,7 @@ func TestShowColumns(t *testing.T) {
 		t.Fatalf("invalid statement: error=%s", err)
 	}
 
-	result, err := stmt.Execute(session)
+	result, err := stmt.Execute(ctx, session)
 	if err != nil {
 		t.Fatalf("unexpected error happened: %s", err)
 	}
@@ -648,7 +648,7 @@ func TestShowIndexes(t *testing.T) {
 		t.Fatalf("invalid statement: error=%s", err)
 	}
 
-	result, err := stmt.Execute(session)
+	result, err := stmt.Execute(ctx, session)
 	if err != nil {
 		t.Fatalf("unexpected error happened: %s", err)
 	}
@@ -681,7 +681,7 @@ func TestTruncateTable(t *testing.T) {
 		t.Fatalf("invalid statement: %v", err)
 	}
 
-	if _, err := stmt.Execute(session); err != nil {
+	if _, err := stmt.Execute(ctx, session); err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
 
@@ -717,7 +717,7 @@ func TestPartitionedDML(t *testing.T) {
 		t.Fatalf("invalid statement: %v", err)
 	}
 
-	if _, err := stmt.Execute(session); err != nil {
+	if _, err := stmt.Execute(ctx, session); err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
 
