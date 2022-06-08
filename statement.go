@@ -37,7 +37,7 @@ import (
 const pdmlTimeout = time.Hour * 24
 
 type Statement interface {
-	Execute(session *Session) (*Result, error)
+	Execute(ctx context.Context, session *Session) (*Result, error)
 }
 
 // rowCountType is type of modified rows count by DML.
@@ -218,10 +218,10 @@ type SelectStatement struct {
 	Query string
 }
 
-func (s *SelectStatement) Execute(session *Session) (*Result, error) {
+func (s *SelectStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
 
-	iter, roTxn := session.RunQueryWithStats(stmt)
+	iter, roTxn := session.RunQueryWithStats(ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -229,7 +229,7 @@ func (s *SelectStatement) Execute(session *Session) (*Result, error) {
 		if session.InReadWriteTransaction() && spanner.ErrCode(err) == codes.Aborted {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
-			rollback.Execute(session)
+			rollback.Execute(ctx, session)
 		}
 		return nil, err
 	}
@@ -337,15 +337,15 @@ type CreateDatabaseStatement struct {
 	CreateStatement string
 }
 
-func (s *CreateDatabaseStatement) Execute(session *Session) (*Result, error) {
-	op, err := session.adminClient.CreateDatabase(session.ctx, &adminpb.CreateDatabaseRequest{
+func (s *CreateDatabaseStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
+	op, err := session.adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          session.InstancePath(),
 		CreateStatement: s.CreateStatement,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if _, err := op.Wait(session.ctx); err != nil {
+	if _, err := op.Wait(ctx); err != nil {
 		return nil, err
 	}
 
@@ -356,8 +356,8 @@ type DropDatabaseStatement struct {
 	DatabaseId string
 }
 
-func (s *DropDatabaseStatement) Execute(session *Session) (*Result, error) {
-	if err := session.adminClient.DropDatabase(session.ctx, &adminpb.DropDatabaseRequest{
+func (s *DropDatabaseStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
+	if err := session.adminClient.DropDatabase(ctx, &adminpb.DropDatabaseRequest{
 		Database: fmt.Sprintf("projects/%s/instances/%s/databases/%s", session.projectId, session.instanceId, s.DatabaseId),
 	}); err != nil {
 		return nil, err
@@ -370,27 +370,27 @@ type DdlStatement struct {
 	Ddl string
 }
 
-func (s *DdlStatement) Execute(session *Session) (*Result, error) {
-	return executeDdlStatements(session, []string{s.Ddl})
+func (s *DdlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
+	return executeDdlStatements(ctx, session, []string{s.Ddl})
 }
 
 type BulkDdlStatement struct {
 	Ddls []string
 }
 
-func (s *BulkDdlStatement) Execute(session *Session) (*Result, error) {
-	return executeDdlStatements(session, s.Ddls)
+func (s *BulkDdlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
+	return executeDdlStatements(ctx, session, s.Ddls)
 }
 
-func executeDdlStatements(session *Session, ddls []string) (*Result, error) {
-	op, err := session.adminClient.UpdateDatabaseDdl(session.ctx, &adminpb.UpdateDatabaseDdlRequest{
+func executeDdlStatements(ctx context.Context, session *Session, ddls []string) (*Result, error) {
+	op, err := session.adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.DatabasePath(),
 		Statements: ddls,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if err := op.Wait(session.ctx); err != nil {
+	if err := op.Wait(ctx); err != nil {
 		return nil, err
 	}
 
@@ -400,10 +400,10 @@ func executeDdlStatements(session *Session, ddls []string) (*Result, error) {
 type ShowDatabasesStatement struct {
 }
 
-func (s *ShowDatabasesStatement) Execute(session *Session) (*Result, error) {
+func (s *ShowDatabasesStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	result := &Result{ColumnNames: []string{"Database"}}
 
-	dbIter := session.adminClient.ListDatabases(session.ctx, &adminpb.ListDatabasesRequest{
+	dbIter := session.adminClient.ListDatabases(ctx, &adminpb.ListDatabasesRequest{
 		Parent: session.InstancePath(),
 	})
 
@@ -434,10 +434,10 @@ type ShowCreateTableStatement struct {
 	Table string
 }
 
-func (s *ShowCreateTableStatement) Execute(session *Session) (*Result, error) {
+func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	result := &Result{ColumnNames: []string{"Table", "Create Table"}}
 
-	ddlResponse, err := session.adminClient.GetDatabaseDdl(session.ctx, &adminpb.GetDatabaseDdlRequest{
+	ddlResponse, err := session.adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{
 		Database: session.DatabasePath(),
 	})
 	if err != nil {
@@ -469,7 +469,7 @@ func isCreateTableDDL(ddl string, table string) bool {
 
 type ShowTablesStatement struct{}
 
-func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
+func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		// INFORMATION_SCHEMA can not be used in read-write transaction.
 		// https://cloud.google.com/spanner/docs/information-schema
@@ -479,7 +479,7 @@ func (s *ShowTablesStatement) Execute(session *Session) (*Result, error) {
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
 	stmt := spanner.NewStatement(fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias))
 
-	iter, _ := session.RunQuery(stmt)
+	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -498,9 +498,9 @@ type ExplainStatement struct {
 	Explain string
 }
 
-func (s *ExplainStatement) Execute(session *Session) (*Result, error) {
+func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Explain)
-	queryPlan, err := session.client.Single().AnalyzeQuery(session.ctx, stmt)
+	queryPlan, err := session.client.Single().AnalyzeQuery(ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -524,10 +524,10 @@ type ExplainAnalyzeStatement struct {
 	Query string
 }
 
-func (s *ExplainAnalyzeStatement) Execute(session *Session) (*Result, error) {
+func (s *ExplainAnalyzeStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Query)
 
-	iter, roTxn := session.RunQueryWithStats(stmt)
+	iter, roTxn := session.RunQueryWithStats(ctx, stmt)
 
 	// consume iter
 	err := iter.Do(func(*spanner.Row) error {
@@ -620,7 +620,7 @@ type ShowColumnsStatement struct {
 	Table string
 }
 
-func (s *ShowColumnsStatement) Execute(session *Session) (*Result, error) {
+func (s *ShowColumnsStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		// INFORMATION_SCHEMA can not be used in read-write transaction.
 		// https://cloud.google.com/spanner/docs/information-schema
@@ -648,7 +648,7 @@ ORDER BY
   C.ORDINAL_POSITION ASC`,
 		Params: map[string]interface{}{"table_name": s.Table}}
 
-	iter, _ := session.RunQuery(stmt)
+	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -670,7 +670,7 @@ type ShowIndexStatement struct {
 	Table string
 }
 
-func (s *ShowIndexStatement) Execute(session *Session) (*Result, error) {
+func (s *ShowIndexStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		// INFORMATION_SCHEMA can not be used in read-write transaction.
 		// https://cloud.google.com/spanner/docs/information-schema
@@ -692,7 +692,7 @@ WHERE
   I.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
 		Params: map[string]interface{}{"table_name": s.Table}}
 
-	iter, _ := session.RunQuery(stmt)
+	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
 
 	rows, columnNames, err := parseQueryResult(iter)
@@ -714,7 +714,7 @@ type TruncateTableStatement struct {
 	Table string
 }
 
-func (s *TruncateTableStatement) Execute(session *Session) (*Result, error) {
+func (s *TruncateTableStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
 		return nil, errors.New(`"TRUNCATE TABLE" can not be used in a read-write transaction`)
@@ -725,7 +725,7 @@ func (s *TruncateTableStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	stmt := spanner.NewStatement(fmt.Sprintf("DELETE FROM `%s` WHERE true", s.Table))
-	ctx, cancel := context.WithTimeout(session.ctx, pdmlTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pdmlTimeout)
 	defer cancel()
 
 	count, err := session.client.PartitionedUpdate(ctx, stmt)
@@ -742,7 +742,7 @@ type DmlStatement struct {
 	Dml string
 }
 
-func (s *DmlStatement) Execute(session *Session) (*Result, error) {
+func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Dml)
 
 	result := &Result{IsMutation: true}
@@ -750,30 +750,30 @@ func (s *DmlStatement) Execute(session *Session) (*Result, error) {
 	var numRows int64
 	var err error
 	if session.InReadWriteTransaction() {
-		numRows, err = session.RunUpdate(stmt)
+		numRows, err = session.RunUpdate(ctx, stmt)
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
-			rollback.Execute(session)
+			rollback.Execute(ctx, session)
 			return nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
 	} else {
 		// Start implicit transaction.
 		begin := BeginRwStatement{}
-		if _, err = begin.Execute(session); err != nil {
+		if _, err = begin.Execute(ctx, session); err != nil {
 			return nil, err
 		}
 
-		numRows, err = session.RunUpdate(stmt)
+		numRows, err = session.RunUpdate(ctx, stmt)
 		if err != nil {
 			// once error has happened, escape from implicit transaction
 			rollback := &RollbackStatement{}
-			rollback.Execute(session)
+			rollback.Execute(ctx, session)
 			return nil, err
 		}
 
 		commit := CommitStatement{}
-		txnResult, err := commit.Execute(session)
+		txnResult, err := commit.Execute(ctx, session)
 		if err != nil {
 			return nil, err
 		}
@@ -790,7 +790,7 @@ type PartitionedDmlStatement struct {
 	Dml string
 }
 
-func (s *PartitionedDmlStatement) Execute(session *Session) (*Result, error) {
+func (s *PartitionedDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		// PartitionedUpdate creates a new transaction and it could cause dead lock with the current running transaction.
 		return nil, errors.New(`Partitioned DML statement can not be run in a read-write transaction`)
@@ -801,7 +801,7 @@ func (s *PartitionedDmlStatement) Execute(session *Session) (*Result, error) {
 	}
 
 	stmt := spanner.NewStatement(s.Dml)
-	ctx, cancel := context.WithTimeout(session.ctx, pdmlTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pdmlTimeout)
 	defer cancel()
 
 	count, err := session.client.PartitionedUpdate(ctx, stmt)
@@ -819,9 +819,9 @@ type ExplainDmlStatement struct {
 	Dml string
 }
 
-func (s *ExplainDmlStatement) Execute(session *Session) (*Result, error) {
-	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
-		plan, err := session.RunAnalyzeQuery(spanner.NewStatement(s.Dml))
+func (s *ExplainDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
+	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, error) {
+		plan, err := session.RunAnalyzeQuery(ctx, spanner.NewStatement(s.Dml))
 		return 0, plan, err
 	})
 	if err != nil {
@@ -848,11 +848,11 @@ type ExplainAnalyzeDmlStatement struct {
 	Dml string
 }
 
-func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) {
+func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Dml)
 
-	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(session, func() (int64, *pb.QueryPlan, error) {
-		iter, _ := session.RunQueryWithStats(stmt)
+	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, error) {
+		iter, _ := session.RunQueryWithStats(ctx, stmt)
 		defer iter.Stop()
 		err := iter.Do(func(r *spanner.Row) error { return nil })
 		if err != nil {
@@ -883,20 +883,20 @@ func (s *ExplainAnalyzeDmlStatement) Execute(session *Session) (*Result, error) 
 
 // runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
 // It execute a function in the current RW transaction or an implicit RW transaction.
-func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
+func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
 	if session.InReadWriteTransaction() {
 		affected, plan, err := f()
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
-			rollback.Execute(session)
+			rollback.Execute(ctx, session)
 			return 0, time.Time{}, nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
 		return affected, time.Time{}, plan, nil
 	} else {
 		// Start implicit transaction.
 		begin := BeginRwStatement{}
-		if _, err := begin.Execute(session); err != nil {
+		if _, err := begin.Execute(ctx, session); err != nil {
 			return 0, time.Time{}, nil, err
 		}
 
@@ -904,12 +904,12 @@ func runInNewOrExistRwTxForExplain(session *Session, f func() (affected int64, p
 		if err != nil {
 			// once error has happened, escape from implicit transaction
 			rollback := &RollbackStatement{}
-			rollback.Execute(session)
+			rollback.Execute(ctx, session)
 			return 0, time.Time{}, nil, err
 		}
 
 		commit := CommitStatement{}
-		txnResult, err := commit.Execute(session)
+		txnResult, err := commit.Execute(ctx, session)
 		if err != nil {
 			return 0, time.Time{}, nil, err
 		}
@@ -941,7 +941,7 @@ func newBeginRwStatement(input string) (*BeginRwStatement, error) {
 	return stmt, nil
 }
 
-func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
+func (s *BeginRwStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		return nil, errors.New("you're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
@@ -949,7 +949,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	if err := session.BeginReadWriteTransaction(s.Priority, s.Tag); err != nil {
+	if err := session.BeginReadWriteTransaction(ctx, s.Priority, s.Tag); err != nil {
 		return nil, err
 	}
 
@@ -958,7 +958,7 @@ func (s *BeginRwStatement) Execute(session *Session) (*Result, error) {
 
 type CommitStatement struct{}
 
-func (s *CommitStatement) Execute(session *Session) (*Result, error) {
+func (s *CommitStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	result := &Result{IsMutation: true}
 	if session.InReadOnlyTransaction() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
@@ -967,7 +967,7 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 		return result, nil
 	}
 
-	resp, err := session.CommitReadWriteTransaction()
+	resp, err := session.CommitReadWriteTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -979,7 +979,7 @@ func (s *CommitStatement) Execute(session *Session) (*Result, error) {
 
 type RollbackStatement struct{}
 
-func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
+func (s *RollbackStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	result := &Result{IsMutation: true}
 	if session.InReadOnlyTransaction() {
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
@@ -988,7 +988,7 @@ func (s *RollbackStatement) Execute(session *Session) (*Result, error) {
 		return result, nil
 	}
 
-	if err := session.RollbackReadWriteTransaction(); err != nil {
+	if err := session.RollbackReadWriteTransaction(ctx); err != nil {
 		return nil, err
 	}
 
@@ -1047,17 +1047,17 @@ func newBeginRoStatement(input string) (*BeginRoStatement, error) {
 	return stmt, nil
 }
 
-func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
+func (s *BeginRoStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
 	if session.InReadOnlyTransaction() {
 		// close current transaction implicitly
 		close := &CloseStatement{}
-		close.Execute(session)
+		close.Execute(ctx, session)
 	}
 
-	ts, err := session.BeginReadOnlyTransaction(s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority, s.Tag)
+	ts, err := session.BeginReadOnlyTransaction(ctx, s.TimestampBoundType, s.Staleness, s.Timestamp, s.Priority, s.Tag)
 	if err != nil {
 		return nil, err
 	}
@@ -1070,7 +1070,7 @@ func (s *BeginRoStatement) Execute(session *Session) (*Result, error) {
 
 type CloseStatement struct{}
 
-func (s *CloseStatement) Execute(session *Session) (*Result, error) {
+func (s *CloseStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
 		return nil, errors.New("You're in read-write transaction. Please finish the transaction by 'COMMIT;' or 'ROLLBACK;'")
 	}
@@ -1090,7 +1090,7 @@ func (s *CloseStatement) Execute(session *Session) (*Result, error) {
 
 type NopStatement struct{}
 
-func (s *NopStatement) Execute(session *Session) (*Result, error) {
+func (s *NopStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	// do nothing
 	return &Result{}, nil
 }

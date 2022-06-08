@@ -64,33 +64,33 @@ func TestRequestPriority(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			defer recorder.flush()
 
-			session, err := NewSession(ctx, "project", "instance", "database", test.sessionPriority, option.WithGRPCConn(conn))
+			session, err := NewSession("project", "instance", "database", test.sessionPriority, option.WithGRPCConn(conn))
 			if err != nil {
 				t.Fatalf("failed to create spanner-cli session: %v", err)
 			}
 
 			// Read-Write Transaction.
-			if err := session.BeginReadWriteTransaction(test.transactionPriority, ""); err != nil {
+			if err := session.BeginReadWriteTransaction(ctx, test.transactionPriority, ""); err != nil {
 				t.Fatalf("failed to begin read write transaction: %v", err)
 			}
-			iter, _ := session.RunQuery(spanner.NewStatement("SELECT * FROM t1"))
+			iter, _ := session.RunQuery(ctx, spanner.NewStatement("SELECT * FROM t1"))
 			if err := iter.Do(func(r *spanner.Row) error {
 				return nil
 			}); err != nil {
 				t.Fatalf("failed to run query: %v", err)
 			}
-			if _, err := session.RunUpdate(spanner.NewStatement("DELETE FROM t1 WHERE Id = 1")); err != nil {
+			if _, err := session.RunUpdate(ctx, spanner.NewStatement("DELETE FROM t1 WHERE Id = 1")); err != nil {
 				t.Fatalf("failed to run update: %v", err)
 			}
-			if _, err := session.CommitReadWriteTransaction(); err != nil {
+			if _, err := session.CommitReadWriteTransaction(ctx); err != nil {
 				t.Fatalf("failed to commit: %v", err)
 			}
 
 			// Read-Only Transaction.
-			if _, err := session.BeginReadOnlyTransaction(strong, 0, time.Now(), test.transactionPriority, ""); err != nil {
+			if _, err := session.BeginReadOnlyTransaction(ctx, strong, 0, time.Now(), test.transactionPriority, ""); err != nil {
 				t.Fatalf("failed to begin read only transaction: %v", err)
 			}
-			iter, _ = session.RunQueryWithStats(spanner.NewStatement("SELECT * FROM t1"))
+			iter, _ = session.RunQueryWithStats(ctx, spanner.NewStatement("SELECT * FROM t1"))
 			if err := iter.Do(func(r *spanner.Row) error {
 				return nil
 			}); err != nil {
