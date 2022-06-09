@@ -85,19 +85,12 @@ var (
 	selectRe = regexp.MustCompile(`(?is)^(?:WITH|@{.+|SELECT)\s.+$`)
 
 	// DDL
-	createDatabaseRe      = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
-	dropDatabaseRe        = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
-	alterDatabaseRe       = regexp.MustCompile(`(?is)^ALTER\s+DATABASE\s.+$`)
-	createTableRe         = regexp.MustCompile(`(?is)^CREATE\s+TABLE\s.+$`)
-	alterTableRe          = regexp.MustCompile(`(?is)^ALTER\s+TABLE\s.+$`)
-	dropTableRe           = regexp.MustCompile(`(?is)^DROP\s+TABLE\s.+$`)
-	createIndexRe         = regexp.MustCompile(`(?is)^CREATE\s+(UNIQUE\s+)?(NULL_FILTERED\s+)?INDEX\s.+$`)
-	dropIndexRe           = regexp.MustCompile(`(?is)^DROP\s+INDEX\s.+$`)
-	truncateTableRe       = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
-	createViewRe          = regexp.MustCompile(`(?is)^CREATE\s+VIEW\s.+$`)
-	createOrReplaceViewRe = regexp.MustCompile(`(?is)^CREATE\s+OR\s+REPLACE\s+VIEW\s.+$`)
-	dropViewRe            = regexp.MustCompile(`(?is)^DROP\s+VIEW\s.+$`)
-	alterStatisticsRe     = regexp.MustCompile(`(?is)^ALTER\s+STATISTICS\s.+$`)
+	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
+	dropDatabaseRe   = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
+	createRe         = regexp.MustCompile(`(?is)^CREATE\s.+$`)
+	dropRe           = regexp.MustCompile(`(?is)^DROP\s.+$`)
+	alterRe          = regexp.MustCompile(`(?is)^ALTER\s.+$`)
+	truncateTableRe  = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
 
 	// DML
 	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
@@ -141,28 +134,18 @@ func BuildStatement(input string) (Statement, error) {
 		return &SelectStatement{Query: input}, nil
 	case createDatabaseRe.MatchString(input):
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
+	case createRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
 	case dropDatabaseRe.MatchString(input):
 		matched := dropDatabaseRe.FindStringSubmatch(input)
 		return &DropDatabaseStatement{DatabaseId: unquoteIdentifier(matched[1])}, nil
-	case alterDatabaseRe.MatchString(input):
+	case dropRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
-	case createTableRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case alterTableRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case dropTableRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case createIndexRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case dropIndexRe.MatchString(input):
+	case alterRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case truncateTableRe.MatchString(input):
 		matched := truncateTableRe.FindStringSubmatch(input)
 		return &TruncateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
-	case createViewRe.MatchString(input), createOrReplaceViewRe.MatchString(input), dropViewRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
-	case alterStatisticsRe.MatchString(input):
-		return &DdlStatement{Ddl: input}, nil
 	case showDatabasesRe.MatchString(input):
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):

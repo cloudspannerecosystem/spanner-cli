@@ -127,6 +127,36 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "DROP VIEW t1view"},
 		},
 		{
+			desc:  "CREATE CHANGE STREAM FOR ALL statement",
+			input: "CREATE CHANGE STREAM EverythingStream FOR ALL",
+			want:  &DdlStatement{Ddl: "CREATE CHANGE STREAM EverythingStream FOR ALL"},
+		},
+		{
+			desc:  "CREATE CHANGE STREAM FOR specific columns statement",
+			input: "CREATE CHANGE STREAM NamesAndTitles FOR Singers(FirstName, LastName), Albums(Title)",
+			want:  &DdlStatement{Ddl: "CREATE CHANGE STREAM NamesAndTitles FOR Singers(FirstName, LastName), Albums(Title)"},
+		},
+		{
+			desc:  "ALTER CHANGE STREAM SET FOR statement",
+			input: "ALTER CHANGE STREAM NamesAndAlbums SET FOR Singers(FirstName, LastName), Albums, Songs",
+			want:  &DdlStatement{Ddl: "ALTER CHANGE STREAM NamesAndAlbums SET FOR Singers(FirstName, LastName), Albums, Songs"},
+		},
+		{
+			desc:  "ALTER CHANGE STREAM SET OPTIONS statement",
+			input: "ALTER CHANGE STREAM NamesAndAlbums SET OPTIONS( retention_period = '36h' )",
+			want:  &DdlStatement{Ddl: "ALTER CHANGE STREAM NamesAndAlbums SET OPTIONS( retention_period = '36h' )"},
+		},
+		{
+			desc:  "ALTER CHANGE STREAM DROP FOR ALL statement",
+			input: "ALTER CHANGE STREAM MyStream DROP FOR ALL",
+			want:  &DdlStatement{Ddl: "ALTER CHANGE STREAM MyStream DROP FOR ALL"},
+		},
+		{
+			desc:  "DROP CHANGE STREAM statement",
+			input: "DROP CHANGE STREAM NamesAndAlbums",
+			want:  &DdlStatement{Ddl: "DROP CHANGE STREAM NamesAndAlbums"},
+		},
+		{
 			desc:  "ALTER STATISTICS statement",
 			input: "ALTER STATISTICS package SET OPTIONS (allow_gc = false)",
 			want:  &DdlStatement{Ddl: "ALTER STATISTICS package SET OPTIONS (allow_gc = false)"},
