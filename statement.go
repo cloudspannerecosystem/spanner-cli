@@ -85,15 +85,12 @@ var (
 	selectRe = regexp.MustCompile(`(?is)^(?:WITH|@{.+|SELECT)\s.+$`)
 
 	// DDL
-	createDatabaseRe  = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
-	dropDatabaseRe    = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
-	alterDatabaseRe   = regexp.MustCompile(`(?is)^ALTER\s+DATABASE\s.+$`)
-	createRe          = regexp.MustCompile(`(?is)^CREATE\s.+$`)
-	dropRe            = regexp.MustCompile(`(?is)^DROP\s.+$`)
-	alterRe           = regexp.MustCompile(`(?is)^ALTER\s.+$`)
-	alterTableRe      = regexp.MustCompile(`(?is)^ALTER\s+TABLE\s.+$`)
-	truncateTableRe   = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
-	alterStatisticsRe = regexp.MustCompile(`(?is)^ALTER\s+STATISTICS\s.+$`)
+	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
+	dropDatabaseRe   = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
+	createRe         = regexp.MustCompile(`(?is)^CREATE\s.+$`)
+	dropRe           = regexp.MustCompile(`(?is)^DROP\s.+$`)
+	alterRe          = regexp.MustCompile(`(?is)^ALTER\s.+$`)
+	truncateTableRe  = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
 
 	// DML
 	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
