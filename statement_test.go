@@ -472,11 +472,6 @@ func TestBuildStatement(t *testing.T) {
 			input: "DESC SELECT * FROM t1",
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
 		},
-		{
-			desc:  "DESC SELECT statement",
-			input: "DESC SELECT * FROM t1",
-			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
-		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			got, err := BuildStatement(test.input)
