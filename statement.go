@@ -132,21 +132,15 @@ func BuildStatement(input string) (Statement, error) {
 		return &UseStatement{Database: unquoteIdentifier(matched[1])}, nil
 	case selectRe.MatchString(input):
 		return &SelectStatement{Query: input}, nil
+	case createDatabaseRe.MatchString(input):
+		return &CreateDatabaseStatement{CreateStatement: input}, nil
 	case createRe.MatchString(input):
-		switch {
-		case createDatabaseRe.MatchString(input):
-			return &CreateDatabaseStatement{CreateStatement: input}, nil
-		default:
-			return &DdlStatement{Ddl: input}, nil
-		}
+		return &DdlStatement{Ddl: input}, nil
+	case dropDatabaseRe.MatchString(input):
+		matched := dropDatabaseRe.FindStringSubmatch(input)
+		return &DropDatabaseStatement{DatabaseId: unquoteIdentifier(matched[1])}, nil
 	case dropRe.MatchString(input):
-		switch {
-		case dropDatabaseRe.MatchString(input):
-			matched := dropDatabaseRe.FindStringSubmatch(input)
-			return &DropDatabaseStatement{DatabaseId: unquoteIdentifier(matched[1])}, nil
-		default:
-			return &DdlStatement{Ddl: input}, nil
-		}
+		return &DdlStatement{Ddl: input}, nil
 	case alterRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case truncateTableRe.MatchString(input):
