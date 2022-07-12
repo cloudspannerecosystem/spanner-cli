@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/codes"
 	"io"
 	"os"
 	"os/signal"
@@ -33,8 +32,8 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/option"
-
 	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	"google.golang.org/grpc/codes"
 )
 
 type DisplayMode int
@@ -44,7 +43,8 @@ const (
 	DisplayModeVertical
 	DisplayModeTab
 
-	defaultPrompt = `spanner\t> `
+	defaultPrompt      = `spanner\t> `
+	defaultHistoryFile = `/tmp/spanner_cli_readline.tmp`
 
 	exitCodeSuccess = 0
 	exitCodeError   = 1
@@ -58,14 +58,15 @@ var (
 )
 
 type Cli struct {
-	Session    *Session
-	Prompt     string
-	Credential []byte
-	InStream   io.ReadCloser
-	OutStream  io.Writer
-	ErrStream  io.Writer
-	Verbose    bool
-	Priority   pb.RequestOptions_Priority
+	Session     *Session
+	Prompt      string
+	HistoryFile string
+	Credential  []byte
+	InStream    io.ReadCloser
+	OutStream   io.Writer
+	ErrStream   io.Writer
+	Verbose     bool
+	Priority    pb.RequestOptions_Priority
 }
 
 type command struct {
@@ -73,7 +74,7 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId string, prompt string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority) (*Cli, error) {
 	session, err := createSession(projectId, instanceId, databaseId, credential, priority)
 	if err != nil {
 		return nil, err
@@ -83,21 +84,26 @@ func NewCli(projectId, instanceId, databaseId string, prompt string, credential 
 		prompt = defaultPrompt
 	}
 
+	if historyFile == "" {
+		historyFile = defaultHistoryFile
+	}
+
 	return &Cli{
-		Session:    session,
-		Prompt:     prompt,
-		Credential: credential,
-		InStream:   inStream,
-		OutStream:  outStream,
-		ErrStream:  errStream,
-		Verbose:    verbose,
+		Session:     session,
+		Prompt:      prompt,
+		HistoryFile: historyFile,
+		Credential:  credential,
+		InStream:    inStream,
+		OutStream:   outStream,
+		ErrStream:   errStream,
+		Verbose:     verbose,
 	}, nil
 }
 
 func (c *Cli) RunInteractive() int {
 	rl, err := readline.NewEx(&readline.Config{
 		Stdin:       c.InStream,
-		HistoryFile: "/tmp/spanner_cli_readline.tmp",
+		HistoryFile: c.HistoryFile,
 	})
 	if err != nil {
 		return c.ExitOnError(err)
