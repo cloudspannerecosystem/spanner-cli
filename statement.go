@@ -89,6 +89,8 @@ var (
 	dropDatabaseRe   = regexp.MustCompile(`(?is)^DROP\s+DATABASE\s+(.+)$`)
 	createRe         = regexp.MustCompile(`(?is)^CREATE\s.+$`)
 	dropRe           = regexp.MustCompile(`(?is)^DROP\s.+$`)
+	grantRe          = regexp.MustCompile(`(?is)^GRANT\s.+$`)
+	revokeRe         = regexp.MustCompile(`(?is)^REVOKE\s.+$`)
 	alterRe          = regexp.MustCompile(`(?is)^ALTER\s.+$`)
 	truncateTableRe  = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
 
@@ -142,6 +144,10 @@ func BuildStatement(input string) (Statement, error) {
 	case dropRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case alterRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case grantRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
+	case revokeRe.MatchString(input):
 		return &DdlStatement{Ddl: input}, nil
 	case truncateTableRe.MatchString(input):
 		matched := truncateTableRe.FindStringSubmatch(input)
