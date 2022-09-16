@@ -177,6 +177,7 @@ and `{}` for a mutually exclusive keyword.
 | Show DML Execution Plan | `EXPLAIN {INSERT\|UPDATE\|DELETE} ...;` | |
 | Show Query Execution Plan with Stats | `EXPLAIN ANALYZE SELECT ...;` | |
 | Show DML Execution Plan with Stats | `EXPLAIN ANALYZE {INSERT\|UPDATE\|DELETE} ...;` | |
+| Start a new query optimizer statistics package construction | `ANALYZE` | |
 | Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | See [Request Priority](#request-priority) for details on the priority. The tag you set is used as both transaction tag and request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
