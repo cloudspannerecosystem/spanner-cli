@@ -166,6 +166,10 @@ and `{}` for a mutually exclusive keyword.
 | Truncate table | `TRUNCATE TABLE <table>;` | Only rows are deleted. Note: Non-atomically because executed as a [partitioned DML statement](https://cloud.google.com/spanner/docs/dml-partitioned?hl=en). |
 | Create index | `CREATE INDEX ...;` | |
 | Delete index | `DROP INDEX ...;` | |
+| Create role | `CREATE ROLE ...;` | |
+| Drop role | `DROP ROLE ...;` | |
+| Grant | `GRANT ...;` | |
+| Revoke | `REVOKE ...;` | |
 | Query | `SELECT ...;` | |
 | DML | `{INSERT\|UPDATE\|DELETE} ...;` | |
 | Partitioned DML | `PARTITIONED {UPDATE\|DELETE} ...;` | |

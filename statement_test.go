@@ -157,6 +157,16 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "DROP CHANGE STREAM NamesAndAlbums"},
 		},
 		{
+			desc:  "GRANT statement",
+			input: "GRANT SELECT ON TABLE employees TO ROLE hr_rep",
+			want:  &DdlStatement{Ddl: "GRANT SELECT ON TABLE employees TO ROLE hr_rep"},
+		},
+		{
+			desc:  "REVOKE statement",
+			input: "REVOKE SELECT ON TABLE employees FROM ROLE hr_rep",
+			want:  &DdlStatement{Ddl: "REVOKE SELECT ON TABLE employees FROM ROLE hr_rep"},
+		},
+		{
 			desc:  "ALTER STATISTICS statement",
 			input: "ALTER STATISTICS package SET OPTIONS (allow_gc = false)",
 			want:  &DdlStatement{Ddl: "ALTER STATISTICS package SET OPTIONS (allow_gc = false)"},
