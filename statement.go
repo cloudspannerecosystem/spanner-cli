@@ -93,6 +93,7 @@ var (
 	revokeRe         = regexp.MustCompile(`(?is)^REVOKE\s.+$`)
 	alterRe          = regexp.MustCompile(`(?is)^ALTER\s.+$`)
 	truncateTableRe  = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
+	analyzeRe        = regexp.MustCompile(`(?is)^ANALYZE$`)
 
 	// DML
 	dmlRe = regexp.MustCompile(`(?is)^(INSERT|UPDATE|DELETE)\s+.+$`)
@@ -152,6 +153,8 @@ func BuildStatement(input string) (Statement, error) {
 	case truncateTableRe.MatchString(input):
 		matched := truncateTableRe.FindStringSubmatch(input)
 		return &TruncateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
+	case analyzeRe.MatchString(input):
+		return &DdlStatement{Ddl: input}, nil
 	case showDatabasesRe.MatchString(input):
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(input):

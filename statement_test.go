@@ -172,6 +172,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "ALTER STATISTICS package SET OPTIONS (allow_gc = false)"},
 		},
 		{
+			desc:  "ANALYZE statement",
+			input: "ANALYZE",
+			want:  &DdlStatement{Ddl: "ANALYZE"},
+		},
+		{
 			desc:  "INSERT statement",
 			input: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
 			want:  &DmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
