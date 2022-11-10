@@ -272,7 +272,13 @@ Note that transaction-level priority takes precedence over command-level priorit
 
 In a read-write transaction, you can add a tag following `BEGIN RW TAG <tag>`.
 spanner-cli adds the tag set in `BEGIN RW TAG` as a transaction tag.
-The tag will also be used as request tags within the transaction.
+The tag will also be used as the prefix of request tags within the transaction.
+
+spanner-cli generates request tags in the following format. 
+
+`<request tag>` ::＝ `<transaction tag>_<sequence number>_<SQL Text>`
+
+Because the length of a request_tag is [limited to 50 characters](https://github.com/googleapis/googleapis/blob/150b4079b6441ea8b3d7f9a71d0be7bbacbb4e3a/google/spanner/v1/spanner.proto#L466-L476), request tags, especially SQL Text embedded at the end of a request tag, may be truncated.
 
 ```
 # Read-write transaction
@@ -281,11 +287,11 @@ The tag will also be used as request tags within the transaction.
 | BEGIN RW TAG tx1;  |
 |                    |
 | SELECT val         |
-| FROM tab1      +-----request_tag = tx1
+| FROM tab1      +-----request_tag = tx1_1_SELECT val...
 | WHERE id = 1;      |
 |                    |
 | UPDATE tab1        |
-| SET val = 10   +-----request_tag = tx1
+| SET val = 10   +-----request_tag = tx1_2_UPDATE tab1...
 | WHERE id = 1;      |
 |                    |
 | COMMIT;            |
@@ -293,7 +299,8 @@ The tag will also be used as request tags within the transaction.
 ```
 
 In a read-only transaction, you can add a tag following `BEGIN RO TAG <tag>`.
-Since read-only transaction doesn't support transaction tag, spanner-cli adds the tag set in `BEGIN RO TAG` as request tags.
+Since read-only transaction doesn't support transaction tag, spanner-cli adds the tag set in `BEGIN RO TAG` as the prefix of request tags.
+
 ```
 # Read-only transaction
 # transaction_tag = N/A
@@ -301,7 +308,7 @@ Since read-only transaction doesn't support transaction tag, spanner-cli adds th
 | BEGIN RO TAG tx2;  |
 |                    |
 | SELECT SUM(val)    |
-| FROM tab1      +-----request_tag = tx2
+| FROM tab1      +-----request_tag = tx2_1_SELECT SUM(val)...
 | WHERE id = 1;      |
 |                    |
 | CLOSE;             |

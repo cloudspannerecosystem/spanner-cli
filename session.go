@@ -58,11 +58,12 @@ type Session struct {
 }
 
 type transactionContext struct {
-	tag           string
-	priority      pb.RequestOptions_Priority
-	sendHeartbeat bool // Becomes true only after a user-driven query is executed on the transaction.
-	rwTxn         *spanner.ReadWriteStmtBasedTransaction
-	roTxn         *spanner.ReadOnlyTransaction
+	statementCounter int64 // Count current statement number in a transaction
+	tag              string
+	priority         pb.RequestOptions_Priority
+	sendHeartbeat    bool // Becomes true only after a user-driven query is executed on the transaction.
+	rwTxn            *spanner.ReadWriteStmtBasedTransaction
+	roTxn            *spanner.ReadOnlyTransaction
 }
 
 func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, opts ...option.ClientOption) (*Session, error) {
@@ -129,9 +130,10 @@ func (s *Session) BeginReadWriteTransaction(ctx context.Context, priority pb.Req
 		return err
 	}
 	s.tc = &transactionContext{
-		tag:      tag,
-		priority: priority,
-		rwTxn:    txn,
+		statementCounter: 1, // Reset counter
+		tag:              tag,
+		priority:         priority,
+		rwTxn:            txn,
 	}
 	return nil
 }
@@ -195,9 +197,10 @@ func (s *Session) BeginReadOnlyTransaction(ctx context.Context, typ timestampBou
 	}
 
 	s.tc = &transactionContext{
-		tag:      tag,
-		priority: priority,
-		roTxn:    txn,
+		statementCounter: 1, // Reset counter
+		tag:              tag,
+		priority:         priority,
+		roTxn:            txn,
 	}
 
 	return txn.Timestamp()
@@ -255,13 +258,13 @@ func (s *Session) RunAnalyzeQuery(ctx context.Context, stmt spanner.Statement) (
 
 func (s *Session) runQueryWithOptions(ctx context.Context, stmt spanner.Statement, opts spanner.QueryOptions) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.InReadWriteTransaction() {
-		opts.RequestTag = s.tc.tag
+		opts.RequestTag = generateRequestTag(s.tc, stmt)
 		iter := s.tc.rwTxn.QueryWithOptions(ctx, stmt, opts)
 		s.tc.sendHeartbeat = true
 		return iter, nil
 	}
 	if s.InReadOnlyTransaction() {
-		opts.RequestTag = s.tc.tag
+		opts.RequestTag = generateRequestTag(s.tc, stmt)
 		return s.tc.roTxn.QueryWithOptions(ctx, stmt, opts), s.tc.roTxn
 	}
 
@@ -278,7 +281,7 @@ func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement) (int64,
 
 	opts := spanner.QueryOptions{
 		Priority:   s.currentPriority(),
-		RequestTag: s.tc.tag,
+		RequestTag: generateRequestTag(s.tc, stmt),
 	}
 	rowCount, err := s.tc.rwTxn.UpdateWithOptions(ctx, stmt, opts)
 	s.tc.sendHeartbeat = true
@@ -373,4 +376,8 @@ func heartbeat(txn *spanner.ReadWriteStmtBasedTransaction, priority pb.RequestOp
 	defer iter.Stop()
 	_, err := iter.Next()
 	return err
+}
+
+func generateRequestTag(tc *transactionContext, stmt spanner.Statement) string {
+	return tc.tag + "_" + fmt.Sprintf("%d", tc.statementCounter) + "_" + stmt.SQL
 }

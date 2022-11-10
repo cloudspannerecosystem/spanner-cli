@@ -225,6 +225,11 @@ func (s *SelectStatement) Execute(ctx context.Context, session *Session) (*Resul
 		}
 		return nil, err
 	}
+
+	if session.InReadWriteTransaction() || session.InReadOnlyTransaction() {
+		session.tc.statementCounter++
+	}
+
 	result := &Result{
 		ColumnNames: columnNames,
 		Rows:        rows,
@@ -749,6 +754,7 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 			rollback.Execute(ctx, session)
 			return nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
+		session.tc.statementCounter++
 	} else {
 		// Start implicit transaction.
 		begin := BeginRwStatement{}

@@ -285,6 +285,10 @@ func TestReadWriteTransaction(t *testing.T) {
 			IsMutation:   true,
 		})
 
+		if session.tc.statementCounter != 2 {
+			t.Errorf("Check the current statement number, Expect 2, Actual %d", session.tc.statementCounter)
+		}
+
 		// commit
 		stmt, err = BuildStatement("COMMIT")
 		if err != nil {
@@ -367,6 +371,10 @@ func TestReadWriteTransaction(t *testing.T) {
 			AffectedRows: 2,
 			IsMutation:   true,
 		})
+
+		if session.tc.statementCounter != 2 {
+			t.Errorf("Check the current statement number, Expect 2, Actual %d", session.tc.statementCounter)
+		}
 
 		// rollback
 		stmt, err = BuildStatement("ROLLBACK")
@@ -485,6 +493,10 @@ func TestReadOnlyTransaction(t *testing.T) {
 			IsMutation:   false,
 		})
 
+		if session.tc.statementCounter != 2 {
+			t.Errorf("Check the current statement number, Expect 2, Actual %d", session.tc.statementCounter)
+		}
+
 		// close
 		stmt, err = BuildStatement("CLOSE")
 		if err != nil {
@@ -555,6 +567,10 @@ func TestReadOnlyTransaction(t *testing.T) {
 			AffectedRows: 2,
 			IsMutation:   false,
 		})
+
+		if session.tc.statementCounter != 2 {
+			t.Errorf("Check the current statement number, Expect 2, Actual %d", session.tc.statementCounter)
+		}
 
 		// close
 		stmt, err = BuildStatement("CLOSE")
