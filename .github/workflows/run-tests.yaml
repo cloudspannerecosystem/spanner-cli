@@ -52,3 +52,8 @@ jobs:
           DATABASE: fake-database
       - name: make test (with a real instance if available)
         run: make test
+        env:
+          PROJECT: ${{ secrets.PROJECT }}
+          INSTANCE: ${{ secrets.INSTANCE }}
+          DATABASE: ${{ secrets.DATABASE }}
+          CREDENTIAL: ${{ secrets.CREDENTIAL }}
