@@ -112,7 +112,7 @@ var (
 
 	// Other
 	exitRe            = regexp.MustCompile(`(?is)^EXIT$`)
-	useRe             = regexp.MustCompile(`(?is)^USE\s+(.+?)(?:\s+WITH\s+ROLE\s+(.+))?$`)
+	useRe             = regexp.MustCompile(`(?is)^USE\s+(.+?)(?:\s+ROLE\s+(.+))?$`)
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
