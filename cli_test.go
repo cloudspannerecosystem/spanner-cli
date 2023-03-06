@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"github.com/chzyer/readline"
 	"github.com/google/go-cmp/cmp"
-	sppb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type nopCloser struct {

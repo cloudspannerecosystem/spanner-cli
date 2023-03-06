@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 var clientConfig = spanner.ClientConfig{

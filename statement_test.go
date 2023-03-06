@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 func TestBuildStatement(t *testing.T) {

@@ -24,8 +24,8 @@ import (
 	"os/user"
 	"path/filepath"
 
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	flags "github.com/jessevdk/go-flags"
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
 )
 
 type globalOptions struct {

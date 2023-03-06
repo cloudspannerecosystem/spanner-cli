@@ -29,10 +29,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/option"
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc/codes"
 )
 

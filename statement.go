@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
+	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"google.golang.org/api/iterator"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc/codes"
 )
 
