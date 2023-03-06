@@ -74,8 +74,8 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority) (*Cli, error) {
-	session, err := createSession(projectId, instanceId, databaseId, credential, priority)
+func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string) (*Cli, error) {
+	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
-			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority)
+			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority, s.Role)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -308,12 +308,12 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
-func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority) (*Session, error) {
+func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority, role string) (*Session, error) {
 	if credential != nil {
 		credentialOption := option.WithCredentialsJSON(credential)
-		return NewSession(projectId, instanceId, databaseId, priority, credentialOption)
+		return NewSession(projectId, instanceId, databaseId, priority, role, credentialOption)
 	} else {
-		return NewSession(projectId, instanceId, databaseId, priority)
+		return NewSession(projectId, instanceId, databaseId, priority, role)
 	}
 }
 

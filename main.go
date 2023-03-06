@@ -44,6 +44,7 @@ type spannerOptions struct {
 	Prompt      string `long:"prompt" description:"Set the prompt to the specified format"`
 	HistoryFile string `long:"history" description:"Set the history file to the specified path"`
 	Priority    string `long:"priority" description:"Set default request priority (HIGH|MEDIUM|LOW)"`
+	Role        string `long:"role" description:"Use the specific database role"`
 }
 
 func main() {
@@ -84,7 +85,7 @@ func main() {
 		}
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.HistoryFile, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority)
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.HistoryFile, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority, opts.Role)
 	if err != nil {
 		exitf("Failed to connect to Spanner: %v", err)
 	}

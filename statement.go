@@ -112,7 +112,7 @@ var (
 
 	// Other
 	exitRe            = regexp.MustCompile(`(?is)^EXIT$`)
-	useRe             = regexp.MustCompile(`(?is)^USE\s+(.+)$`)
+	useRe             = regexp.MustCompile(`(?is)^USE\s+(.+?)(?:\s+WITH\s+ROLE\s+(.+))?$`)
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
@@ -132,7 +132,7 @@ func BuildStatement(input string) (Statement, error) {
 		return &ExitStatement{}, nil
 	case useRe.MatchString(input):
 		matched := useRe.FindStringSubmatch(input)
-		return &UseStatement{Database: unquoteIdentifier(matched[1])}, nil
+		return &UseStatement{Database: unquoteIdentifier(matched[1]), Role: unquoteIdentifier(matched[2])}, nil
 	case selectRe.MatchString(input):
 		return &SelectStatement{Query: input}, nil
 	case createDatabaseRe.MatchString(input):
@@ -1093,6 +1093,7 @@ type ExitStatement struct {
 
 type UseStatement struct {
 	Database string
+	Role     string
 	NopStatement
 }
 
