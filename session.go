@@ -28,10 +28,10 @@ import (
 	"google.golang.org/grpc/codes"
 
 	adminapi "cloud.google.com/go/spanner/admin/database/apiv1"
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
-var clientConfig = spanner.ClientConfig{
+var defaultClientConfig = spanner.ClientConfig{
 	SessionPoolConfig: spanner.SessionPoolConfig{
 		MinOpened: 1,
 		MaxOpened: 10, // FIXME: integration_test requires more than a single session
@@ -51,6 +51,7 @@ type Session struct {
 	databaseId      string
 	client          *spanner.Client
 	adminClient     *adminapi.DatabaseAdminClient
+	clientConfig    spanner.ClientConfig
 	clientOpts      []option.ClientOption
 	defaultPriority pb.RequestOptions_Priority
 	tc              *transactionContext
@@ -65,9 +66,11 @@ type transactionContext struct {
 	roTxn         *spanner.ReadOnlyTransaction
 }
 
-func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, opts ...option.ClientOption) (*Session, error) {
+func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, role string, opts ...option.ClientOption) (*Session, error) {
 	ctx := context.Background()
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
+	clientConfig := defaultClientConfig
+	clientConfig.DatabaseRole = role
 	opts = append(opts, defaultClientOpts...)
 
 	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, opts...)
@@ -89,6 +92,7 @@ func NewSession(projectId string, instanceId string, databaseId string, priority
 		instanceId:      instanceId,
 		databaseId:      databaseId,
 		client:          client,
+		clientConfig:    clientConfig,
 		clientOpts:      opts,
 		adminClient:     adminClient,
 		defaultPriority: priority,
@@ -325,7 +329,7 @@ func (s *Session) DatabaseExists() (bool, error) {
 // RecreateClient closes the current client and creates a new client for the session.
 func (s *Session) RecreateClient() error {
 	ctx := context.Background()
-	c, err := spanner.NewClientWithConfig(ctx, s.DatabasePath(), clientConfig, s.clientOpts...)
+	c, err := spanner.NewClientWithConfig(ctx, s.DatabasePath(), s.clientConfig, s.clientOpts...)
 	if err != nil {
 		return err
 	}

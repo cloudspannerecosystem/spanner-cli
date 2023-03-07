@@ -40,7 +40,9 @@ spanner:
   -v, --verbose     Display verbose output.
       --credential= Use the specific credential file
       --prompt=     Set the prompt to the specified format
+      --history=    Set the history file to the specified path
       --priority=   Set default request priority (HIGH|MEDIUM|LOW)
+      --role=       Use the specific database role
 
 Help Options:
   -h, --help        Show this help message
@@ -153,7 +155,7 @@ and `{}` for a mutually exclusive keyword.
 | Usage | Syntax | Note |
 | --- | --- | --- |
 | List databases | `SHOW DATABASES;` | |
-| Switch database | `USE <database>;` | |
+| Switch database | `USE <database> [ROLE <role>];` | The role you set is used for accessing with [fine-grained access control](https://cloud.google.com/spanner/docs/fgac-about). |
 | Create database | `CREATE DATABSE <database>;` | |
 | Drop database | `DROP DATABASE <database>;` | |
 | List tables | `SHOW TABLES;` | |

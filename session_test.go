@@ -11,7 +11,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 func TestRequestPriority(t *testing.T) {
@@ -64,7 +64,7 @@ func TestRequestPriority(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			defer recorder.flush()
 
-			session, err := NewSession("project", "instance", "database", test.sessionPriority, option.WithGRPCConn(conn))
+			session, err := NewSession("project", "instance", "database", test.sessionPriority, "role", option.WithGRPCConn(conn))
 			if err != nil {
 				t.Fatalf("failed to create spanner-cli session: %v", err)
 			}

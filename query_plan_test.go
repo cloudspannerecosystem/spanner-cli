@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 func mustNewStruct(m map[string]interface{}) *structpb.Struct {

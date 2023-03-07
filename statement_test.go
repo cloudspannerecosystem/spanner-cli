@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 func TestBuildStatement(t *testing.T) {
@@ -411,6 +411,16 @@ func TestBuildStatement(t *testing.T) {
 			desc:  "USE statement with quoted identifier",
 			input: "USE `my-database`",
 			want:  &UseStatement{Database: "my-database"},
+		},
+		{
+			desc:  "USE statement with role",
+			input: "USE database2 ROLE role2",
+			want:  &UseStatement{Database: "database2", Role: "role2"},
+		},
+		{
+			desc:  "USE statement with quoted identifier",
+			input: "USE `my-database` ROLE `my-role`",
+			want:  &UseStatement{Database: "my-database", Role: "my-role"},
 		},
 		{
 			desc:  "SHOW DATABASES statement",

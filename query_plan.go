@@ -22,8 +22,8 @@ import (
 	"sort"
 	"strings"
 
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"github.com/xlab/treeprint"
-	pb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
