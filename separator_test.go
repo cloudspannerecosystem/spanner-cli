@@ -510,6 +510,24 @@ func TestSeparateInput(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc:  `statement with multiple comments`,
+			input: "SELECT 0x1/* comment */A; SELECT 0x2--\nB; SELECT 0x3#\nC",
+			want: []inputStatement{
+				{
+					statement: "SELECT 0x1 A",
+					delim:     delimiterHorizontal,
+				},
+				{
+					statement: "SELECT 0x2 B",
+					delim:     delimiterHorizontal,
+				},
+				{
+					statement: "SELECT 0x3 C",
+					delim:     delimiterUndefined,
+				},
+			},
+		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			got := separateInput(tt.input)

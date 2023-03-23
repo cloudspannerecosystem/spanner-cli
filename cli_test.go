@@ -114,7 +114,7 @@ func TestReadInteractiveInput(t *testing.T) {
 			desc:  "multi lines with multiple comments",
 			input: "SELECT\n/* comment */1,\n# comment\n2;\n",
 			want: &inputStatement{
-				statement: "SELECT\n1,\n2",
+				statement: "SELECT\n 1,\n 2",
 				delim:     delimiterHorizontal,
 			},
 		},

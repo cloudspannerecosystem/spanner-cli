@@ -154,26 +154,38 @@ func (s *separator) consumeStringDelimiter() string {
 
 func (s *separator) skipComments() {
 	var i int
+	var found bool
 	for i < len(s.str) {
 		var terminate string
 		if s.str[i] == '#' {
 			// single line comment "#"
 			terminate = "\n"
+			found = true
 			i++
 		} else if i+1 < len(s.str) && s.str[i] == '-' && s.str[i+1] == '-' {
 			// single line comment "--"
 			terminate = "\n"
+			found = true
 			i += 2
 		} else if i+1 < len(s.str) && s.str[i] == '/' && s.str[i+1] == '*' {
 			// multi line comments "/* */"
 			// NOTE: Nested multiline comments are not supported in Spanner.
 			// https://cloud.google.com/spanner/docs/lexical#multiline_comments
 			terminate = "*/"
+			found = true
 			i += 2
-		}
+		} else {
+			// no comment found
 
-		// no comment found
-		if terminate == "" {
+			// emit space if comments are found and the next character is not a whitespace
+			if found && i < len(s.str) {
+				switch s.str[i] {
+				case ' ', '\n', '\t':
+					break
+				default:
+					s.sb.WriteRune(' ')
+				}
+			}
 			return
 		}
 
@@ -185,12 +197,14 @@ func (s *separator) skipComments() {
 
 		for ; i < len(s.str); i++ {
 			if l := len(terminate); l == 1 {
+				// single line comment(terminate == "\n")
 				if string(s.str[i]) == terminate {
 					s.str = s.str[i+1:]
 					i = 0
 					break
 				}
 			} else if l == 2 {
+				// multiple line comment(terminate == "*/")
 				if i+1 < len(s.str) && string(s.str[i:i+2]) == terminate {
 					s.str = s.str[i+2:]
 					i = 0
