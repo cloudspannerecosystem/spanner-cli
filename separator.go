@@ -179,8 +179,10 @@ func (s *separator) skipComments() {
 
 			// emit space if comments are found and the next character is not a whitespace
 			if found && i < len(s.str) {
+				// TODO: need to handle Unicode whitespace characters?
+				// https://github.com/google/zetasql/blob/2022.08.1/zetasql/parser/flex_tokenizer.l#L151-L182
 				switch s.str[i] {
-				case ' ', '\n', '\t':
+				case ' ', '\n', '\r', '\t', '\b', '\f', '\v':
 					break
 				default:
 					s.sb.WriteRune(' ')
