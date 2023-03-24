@@ -739,10 +739,12 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 
 	result := &Result{IsMutation: true}
 
+	var rows []Row
+	var columnNames []string
 	var numRows int64
 	var err error
 	if session.InReadWriteTransaction() {
-		numRows, err = session.RunUpdate(ctx, stmt)
+		rows, columnNames, numRows, err = session.RunUpdate(ctx, stmt)
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
@@ -756,7 +758,7 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 			return nil, err
 		}
 
-		numRows, err = session.RunUpdate(ctx, stmt)
+		rows, columnNames, numRows, err = session.RunUpdate(ctx, stmt)
 		if err != nil {
 			// once error has happened, escape from implicit transaction
 			rollback := &RollbackStatement{}
@@ -773,6 +775,8 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 		result.CommitStats = txnResult.CommitStats
 	}
 
+	result.Rows = rows
+	result.ColumnNames = columnNames
 	result.AffectedRows = int(numRows)
 
 	return result, nil

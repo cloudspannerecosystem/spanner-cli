@@ -275,18 +275,20 @@ func (s *Session) runQueryWithOptions(ctx context.Context, stmt spanner.Statemen
 
 // RunUpdate executes a DML statement on the running read-write transaction.
 // It returns error if there is no running read-write transaction.
-func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement) (int64, error) {
+func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement) ([]Row, []string, int64, error) {
 	if !s.InReadWriteTransaction() {
-		return 0, errors.New("read-write transaction is not running")
+		return nil, nil, 0, errors.New("read-write transaction is not running")
 	}
 
 	opts := spanner.QueryOptions{
 		Priority:   s.currentPriority(),
 		RequestTag: s.tc.tag,
 	}
-	rowCount, err := s.tc.rwTxn.UpdateWithOptions(ctx, stmt, opts)
+	rowIter := s.tc.rwTxn.QueryWithOptions(ctx, stmt, opts)
+	defer rowIter.Stop()
+	result, columnNames, err := parseQueryResult(rowIter)
 	s.tc.sendHeartbeat = true
-	return rowCount, err
+	return result, columnNames, rowIter.RowCount, err
 }
 
 func (s *Session) Close() {
