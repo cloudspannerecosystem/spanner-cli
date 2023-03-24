@@ -126,7 +126,8 @@ var (
 	explainAnalyzeColumnNames = []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"}
 )
 
-func BuildStatement(input string) (Statement, error) {
+func BuildStatement(raw string) (Statement, error) {
+	input := stripComments(raw)
 	switch {
 	case exitRe.MatchString(input):
 		return &ExitStatement{}, nil
@@ -134,7 +135,7 @@ func BuildStatement(input string) (Statement, error) {
 		matched := useRe.FindStringSubmatch(input)
 		return &UseStatement{Database: unquoteIdentifier(matched[1]), Role: unquoteIdentifier(matched[2])}, nil
 	case selectRe.MatchString(input):
-		return &SelectStatement{Query: input}, nil
+		return &SelectStatement{Query: raw}, nil
 	case createDatabaseRe.MatchString(input):
 		return &CreateDatabaseStatement{CreateStatement: input}, nil
 	case createRe.MatchString(input):
@@ -183,7 +184,7 @@ func BuildStatement(input string) (Statement, error) {
 		matched := showIndexRe.FindStringSubmatch(input)
 		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case dmlRe.MatchString(input):
-		return &DmlStatement{Dml: input}, nil
+		return &DmlStatement{Dml: raw}, nil
 	case pdmlRe.MatchString(input):
 		matched := pdmlRe.FindStringSubmatch(input)
 		return &PartitionedDmlStatement{Dml: matched[1]}, nil

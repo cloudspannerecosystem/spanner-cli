@@ -65,6 +65,20 @@ func TestBuildCommands(t *testing.T) {
 				{&BulkDdlStatement{[]string{"DROP TABLE t1", "DROP TABLE t2"}}, false},
 				{&SelectStatement{"SELECT 1"}, false},
 			}},
+		{
+			`
+			CREATE TABLE t1(pk INT64 /* NOT NULL*/, col INT64) PRIMARY KEY(pk);
+			INSERT t1(pk/*, col*/) VALUES(1/*, 2*/);
+			UPDATE t1 SET col = /* pk + */ col + 1 WHERE TRUE;
+			DELETE t1 WHERE TRUE /* AND pk = 1 */;
+			SELECT 0x1/**/A`,
+			[]*command{
+				{&BulkDdlStatement{[]string{"CREATE TABLE t1(pk INT64  , col INT64) PRIMARY KEY(pk)"}}, false},
+				{&DmlStatement{"INSERT t1(pk/*, col*/) VALUES(1/*, 2*/)"}, false},
+				{&DmlStatement{"UPDATE t1 SET col = /* pk + */ col + 1 WHERE TRUE"}, false},
+				{&DmlStatement{"DELETE t1 WHERE TRUE /* AND pk = 1 */"}, false},
+				{&SelectStatement{"SELECT 0x1/**/A"}, false},
+			}},
 	}
 
 	for _, test := range tests {
@@ -114,7 +128,7 @@ func TestReadInteractiveInput(t *testing.T) {
 			desc:  "multi lines with multiple comments",
 			input: "SELECT\n/* comment */1,\n# comment\n2;\n",
 			want: &inputStatement{
-				statement: "SELECT\n 1,\n 2",
+				statement: "SELECT\n/* comment */1,\n# comment\n2",
 				delim:     delimiterHorizontal,
 			},
 		},

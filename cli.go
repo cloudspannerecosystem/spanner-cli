@@ -30,6 +30,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	"github.com/apstndb/gsqlsep"
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/option"
@@ -328,13 +329,16 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 		}
 		input += line + "\n"
 
-		statements := separateInput(input)
+		statements := gsqlsep.SeparateInputPreserveComments(input, `\G`)
 		switch len(statements) {
 		case 0:
 			// read next input
 		case 1:
-			if statements[0].delim != delimiterUndefined {
-				return &statements[0], nil
+			if statements[0].Terminator != "" {
+				return &inputStatement{
+					statement: statements[0].Statement,
+					delim:     statements[0].Terminator,
+				}, nil
 			}
 			// read next input
 		default:
@@ -466,8 +470,8 @@ func resultLine(result *Result, verbose bool) string {
 func buildCommands(input string) ([]*command, error) {
 	var cmds []*command
 	var pendingDdls []string
-	for _, separated := range separateInput(input) {
-		stmt, err := BuildStatement(separated.statement)
+	for _, separated := range gsqlsep.SeparateInputPreserveComments(input, `\G`) {
+		stmt, err := BuildStatement(separated.Statement)
 		if err != nil {
 			return nil, err
 		}
@@ -482,7 +486,7 @@ func buildCommands(input string) ([]*command, error) {
 			pendingDdls = nil
 		}
 
-		cmds = append(cmds, &command{stmt, separated.delim == delimiterVertical})
+		cmds = append(cmds, &command{stmt, separated.Terminator == `\G`})
 	}
 
 	// Flush pending DDLs
@@ -515,4 +519,8 @@ func handleInterrupt(cancel context.CancelFunc) {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	cancel()
+}
+
+func stripComments(input string) string {
+	return gsqlsep.SeparateInputString(input, `\G`)[0]
 }
