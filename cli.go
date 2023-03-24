@@ -30,7 +30,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
-	"github.com/apstndb/gsqlsep"
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/option"
@@ -516,8 +515,4 @@ func handleInterrupt(cancel context.CancelFunc) {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	cancel()
-}
-
-func stripComments(input string) string {
-	return gsqlsep.SeparateInputString(input, `\G`)[0]
 }
