@@ -5,7 +5,7 @@ go 1.18
 require (
 	cloud.google.com/go v0.110.0
 	cloud.google.com/go/spanner v1.44.0
-	github.com/apstndb/gsqlsep v0.0.0-20230324010854-4f3bbc6e73c7
+	github.com/apstndb/gsqlsep v0.0.0-20230324124551-0e8335710080
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/google/go-cmp v0.5.9
 	github.com/jessevdk/go-flags v1.4.0

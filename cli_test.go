@@ -104,32 +104,36 @@ func TestReadInteractiveInput(t *testing.T) {
 			desc:  "single line",
 			input: "SELECT 1;\n",
 			want: &inputStatement{
-				statement: "SELECT 1",
-				delim:     delimiterHorizontal,
+				statement:                "SELECT 1",
+				statementWithoutComments: "SELECT 1",
+				delim:                    delimiterHorizontal,
 			},
 		},
 		{
 			desc:  "multi lines",
 			input: "SELECT\n* FROM\n t1\n;\n",
 			want: &inputStatement{
-				statement: "SELECT\n* FROM\n t1",
-				delim:     delimiterHorizontal,
+				statement:                "SELECT\n* FROM\n t1",
+				statementWithoutComments: "SELECT\n* FROM\n t1",
+				delim:                    delimiterHorizontal,
 			},
 		},
 		{
 			desc:  "multi lines with vertical delimiter",
 			input: "SELECT\n* FROM\n t1\\G\n",
 			want: &inputStatement{
-				statement: "SELECT\n* FROM\n t1",
-				delim:     delimiterVertical,
+				statement:                "SELECT\n* FROM\n t1",
+				statementWithoutComments: "SELECT\n* FROM\n t1",
+				delim:                    delimiterVertical,
 			},
 		},
 		{
 			desc:  "multi lines with multiple comments",
 			input: "SELECT\n/* comment */1,\n# comment\n2;\n",
 			want: &inputStatement{
-				statement: "SELECT\n/* comment */1,\n# comment\n2",
-				delim:     delimiterHorizontal,
+				statement:                "SELECT\n/* comment */1,\n# comment\n2",
+				statementWithoutComments: "SELECT\n 1,\n 2",
+				delim:                    delimiterHorizontal,
 			},
 		},
 		{

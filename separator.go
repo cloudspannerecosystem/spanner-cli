@@ -18,8 +18,6 @@ package main
 
 import "github.com/apstndb/gsqlsep"
 
-type delimiter int
-
 const (
 	delimiterUndefined  = ""
 	delimiterHorizontal = ";"
@@ -27,16 +25,19 @@ const (
 )
 
 type inputStatement struct {
-	statement string
-	delim     string
+	statement                string
+	statementWithoutComments string
+	delim                    string
 }
 
 func separateInput(input string) []inputStatement {
 	var result []inputStatement
-	for _, stmt := range gsqlsep.SeparateInput(input, `\G`) {
+	for _, stmt := range gsqlsep.SeparateInputPreserveComments(input, `\G`) {
+		stmt := stmt
 		result = append(result, inputStatement{
-			statement: stmt.Statement,
-			delim:     stmt.Terminator,
+			statement:                stmt.Statement,
+			statementWithoutComments: stmt.StripComments().Statement,
+			delim:                    stmt.Terminator,
 		})
 	}
 	return result

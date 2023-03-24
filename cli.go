@@ -136,7 +136,7 @@ func (c *Cli) RunInteractive() int {
 			continue
 		}
 
-		stmt, err := BuildStatement(input.statement)
+		stmt, err := BuildStatementWithComments(input.statementWithoutComments, input.statement)
 		if err != nil {
 			c.PrintInteractiveError(err)
 			continue
@@ -329,16 +329,13 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 		}
 		input += line + "\n"
 
-		statements := gsqlsep.SeparateInputPreserveComments(input, `\G`)
+		statements := separateInput(input)
 		switch len(statements) {
 		case 0:
 			// read next input
 		case 1:
-			if statements[0].Terminator != "" {
-				return &inputStatement{
-					statement: statements[0].Statement,
-					delim:     statements[0].Terminator,
-				}, nil
+			if statements[0].delim != delimiterUndefined {
+				return &statements[0], nil
 			}
 			// read next input
 		default:
@@ -470,8 +467,8 @@ func resultLine(result *Result, verbose bool) string {
 func buildCommands(input string) ([]*command, error) {
 	var cmds []*command
 	var pendingDdls []string
-	for _, separated := range gsqlsep.SeparateInputPreserveComments(input, `\G`) {
-		stmt, err := BuildStatement(separated.Statement)
+	for _, separated := range separateInput(input) {
+		stmt, err := BuildStatementWithComments(separated.statementWithoutComments, separated.statement)
 		if err != nil {
 			return nil, err
 		}
@@ -486,7 +483,7 @@ func buildCommands(input string) ([]*command, error) {
 			pendingDdls = nil
 		}
 
-		cmds = append(cmds, &command{stmt, separated.Terminator == `\G`})
+		cmds = append(cmds, &command{stmt, separated.delim == delimiterVertical})
 	}
 
 	// Flush pending DDLs
