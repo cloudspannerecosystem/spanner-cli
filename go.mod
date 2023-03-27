@@ -1,10 +1,11 @@
 module github.com/cloudspannerecosystem/spanner-cli
 
-go 1.17
+go 1.18
 
 require (
 	cloud.google.com/go v0.110.0
 	cloud.google.com/go/spanner v1.44.0
+	github.com/apstndb/gsqlsep v0.0.0-20230324124551-0e8335710080
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/google/go-cmp v0.5.9
 	github.com/jessevdk/go-flags v1.4.0
@@ -35,6 +36,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect

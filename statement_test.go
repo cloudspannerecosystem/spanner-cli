@@ -51,6 +51,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &SelectStatement{Query: "SELECT\n*\nFROM t1"},
 		},
 		{
+			desc:  "SELECT statement with comment",
+			input: "SELECT 0x1/**/A",
+			want:  &SelectStatement{Query: "SELECT 0x1/**/A"},
+		},
+		{
 			desc:  "WITH statement",
 			input: "WITH sub AS (SELECT 1) SELECT * FROM sub",
 			want:  &SelectStatement{Query: "WITH sub AS (SELECT 1) SELECT * FROM sub"},

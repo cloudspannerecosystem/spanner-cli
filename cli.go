@@ -135,7 +135,7 @@ func (c *Cli) RunInteractive() int {
 			continue
 		}
 
-		stmt, err := BuildStatement(input.statement)
+		stmt, err := BuildStatementWithComments(input.statementWithoutComments, input.statement)
 		if err != nil {
 			c.PrintInteractiveError(err)
 			continue
@@ -467,7 +467,7 @@ func buildCommands(input string) ([]*command, error) {
 	var cmds []*command
 	var pendingDdls []string
 	for _, separated := range separateInput(input) {
-		stmt, err := BuildStatement(separated.statement)
+		stmt, err := BuildStatementWithComments(separated.statementWithoutComments, separated.statement)
 		if err != nil {
 			return nil, err
 		}
