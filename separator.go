@@ -32,8 +32,7 @@ type inputStatement struct {
 
 func separateInput(input string) []inputStatement {
 	var result []inputStatement
-	for _, stmt := range gsqlsep.SeparateInputPreserveComments(input, `\G`) {
-		stmt := stmt
+	for _, stmt := range gsqlsep.SeparateInputPreserveComments(input, delimiterVertical) {
 		result = append(result, inputStatement{
 			statement:                stmt.Statement,
 			statementWithoutComments: stmt.StripComments().Statement,
