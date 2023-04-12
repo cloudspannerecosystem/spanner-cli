@@ -40,50 +40,69 @@ func (n *nopCloser) Close() error {
 
 func TestBuildCommands(t *testing.T) {
 	tests := []struct {
-		Input    string
-		Expected []*command
+		Input       string
+		Expected    []*command
+		ExpectError bool
 	}{
-		{`SELECT * FROM t1;`, []*command{{&SelectStatement{"SELECT * FROM t1"}, false}}},
-		{`CREATE TABLE t1;`, []*command{{&BulkDdlStatement{[]string{"CREATE TABLE t1"}}, false}}},
-		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
-			[]*command{{&BulkDdlStatement{[]string{
+		{Input: `SELECT * FROM t1;`, Expected: []*command{{&SelectStatement{"SELECT * FROM t1"}, false}}},
+		{Input: `CREATE TABLE t1;`, Expected: []*command{{&BulkDdlStatement{[]string{"CREATE TABLE t1"}}, false}}},
+		{Input: `CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
+			Expected: []*command{{&BulkDdlStatement{[]string{
 				"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)",
 				"ALTER TABLE t1 ADD COLUMN col INT64",
 				"CREATE INDEX i1 ON t1(col)",
 				"DROP INDEX i1",
 				"DROP TABLE t1",
 			}}, false}}},
-		{`CREATE TABLE t1(pk INT64) PRIMARY KEY(pk);
+		{Input: `CREATE TABLE t1(pk INT64) PRIMARY KEY(pk);
                 CREATE TABLE t2(pk INT64) PRIMARY KEY(pk);
                 SELECT * FROM t1\G
                 DROP TABLE t1;
                 DROP TABLE t2;
                 SELECT 1;`,
-			[]*command{
+			Expected: []*command{
 				{&BulkDdlStatement{[]string{"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)", "CREATE TABLE t2(pk INT64) PRIMARY KEY(pk)"}}, false},
 				{&SelectStatement{"SELECT * FROM t1"}, true},
 				{&BulkDdlStatement{[]string{"DROP TABLE t1", "DROP TABLE t2"}}, false},
 				{&SelectStatement{"SELECT 1"}, false},
 			}},
 		{
-			`
+			Input: `
 			CREATE TABLE t1(pk INT64 /* NOT NULL*/, col INT64) PRIMARY KEY(pk);
 			INSERT t1(pk/*, col*/) VALUES(1/*, 2*/);
 			UPDATE t1 SET col = /* pk + */ col + 1 WHERE TRUE;
 			DELETE t1 WHERE TRUE /* AND pk = 1 */;
 			SELECT 0x1/**/A`,
-			[]*command{
+			Expected: []*command{
 				{&BulkDdlStatement{[]string{"CREATE TABLE t1(pk INT64  , col INT64) PRIMARY KEY(pk)"}}, false},
 				{&DmlStatement{"INSERT t1(pk/*, col*/) VALUES(1/*, 2*/)"}, false},
 				{&DmlStatement{"UPDATE t1 SET col = /* pk + */ col + 1 WHERE TRUE"}, false},
 				{&DmlStatement{"DELETE t1 WHERE TRUE /* AND pk = 1 */"}, false},
 				{&SelectStatement{"SELECT 0x1/**/A"}, false},
 			}},
+		{
+			// spanner-cli don't permit empty statements.
+			Input:       `SELECT 1; /* comment */; SELECT 2`,
+			ExpectError: true,
+		},
+		{
+			Input:       `SELECT 1; /* comment 1 */; /* comment 2 */`,
+			ExpectError: true,
+		},
+		{
+			// A comment after the last semicolon is permitted.
+			Input: `SELECT 1; /* comment */`,
+			Expected: []*command{
+				{&SelectStatement{"SELECT 1"}, false},
+			}},
 	}
 
 	for _, test := range tests {
 		got, err := buildCommands(test.Input)
-		if err != nil {
+		if test.ExpectError && err == nil {
+			t.Errorf("expect error but not error, input: %v", test.Input)
+		}
+		if !test.ExpectError && err != nil {
 			t.Errorf("err: %v, input: %v", err, test.Input)
 		}
 
