@@ -467,6 +467,11 @@ func buildCommands(input string) ([]*command, error) {
 	var cmds []*command
 	var pendingDdls []string
 	for _, separated := range separateInput(input) {
+		// Ignore the last empty statement
+		if separated.delim == delimiterUndefined && separated.statementWithoutComments == "" {
+			continue
+		}
+
 		stmt, err := BuildStatementWithComments(separated.statementWithoutComments, separated.statement)
 		if err != nil {
 			return nil, err
