@@ -4,17 +4,17 @@ go 1.18
 
 require (
 	cloud.google.com/go v0.110.0
-	cloud.google.com/go/spanner v1.44.0
+	cloud.google.com/go/spanner v1.45.1
 	github.com/apstndb/gsqlsep v0.0.0-20230324124551-0e8335710080
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/google/go-cmp v0.5.9
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/xlab/treeprint v1.0.1-0.20200715141336-10e0bc383e01
-	google.golang.org/api v0.111.0
-	google.golang.org/genproto v0.0.0-20230303212802-e74f57abe488
+	google.golang.org/api v0.114.0
+	google.golang.org/genproto v0.0.0-20230320184635-7606e756e683
 	google.golang.org/grpc v1.53.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.29.1
 )
 
 require (
@@ -33,7 +33,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
-	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0 // indirect
