@@ -198,6 +198,7 @@ Variables:
 * `\i` : Cloud Spanner Instance ID
 * `\d` : Cloud Spanner Database ID
 * `\t` : In transaction
+* `\c` : Current time in RFC3339 format
 
 Example:
 

@@ -55,6 +55,7 @@ var (
 	promptReProjectId     = regexp.MustCompile(`\\p`)
 	promptReInstanceId    = regexp.MustCompile(`\\i`)
 	promptReDatabaseId    = regexp.MustCompile(`\\d`)
+	promptReNow           = regexp.MustCompile(`\\c`)
 )
 
 type Cli struct {
@@ -296,6 +297,7 @@ func (c *Cli) getInterpolatedPrompt() string {
 	prompt = promptReProjectId.ReplaceAllString(prompt, c.Session.projectId)
 	prompt = promptReInstanceId.ReplaceAllString(prompt, c.Session.instanceId)
 	prompt = promptReDatabaseId.ReplaceAllString(prompt, c.Session.databaseId)
+	prompt = promptReNow.ReplaceAllString(prompt, time.Now().Format(time.RFC3339))
 
 	if c.Session.InReadWriteTransaction() {
 		prompt = promptReInTransaction.ReplaceAllString(prompt, "(rw txn)")
