@@ -67,6 +67,7 @@ type Cli struct {
 	ErrStream   io.Writer
 	Verbose     bool
 	Priority    pb.RequestOptions_Priority
+	Endpoint    string
 }
 
 type command struct {
@@ -74,8 +75,8 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string) (*Cli, error) {
-	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role)
+func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string) (*Cli, error) {
+	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +98,7 @@ func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, crede
 		OutStream:   outStream,
 		ErrStream:   errStream,
 		Verbose:     verbose,
+		Endpoint:    endpoint,
 	}, nil
 }
 
@@ -146,7 +148,7 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
-			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority, s.Role)
+			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority, s.Role, c.Endpoint)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -308,13 +310,15 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
-func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority, role string) (*Session, error) {
+func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority, role string, endpoint string) (*Session, error) {
+	var opts []option.ClientOption
 	if credential != nil {
-		credentialOption := option.WithCredentialsJSON(credential)
-		return NewSession(projectId, instanceId, databaseId, priority, role, credentialOption)
-	} else {
-		return NewSession(projectId, instanceId, databaseId, priority, role)
+		opts = append(opts, option.WithCredentialsJSON(credential))
 	}
+	if endpoint != "" {
+		opts = append(opts, option.WithEndpoint(endpoint))
+	}
+	return NewSession(projectId, instanceId, databaseId, priority, role, opts...)
 }
 
 func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {
