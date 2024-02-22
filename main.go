@@ -33,19 +33,20 @@ type globalOptions struct {
 }
 
 type spannerOptions struct {
-	ProjectId   string `short:"p" long:"project" env:"SPANNER_PROJECT_ID" description:"(required) GCP Project ID."`
-	InstanceId  string `short:"i" long:"instance" env:"SPANNER_INSTANCE_ID" description:"(required) Cloud Spanner Instance ID"`
-	DatabaseId  string `short:"d" long:"database" env:"SPANNER_DATABASE_ID" description:"(required) Cloud Spanner Database ID."`
-	Execute     string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
-	File        string `short:"f" long:"file" description:"Execute SQL statement from file and quit."`
-	Table       bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
-	Verbose     bool   `short:"v" long:"verbose" description:"Display verbose output."`
-	Credential  string `long:"credential" description:"Use the specific credential file"`
-	Prompt      string `long:"prompt" description:"Set the prompt to the specified format"`
-	HistoryFile string `long:"history" description:"Set the history file to the specified path"`
-	Priority    string `long:"priority" description:"Set default request priority (HIGH|MEDIUM|LOW)"`
-	Role        string `long:"role" description:"Use the specific database role"`
-	Endpoint    string `long:"endpoint" description:"Set the Spanner API endpoint (host:port)"`
+	ProjectId    string `short:"p" long:"project" env:"SPANNER_PROJECT_ID" description:"(required) GCP Project ID."`
+	InstanceId   string `short:"i" long:"instance" env:"SPANNER_INSTANCE_ID" description:"(required) Cloud Spanner Instance ID"`
+	DatabaseId   string `short:"d" long:"database" env:"SPANNER_DATABASE_ID" description:"(required) Cloud Spanner Database ID."`
+	Execute      string `short:"e" long:"execute" description:"Execute SQL statement and quit."`
+	File         string `short:"f" long:"file" description:"Execute SQL statement from file and quit."`
+	Table        bool   `short:"t" long:"table" description:"Display output in table format for batch mode."`
+	Verbose      bool   `short:"v" long:"verbose" description:"Display verbose output."`
+	Credential   string `long:"credential" description:"Use the specific credential file"`
+	Prompt       string `long:"prompt" description:"Set the prompt to the specified format"`
+	HistoryFile  string `long:"history" description:"Set the history file to the specified path"`
+	Priority     string `long:"priority" description:"Set default request priority (HIGH|MEDIUM|LOW)"`
+	Role         string `long:"role" description:"Use the specific database role"`
+	Endpoint     string `long:"endpoint" description:"Set the Spanner API endpoint (host:port)"`
+	DirectedRead string `long:"directed-read" description:"Directed read option (replica_location:replica_type). The replicat_type is optional and either READ_ONLY or READ_WRITE"`
 }
 
 func main() {
@@ -86,7 +87,16 @@ func main() {
 		}
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.HistoryFile, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority, opts.Role, opts.Endpoint)
+	var directedRead *pb.DirectedReadOptions
+	if opts.DirectedRead != "" {
+		var err error
+		directedRead, err = parseDirectedReadOption(opts.DirectedRead)
+		if err != nil {
+			exitf("Invalid directed read option: %v\n", err)
+		}
+	}
+
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.HistoryFile, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority, opts.Role, opts.Endpoint, directedRead)
 	if err != nil {
 		exitf("Failed to connect to Spanner: %v", err)
 	}

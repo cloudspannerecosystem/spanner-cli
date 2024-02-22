@@ -64,7 +64,7 @@ func TestRequestPriority(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			defer recorder.flush()
 
-			session, err := NewSession("project", "instance", "database", test.sessionPriority, "role", option.WithGRPCConn(conn))
+			session, err := NewSession("project", "instance", "database", test.sessionPriority, "role", "", option.WithGRPCConn(conn))
 			if err != nil {
 				t.Fatalf("failed to create spanner-cli session: %v", err)
 			}
