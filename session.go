@@ -75,7 +75,6 @@ func NewSession(projectId string, instanceId string, databaseId string, priority
 	clientConfig.DatabaseRole = role
 	clientConfig.DirectedReadOptions = directedRead
 	opts = append(opts, defaultClientOpts...)
-
 	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, opts...)
 	if err != nil {
 		return nil, err
