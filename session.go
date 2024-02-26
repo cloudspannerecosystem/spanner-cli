@@ -262,6 +262,9 @@ func (s *Session) RunAnalyzeQuery(ctx context.Context, stmt spanner.Statement) (
 
 func (s *Session) runQueryWithOptions(ctx context.Context, stmt spanner.Statement, opts spanner.QueryOptions) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.InReadWriteTransaction() {
+		// The current Go Spanner client library does not apply client-level directed read options to read-write transactions.
+		// Therefore, we explicitly set query-level options here to fail the query during a read-write transaction.
+		opts.DirectedReadOptions = s.clientConfig.DirectedReadOptions
 		opts.RequestTag = s.tc.tag
 		iter := s.tc.rwTxn.QueryWithOptions(ctx, stmt, opts)
 		s.tc.sendHeartbeat = true
