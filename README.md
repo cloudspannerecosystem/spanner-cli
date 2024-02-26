@@ -31,18 +31,20 @@ Usage:
   spanner-cli [OPTIONS]
 
 spanner:
-  -p, --project=    (required) GCP Project ID. [$SPANNER_PROJECT_ID]
-  -i, --instance=   (required) Cloud Spanner Instance ID [$SPANNER_INSTANCE_ID]
-  -d, --database=   (required) Cloud Spanner Database ID. [$SPANNER_DATABASE_ID]
-  -e, --execute=    Execute SQL statement and quit.
-  -f, --file=       Execute SQL statement from file and quit.
-  -t, --table       Display output in table format for batch mode.
-  -v, --verbose     Display verbose output.
-      --credential= Use the specific credential file
-      --prompt=     Set the prompt to the specified format
-      --history=    Set the history file to the specified path
-      --priority=   Set default request priority (HIGH|MEDIUM|LOW)
-      --role=       Use the specific database role
+  -p, --project=       (required) GCP Project ID. [$SPANNER_PROJECT_ID]
+  -i, --instance=      (required) Cloud Spanner Instance ID [$SPANNER_INSTANCE_ID]
+  -d, --database=      (required) Cloud Spanner Database ID. [$SPANNER_DATABASE_ID]
+  -e, --execute=       Execute SQL statement and quit.
+  -f, --file=          Execute SQL statement from file and quit.
+  -t, --table          Display output in table format for batch mode.
+  -v, --verbose        Display verbose output.
+      --credential=    Use the specific credential file
+      --prompt=        Set the prompt to the specified format
+      --history=       Set the history file to the specified path
+      --priority=      Set default request priority (HIGH|MEDIUM|LOW)
+      --role=          Use the specific database role
+      --directed-read= Directed read option (replica_location:replica_type).
+                       The replicat_type is optional and either READ_ONLY or READ_WRITE.
 
 Help Options:
   -h, --help        Show this help message
@@ -143,6 +145,38 @@ $ spanner-cli -p myproject -i myinstance -d mydb -e 'SELECT * FROM users;' -t
 | 2  | bar  | false  |
 +----+------+--------+
 ```
+
+### Directed reads mode
+
+spanner-cli now supports directed reads, a feature that allows you to read data from a specific replica of a Spanner database. 
+To use directed reads with spanner-cli, you need to specify the `--directed-read` flag.
+The `--directed-read` flag takes a single argument, which is the name of the replica that you want to read from.
+The replica name can be specified in one of the following formats:
+
+- `<replica_location>`
+- `<replica_location>:<replica_type>`
+
+The `<replica_location>` specifies the region where the replica is located such as `us-central1`, `asia-northeast2`.  
+The `<replica_type>` specifies the type of the replica either `READ_WRITE` or `READ_ONLY`. 
+ 
+```
+$ spanner-cli -p myproject -i myinstance -d mydb --directed-read us-central1
+
+$ spanner-cli -p myproject -i myinstance -d mydb --directed-read us-central1:READ_ONLY
+
+$ spanner-cli -p myproject -i myinstance -d mydb --directed-read asia-northeast2:READ_WRITE
+```
+
+Directed reads are only effective for single queries or queries within a read-only transaction.
+Please note that directed read options do not apply to queries within a read-write transaction.
+
+> [!NOTE]
+> If you specify an incorrect region or type for directed reads, directed reads will not be enabled and [your requsts won't be routed as expected](https://cloud.google.com/spanner/docs/directed-reads#parameters). For example, in a multi-region configuration `nam3`, if you mistype `us-east1` as `us-east-1`, the connection will succeed, but directed reads will not be enabled. 
+>
+> To perform directed reads to `asia-northeast2` in a multi-region configuration `asia1`, you need to specify `asia-northeast2` or `asia-northeast2:READ_WRITE`.
+> Since the replicas placed in `asia-northeast2` are READ_WRITE replicas, directed reads will not be enabled if you specify `asia-northeast2:READ_ONLY`.
+> 
+> Please refer to [the Spanner documentation](https://cloud.google.com/spanner/docs/instance-configurations#available-configurations-multi-region) to verify the valid configurations.
 
 ## Syntax
 

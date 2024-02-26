@@ -8,8 +8,10 @@ import (
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/spannertest"
 	"cloud.google.com/go/spanner/spansql"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
@@ -64,7 +66,7 @@ func TestRequestPriority(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			defer recorder.flush()
 
-			session, err := NewSession("project", "instance", "database", test.sessionPriority, "role", option.WithGRPCConn(conn))
+			session, err := NewSession("project", "instance", "database", test.sessionPriority, "role", nil, option.WithGRPCConn(conn))
 			if err != nil {
 				t.Fatalf("failed to create spanner-cli session: %v", err)
 			}
@@ -112,6 +114,78 @@ func TestRequestPriority(t *testing.T) {
 						t.Errorf("priority mismatch: got = %v, want = %v", got, test.want)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestParseDirectedReadOption(t *testing.T) {
+	for _, tt := range []struct {
+		desc   string
+		option string
+		want   *pb.DirectedReadOptions
+	}{
+		{
+			desc:   "use directed read location option only",
+			option: "us-central1",
+			want: &pb.DirectedReadOptions{
+				Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
+					IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
+						ReplicaSelections: []*pb.DirectedReadOptions_ReplicaSelection{
+							{
+								Location: "us-central1",
+							},
+						},
+						AutoFailoverDisabled: true,
+					},
+				},
+			},
+		},
+		{
+			desc:   "use directed read location and type option (READ_ONLY)",
+			option: "us-central1:READ_ONLY",
+			want: &pb.DirectedReadOptions{
+				Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
+					IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
+						ReplicaSelections: []*pb.DirectedReadOptions_ReplicaSelection{
+							{
+								Location: "us-central1",
+								Type:     pb.DirectedReadOptions_ReplicaSelection_READ_ONLY,
+							},
+						},
+						AutoFailoverDisabled: true,
+					},
+				},
+			},
+		},
+		{
+			desc:   "use directed read location and type option (READ_WRITE)",
+			option: "us-central1:READ_WRITE",
+			want: &pb.DirectedReadOptions{
+				Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
+					IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
+						ReplicaSelections: []*pb.DirectedReadOptions_ReplicaSelection{
+							{
+								Location: "us-central1",
+								Type:     pb.DirectedReadOptions_ReplicaSelection_READ_WRITE,
+							},
+						},
+						AutoFailoverDisabled: true,
+					},
+				},
+			},
+		},
+		{
+			desc:   "use invalid type option",
+			option: "us-central1:READONLY",
+			want:   nil,
+		},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			got, _ := parseDirectedReadOption(tt.option)
+
+			if !cmp.Equal(got, tt.want, protocmp.Transform()) {
+				t.Errorf("Got = %v, but want = %v", got, tt.want)
 			}
 		})
 	}

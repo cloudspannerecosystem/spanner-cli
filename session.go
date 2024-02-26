@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,6 +55,7 @@ type Session struct {
 	clientConfig    spanner.ClientConfig
 	clientOpts      []option.ClientOption
 	defaultPriority pb.RequestOptions_Priority
+	directedRead    *pb.DirectedReadOptions
 	tc              *transactionContext
 	tcMutex         sync.Mutex // Guard a critical section for transaction.
 }
@@ -66,13 +68,13 @@ type transactionContext struct {
 	roTxn         *spanner.ReadOnlyTransaction
 }
 
-func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, role string, opts ...option.ClientOption) (*Session, error) {
+func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, role string, directedRead *pb.DirectedReadOptions, opts ...option.ClientOption) (*Session, error) {
 	ctx := context.Background()
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 	clientConfig := defaultClientConfig
 	clientConfig.DatabaseRole = role
+	clientConfig.DirectedReadOptions = directedRead
 	opts = append(opts, defaultClientOpts...)
-
 	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, opts...)
 	if err != nil {
 		return nil, err
@@ -96,6 +98,7 @@ func NewSession(projectId string, instanceId string, databaseId string, priority
 		clientOpts:      opts,
 		adminClient:     adminClient,
 		defaultPriority: priority,
+		directedRead:    directedRead,
 	}
 	go session.startHeartbeat()
 
@@ -259,6 +262,9 @@ func (s *Session) RunAnalyzeQuery(ctx context.Context, stmt spanner.Statement) (
 
 func (s *Session) runQueryWithOptions(ctx context.Context, stmt spanner.Statement, opts spanner.QueryOptions) (*spanner.RowIterator, *spanner.ReadOnlyTransaction) {
 	if s.InReadWriteTransaction() {
+		// The current Go Spanner client library does not apply client-level directed read options to read-write transactions.
+		// Therefore, we explicitly set query-level options here to fail the query during a read-write transaction.
+		opts.DirectedReadOptions = s.clientConfig.DirectedReadOptions
 		opts.RequestTag = s.tc.tag
 		iter := s.tc.rwTxn.QueryWithOptions(ctx, stmt, opts)
 		s.tc.sendHeartbeat = true
@@ -390,4 +396,35 @@ func heartbeat(txn *spanner.ReadWriteStmtBasedTransaction, priority pb.RequestOp
 	defer iter.Stop()
 	_, err := iter.Next()
 	return err
+}
+
+func parseDirectedReadOption(directedReadOptionText string) (*pb.DirectedReadOptions, error) {
+	directedReadOption := strings.Split(directedReadOptionText, ":")
+	if len(directedReadOption) > 2 {
+		return nil, fmt.Errorf("directed read option must be in the form of <replica_location>:<replica_type>, but got %q", directedReadOptionText)
+	}
+
+	replicaSelection := pb.DirectedReadOptions_ReplicaSelection{
+		Location: directedReadOption[0],
+	}
+
+	if len(directedReadOption) == 2 {
+		switch strings.ToUpper(directedReadOption[1]) {
+		case "READ_ONLY":
+			replicaSelection.Type = pb.DirectedReadOptions_ReplicaSelection_READ_ONLY
+		case "READ_WRITE":
+			replicaSelection.Type = pb.DirectedReadOptions_ReplicaSelection_READ_WRITE
+		default:
+			return nil, fmt.Errorf("<replica_type> must be either READ_WRITE or READ_ONLY, but got %q", directedReadOption[1])
+		}
+	}
+
+	return &pb.DirectedReadOptions{
+		Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
+			IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
+				ReplicaSelections:    []*pb.DirectedReadOptions_ReplicaSelection{&replicaSelection},
+				AutoFailoverDisabled: true,
+			},
+		},
+	}, nil
 }
