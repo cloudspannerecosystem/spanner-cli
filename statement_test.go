@@ -92,6 +92,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &DdlStatement{Ddl: "CREATE TABLE t1 (id INT64 NOT NULL) PRIMARY KEY (id)"},
 		},
 		{
+			desc:  "RENAME TABLE statement",
+			input: "RENAME TABLE t1 TO t2, t3 TO t4",
+			want:  &DdlStatement{Ddl: "RENAME TABLE t1 TO t2, t3 TO t4"},
+		},
+		{
 			desc:  "ALTER TABLE statement",
 			input: "ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL",
 			want:  &DdlStatement{Ddl: "ALTER TABLE t1 ADD COLUMN name STRING(16) NOT NULL"},
