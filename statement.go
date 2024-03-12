@@ -92,6 +92,7 @@ var (
 	grantRe          = regexp.MustCompile(`(?is)^GRANT\s.+$`)
 	revokeRe         = regexp.MustCompile(`(?is)^REVOKE\s.+$`)
 	alterRe          = regexp.MustCompile(`(?is)^ALTER\s.+$`)
+	renameRe         = regexp.MustCompile(`(?is)^RENAME\s.+$`)
 	truncateTableRe  = regexp.MustCompile(`(?is)^TRUNCATE\s+TABLE\s+(.+)$`)
 	analyzeRe        = regexp.MustCompile(`(?is)^ANALYZE$`)
 
@@ -149,6 +150,8 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 	case dropRe.MatchString(stripped):
 		return &DdlStatement{Ddl: stripped}, nil
 	case alterRe.MatchString(stripped):
+		return &DdlStatement{Ddl: stripped}, nil
+	case renameRe.MatchString(stripped):
 		return &DdlStatement{Ddl: stripped}, nil
 	case grantRe.MatchString(stripped):
 		return &DdlStatement{Ddl: stripped}, nil
