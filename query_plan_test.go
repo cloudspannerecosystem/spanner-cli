@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -391,20 +390,20 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 func TestRenderTreeWithStats(t *testing.T) {
 	for _, test := range []struct {
 		title string
-		plan  *spanner.QueryPlan
+		plan  *pb.QueryPlan
 		want  []QueryPlanRow
 	}{
 		{
 			title: "Simple Query",
-			plan: &spanner.QueryPlan{
-				PlanNodes: []*spanner.PlanNode{
+			plan: &pb.QueryPlan{
+				PlanNodes: []*pb.PlanNode{
 					{
 						Index: 0,
-						ChildLinks: []*spanner.PlanNode_ChildLink{
+						ChildLinks: []*pb.PlanNode_ChildLink{
 							{ChildIndex: 1},
 						},
 						DisplayName: "Distributed Union",
-						Kind:        spanner.PlanNode_RELATIONAL,
+						Kind:        pb.PlanNode_RELATIONAL,
 						ExecutionStats: mustNewStruct(map[string]interface{}{
 							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
 							"rows":              map[string]interface{}{"total": "9"},
@@ -413,11 +412,11 @@ func TestRenderTreeWithStats(t *testing.T) {
 					},
 					{
 						Index: 1,
-						ChildLinks: []*spanner.PlanNode_ChildLink{
+						ChildLinks: []*pb.PlanNode_ChildLink{
 							{ChildIndex: 2},
 						},
 						DisplayName: "Distributed Union",
-						Kind:        spanner.PlanNode_RELATIONAL,
+						Kind:        pb.PlanNode_RELATIONAL,
 						Metadata:    mustNewStruct(map[string]interface{}{"call_type": "Local"}),
 						ExecutionStats: mustNewStruct(map[string]interface{}{
 							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
@@ -427,11 +426,11 @@ func TestRenderTreeWithStats(t *testing.T) {
 					},
 					{
 						Index: 2,
-						ChildLinks: []*spanner.PlanNode_ChildLink{
+						ChildLinks: []*pb.PlanNode_ChildLink{
 							{ChildIndex: 3},
 						},
 						DisplayName: "Serialize Result",
-						Kind:        spanner.PlanNode_RELATIONAL,
+						Kind:        pb.PlanNode_RELATIONAL,
 						ExecutionStats: mustNewStruct(map[string]interface{}{
 							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
 							"rows":              map[string]interface{}{"total": "9"},
@@ -441,7 +440,7 @@ func TestRenderTreeWithStats(t *testing.T) {
 					{
 						Index:       3,
 						DisplayName: "Scan",
-						Kind:        spanner.PlanNode_RELATIONAL,
+						Kind:        pb.PlanNode_RELATIONAL,
 						Metadata:    mustNewStruct(map[string]interface{}{"scan_type": "IndexScan", "scan_target": "SongsBySingerAlbumSongNameDesc", "Full scan": "true"}),
 						ExecutionStats: mustNewStruct(map[string]interface{}{
 							"latency":           map[string]interface{}{"total": "1", "unit": "msec"},
@@ -501,7 +500,7 @@ func TestNodeString(t *testing.T) {
 		want  string
 	}{
 		{"Distributed Union with call_type=Local",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Distributed Union",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"call_type":             "Local",
@@ -510,7 +509,7 @@ func TestNodeString(t *testing.T) {
 			}}, "Local Distributed Union",
 		},
 		{"Scan with scan_type=IndexScan and Full scan=true",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Scan",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"scan_type":   "IndexScan",
@@ -519,7 +518,7 @@ func TestNodeString(t *testing.T) {
 				}),
 			}}, "Index Scan (Full scan: true, Index: SongsBySongName)"},
 		{"Scan with scan_type=TableScan",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Scan",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"scan_type":   "TableScan",
@@ -527,7 +526,7 @@ func TestNodeString(t *testing.T) {
 				}),
 			}}, "Table Scan (Table: Songs)"},
 		{"Scan with scan_type=BatchScan",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Scan",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"scan_type":   "BatchScan",
@@ -535,21 +534,21 @@ func TestNodeString(t *testing.T) {
 				}),
 			}}, "Batch Scan (Batch: $v2)"},
 		{"Sort Limit with call_type=Local",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Sort Limit",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"call_type": "Local",
 				}),
 			}}, "Local Sort Limit"},
 		{"Sort Limit with call_type=Global",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Sort Limit",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"call_type": "Global",
 				}),
 			}}, "Global Sort Limit"},
 		{"Aggregate with iterator_type=Stream",
-			&Node{PlanNode: &spanner.PlanNode{
+			&Node{PlanNode: &pb.PlanNode{
 				DisplayName: "Aggregate",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"iterator_type": "Stream",
