@@ -24,7 +24,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -78,7 +78,7 @@ func main() {
 		}
 	}
 
-	var priority pb.RequestOptions_Priority
+	var priority sppb.RequestOptions_Priority
 	if opts.Priority != "" {
 		var err error
 		priority, err = parsePriority(opts.Priority)
@@ -87,7 +87,7 @@ func main() {
 		}
 	}
 
-	var directedRead *pb.DirectedReadOptions
+	var directedRead *sppb.DirectedReadOptions
 	if opts.DirectedRead != "" {
 		var err error
 		directedRead, err = parseDirectedReadOption(opts.DirectedRead)

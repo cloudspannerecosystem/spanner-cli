@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"github.com/xlab/treeprint"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -42,7 +42,7 @@ type Link struct {
 }
 
 type Node struct {
-	PlanNode *pb.PlanNode
+	PlanNode *sppb.PlanNode
 	Children []*Link
 }
 
@@ -80,12 +80,12 @@ type queryPlanNodeWithStatsTyped struct {
 	LinkType    string `json:"link_type"`
 }
 
-func BuildQueryPlanTree(plan *pb.QueryPlan, idx int32) *Node {
+func BuildQueryPlanTree(plan *sppb.QueryPlan, idx int32) *Node {
 	if len(plan.PlanNodes) == 0 {
 		return &Node{}
 	}
 
-	nodeMap := map[int32]*pb.PlanNode{}
+	nodeMap := map[int32]*sppb.PlanNode{}
 	for _, node := range plan.PlanNodes {
 		nodeMap[node.Index] = node
 	}
@@ -120,7 +120,7 @@ type QueryPlanRow struct {
 	Predicates   []string
 }
 
-func isPredicate(planNodes []*pb.PlanNode, childLink *pb.PlanNode_ChildLink) bool {
+func isPredicate(planNodes []*sppb.PlanNode, childLink *sppb.PlanNode_ChildLink) bool {
 	// Known predicates are Condition(Filter/Hash Join) or Seek Condition/Residual Condition(FilterScan) or Split Range(Distributed Union).
 	// Agg is a Function but not a predicate.
 	child := planNodes[childLink.ChildIndex]
@@ -133,7 +133,7 @@ func isPredicate(planNodes []*pb.PlanNode, childLink *pb.PlanNode_ChildLink) boo
 	return false
 }
 
-func (n *Node) RenderTreeWithStats(planNodes []*pb.PlanNode) ([]QueryPlanRow, error) {
+func (n *Node) RenderTreeWithStats(planNodes []*sppb.PlanNode) ([]QueryPlanRow, error) {
 	tree := treeprint.New()
 	renderTreeWithStats(tree, "", n)
 	var result []QueryPlanRow
@@ -239,7 +239,7 @@ func (n *Node) String() string {
 
 func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	// Scalar operator is rendered if and only if it is linked as Scalar type(Scalar/Array Subquery)
-	if node.PlanNode.GetKind() == pb.PlanNode_SCALAR && linkType != "Scalar" {
+	if node.PlanNode.GetKind() == sppb.PlanNode_SCALAR && linkType != "Scalar" {
 		return
 	}
 
@@ -274,13 +274,13 @@ func renderTreeWithStats(tree treeprint.Tree, linkType string, node *Node) {
 	}
 }
 
-func getMaxRelationalNodeID(plan *pb.QueryPlan) int32 {
+func getMaxRelationalNodeID(plan *sppb.QueryPlan) int32 {
 	var maxRelationalNodeID int32
 	// We assume that plan_nodes[] is pre-sorted in ascending order.
 	// See QueryPlan.plan_nodes[] in the document.
 	// https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1?hl=en#google.spanner.v1.QueryPlan.FIELDS.repeated.google.spanner.v1.PlanNode.google.spanner.v1.QueryPlan.plan_nodes
 	for _, planNode := range plan.GetPlanNodes() {
-		if planNode.GetKind() == pb.PlanNode_RELATIONAL {
+		if planNode.GetKind() == sppb.PlanNode_RELATIONAL {
 			maxRelationalNodeID = planNode.Index
 		}
 	}

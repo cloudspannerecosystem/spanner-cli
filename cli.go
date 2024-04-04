@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"github.com/chzyer/readline"
 	"github.com/olekukonko/tablewriter"
 	"google.golang.org/api/option"
@@ -66,7 +66,7 @@ type Cli struct {
 	OutStream   io.Writer
 	ErrStream   io.Writer
 	Verbose     bool
-	Priority    pb.RequestOptions_Priority
+	Priority    sppb.RequestOptions_Priority
 	Endpoint    string
 }
 
@@ -75,7 +75,7 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority sppb.RequestOptions_Priority, role string, endpoint string, directedRead *sppb.DirectedReadOptions) (*Cli, error) {
 	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead)
 	if err != nil {
 		return nil, err
@@ -310,7 +310,7 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
-func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions) (*Session, error) {
+func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority sppb.RequestOptions_Priority, role string, endpoint string, directedRead *sppb.DirectedReadOptions) (*Session, error) {
 	var opts []option.ClientOption
 	if credential != nil {
 		opts = append(opts, option.WithCredentialsJSON(credential))
