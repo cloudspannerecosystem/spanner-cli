@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
@@ -22,7 +23,7 @@ func TestRequestPriority(t *testing.T) {
 	var recorder requestRecorder
 	unaryInterceptor, streamInterceptor := recordRequestsInterceptors(&recorder)
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(unaryInterceptor),
 		grpc.WithStreamInterceptor(streamInterceptor),
 	}
