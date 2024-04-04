@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -367,7 +367,7 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 		},
 	} {
 		t.Run(test.title, func(t *testing.T) {
-			b, err := ioutil.ReadFile(test.file)
+			b, err := os.ReadFile(test.file)
 			if err != nil {
 				t.Fatal(err)
 			}
