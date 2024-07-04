@@ -507,6 +507,21 @@ func TestBuildStatement(t *testing.T) {
 			input: "DESC SELECT * FROM t1",
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
 		},
+		{
+			desc:  "Stored system procedures",
+			input: `CALL cancel_query("1234567890123456789")`,
+			want:  &SelectStatement{Query: `CALL cancel_query("1234567890123456789")`},
+		},
+		{
+			desc:  "EXPLAIN Stored system procedures",
+			input: `EXPLAIN CALL cancel_query("1234567890123456789")`,
+			want:  &ExplainStatement{Explain: `CALL cancel_query("1234567890123456789")`},
+		},
+		{
+			desc:  "EXPLAIN ANALYZE Stored system procedures",
+			input: `EXPLAIN ANALYZE CALL cancel_query("1234567890123456789")`,
+			want:  &ExplainAnalyzeStatement{Query: `CALL cancel_query("1234567890123456789")`},
+		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			got, err := BuildStatement(test.input)
