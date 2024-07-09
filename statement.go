@@ -186,7 +186,8 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		}
 	case showColumnsRe.MatchString(stripped):
 		matched := showColumnsRe.FindStringSubmatch(stripped)
-		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
+		schema, table := splitQualifiedName(unquoteIdentifier(matched[1]))
+		return &ShowColumnsStatement{Schema: schema, Table: table}, nil
 	case showIndexRe.MatchString(stripped):
 		matched := showIndexRe.FindStringSubmatch(stripped)
 		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
@@ -620,7 +621,8 @@ func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates
 }
 
 type ShowColumnsStatement struct {
-	Table string
+	Schema string
+	Table  string
 }
 
 func (s *ShowColumnsStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
@@ -646,10 +648,10 @@ LEFT JOIN
 LEFT JOIN
   INFORMATION_SCHEMA.COLUMN_OPTIONS CO USING(TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE
-  C.TABLE_SCHEMA = '' AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
+  LOWER(C.TABLE_SCHEMA) = LOWER(@table_schema) AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
 ORDER BY
   C.ORDINAL_POSITION ASC`,
-		Params: map[string]interface{}{"table_name": s.Table}}
+		Params: map[string]interface{}{"table_name": s.Table, "table_schema": s.Schema}}
 
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
@@ -659,7 +661,7 @@ ORDER BY
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		return nil, fmt.Errorf("table %q doesn't exist in schema %q", s.Table, s.Schema)
 	}
 
 	return &Result{
@@ -667,6 +669,18 @@ ORDER BY
 		Rows:         rows,
 		AffectedRows: len(rows),
 	}, nil
+}
+
+func splitQualifiedName(s string) (string, string) {
+	var schema, table string
+	// currently, we assume one period at most.
+	if before, after, found := strings.Cut(s, "."); found {
+		schema = before
+		table = after
+	} else {
+		table = before
+	}
+	return schema, table
 }
 
 type ShowIndexStatement struct {
