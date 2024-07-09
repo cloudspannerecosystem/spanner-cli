@@ -192,7 +192,8 @@ and `{}` for a mutually exclusive keyword.
 | Switch database | `USE <database> [ROLE <role>];` | The role you set is used for accessing with [fine-grained access control](https://cloud.google.com/spanner/docs/fgac-about). |
 | Create database | `CREATE DATABSE <database>;` | |
 | Drop database | `DROP DATABASE <database>;` | |
-| List tables | `SHOW TABLES;` | |
+| List tables in a default schema| `SHOW TABLES;` | |
+| List tables in a named schema | `SHOW TABLES <schema>;` | |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
 | Show columns | `SHOW COLUMNS FROM <table>;` | |
 | Show indexes | `SHOW INDEX FROM <table>;` | |
@@ -218,8 +219,8 @@ and `{}` for a mutually exclusive keyword.
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. The tag you set is used as request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
-| End Read-Only Transaction | `CLOSE;` | |
-| Exit CLI | `EXIT;` | |
+| End Read-Only Transaction | `CLOSE;`                                                                                       | |
+| Exit CLI | `EXIT;`                                                                                        | |
 
 ## Customize prompt
 

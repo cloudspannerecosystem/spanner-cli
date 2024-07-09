@@ -453,6 +453,16 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowTablesStatement{},
 		},
 		{
+			desc:  "SHOW TABLES statement with schema",
+			input: "SHOW TABLES sch1",
+			want:  &ShowTablesStatement{Schema: "sch1"},
+		},
+		{
+			desc:  "SHOW TABLES statement with quoted schema",
+			input: "SHOW TABLES `sch1`",
+			want:  &ShowTablesStatement{Schema: "sch1"},
+		},
+		{
 			desc:  "SHOW INDEX statement",
 			input: "SHOW INDEX FROM t1",
 			want:  &ShowIndexStatement{Table: "t1"},
