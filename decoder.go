@@ -70,6 +70,17 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			for _, v := range vs {
 				decoded = append(decoded, nullBytesToString(v))
 			}
+		case sppb.TypeCode_FLOAT32:
+			var vs []spanner.NullFloat32
+			if err := column.Decode(&vs); err != nil {
+				return "", err
+			}
+			if vs == nil {
+				return "NULL", nil
+			}
+			for _, v := range vs {
+				decoded = append(decoded, nullFloat32ToString(v))
+			}
 		case sppb.TypeCode_FLOAT64:
 			var vs []spanner.NullFloat64
 			if err := column.Decode(&vs); err != nil {
@@ -178,6 +189,12 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			return "", err
 		}
 		return nullBytesToString(v), nil
+	case sppb.TypeCode_FLOAT32:
+		var v spanner.NullFloat32
+		if err := column.Decode(&v); err != nil {
+			return "", err
+		}
+		return nullFloat32ToString(v), nil
 	case sppb.TypeCode_FLOAT64:
 		var v spanner.NullFloat64
 		if err := column.Decode(&v); err != nil {
@@ -236,6 +253,14 @@ func nullBoolToString(v spanner.NullBool) string {
 func nullBytesToString(v []byte) string {
 	if v != nil {
 		return base64.StdEncoding.EncodeToString(v)
+	} else {
+		return "NULL"
+	}
+}
+
+func nullFloat32ToString(v spanner.NullFloat32) string {
+	if v.Valid {
+		return fmt.Sprintf("%f", v.Float32)
 	} else {
 		return "NULL"
 	}
