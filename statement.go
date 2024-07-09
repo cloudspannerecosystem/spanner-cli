@@ -116,7 +116,7 @@ var (
 	useRe             = regexp.MustCompile(`(?is)^USE\s+([^\s]+)(?:\s+ROLE\s+(.+))?$`)
 	showDatabasesRe   = regexp.MustCompile(`(?is)^SHOW\s+DATABASES$`)
 	showCreateTableRe = regexp.MustCompile(`(?is)^SHOW\s+CREATE\s+TABLE\s+(.+)$`)
-	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES$`)
+	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES(?:\s+(.+))?$`)
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
 	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(ANALYZE\s+)?(.+)$`)
@@ -168,7 +168,8 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		matched := showCreateTableRe.FindStringSubmatch(stripped)
 		return &ShowCreateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
 	case showTablesRe.MatchString(stripped):
-		return &ShowTablesStatement{}, nil
+		matched := showTablesRe.FindStringSubmatch(stripped)
+		return &ShowTablesStatement{Schema: unquoteIdentifier(matched[1])}, nil
 	case explainRe.MatchString(stripped):
 		matched := explainRe.FindStringSubmatch(stripped)
 		isAnalyze := matched[1] != ""
@@ -466,7 +467,9 @@ func isCreateTableDDL(ddl string, table string) bool {
 	return regexp.MustCompile(re).MatchString(ddl)
 }
 
-type ShowTablesStatement struct{}
+type ShowTablesStatement struct {
+	Schema string
+}
 
 func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	if session.InReadWriteTransaction() {
@@ -476,7 +479,8 @@ func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*R
 	}
 
 	alias := fmt.Sprintf("Tables_in_%s", session.databaseId)
-	stmt := spanner.NewStatement(fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = ''", alias))
+	stmt := spanner.NewStatement(fmt.Sprintf("SELECT t.TABLE_NAME AS `%s` FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_CATALOG = '' and t.TABLE_SCHEMA = @schema", alias))
+	stmt.Params["schema"] = s.Schema
 
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()

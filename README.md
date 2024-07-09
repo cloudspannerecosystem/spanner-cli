@@ -192,7 +192,7 @@ and `{}` for a mutually exclusive keyword.
 | Switch database | `USE <database> [ROLE <role>];` | The role you set is used for accessing with [fine-grained access control](https://cloud.google.com/spanner/docs/fgac-about). |
 | Create database | `CREATE DATABSE <database>;` | |
 | Drop database | `DROP DATABASE <database>;` | |
-| List tables | `SHOW TABLES;` | |
+| List tables | `SHOW TABLES [<schema>];` | If schema is not provided, default schema is used |
 | Show table schema | `SHOW CREATE TABLE <table>;` | |
 | Show columns | `SHOW COLUMNS FROM <table>;` | |
 | Show indexes | `SHOW INDEX FROM <table>;` | |
