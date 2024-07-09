@@ -443,6 +443,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowCreateTableStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW CREATE TABLE statement with a named schema",
+			input: "SHOW CREATE TABLE sch1.t1",
+			want:  &ShowCreateTableStatement{Schema: "sch1", Table: "t1"},
+		},
+		{
 			desc:  "SHOW CREATE TABLE statement with quoted identifier",
 			input: "SHOW CREATE TABLE `TABLE`",
 			want:  &ShowCreateTableStatement{Table: "TABLE"},
@@ -468,6 +473,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowIndexStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW INDEX statement with a named schema",
+			input: "SHOW INDEX FROM sch1.t1",
+			want:  &ShowIndexStatement{Schema: "sch1", Table: "t1"},
+		},
+		{
 			desc:  "SHOW INDEXES statement",
 			input: "SHOW INDEXES FROM t1",
 			want:  &ShowIndexStatement{Table: "t1"},
@@ -486,6 +496,11 @@ func TestBuildStatement(t *testing.T) {
 			desc:  "SHOW COLUMNS statement",
 			input: "SHOW COLUMNS FROM t1",
 			want:  &ShowColumnsStatement{Table: "t1"},
+		},
+		{
+			desc:  "SHOW COLUMNS statement with a named schema",
+			input: "SHOW COLUMNS FROM sch1.t1",
+			want:  &ShowColumnsStatement{Schema: "sch1", Table: "t1"},
 		},
 		{
 			desc:  "SHOW COLUMNS statement with quoted identifier",
