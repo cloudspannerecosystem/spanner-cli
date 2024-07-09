@@ -17,12 +17,14 @@
 package main
 
 import (
+	"github.com/golang/protobuf/proto"
 	"math/big"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/spanner-cli/testdata/protos"
 )
 
 func createRow(t *testing.T, values []interface{}) *spanner.Row {
@@ -39,6 +41,10 @@ func createRow(t *testing.T, values []interface{}) *spanner.Row {
 		t.Fatalf("Creating spanner row failed unexpectedly: %v", err)
 	}
 	return row
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
 
 func createColumnValue(t *testing.T, value interface{}) spanner.GenericColumnValue {
@@ -313,6 +319,58 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null array json",
 			value: []spanner.NullJSON(nil),
+			want:  "NULL",
+		},
+
+		// PROTO
+		{
+			desc: "proto",
+			value: &protos.SingerInfo{
+				SingerId:    proto.Int64(1),
+				BirthDate:   proto.String("1970-01-01"),
+				Nationality: proto.String("Japanese"),
+				Genre:       ptr(protos.Genre_JAZZ),
+			},
+			want: "CAESCjE5NzAtMDEtMDEaCEphcGFuZXNlIAE=",
+		},
+		{
+			desc:  "null proto",
+			value: (*protos.SingerInfo)(nil),
+			want:  "NULL",
+		},
+		{
+			desc: "array proto",
+			value: []*protos.SingerInfo{
+				{SingerId: proto.Int64(0)},
+				{SingerId: proto.Int64(1)},
+				{SingerId: proto.Int64(2)},
+			},
+			want: "[CAA=, CAE=, CAI=]",
+		},
+		{
+			desc:  "null array proto",
+			value: []*protos.SingerInfo(nil),
+			want:  "NULL",
+		},
+
+		{
+			desc:  "enum",
+			value: ptr(protos.Genre_ROCK),
+			want:  "3",
+		},
+		{
+			desc:  "null enum",
+			value: spanner.NullProtoEnum{ProtoEnumVal: (*protos.Genre)(nil), Valid: true}, // must use typed nil and Valie=true, see godoc
+			want:  "NULL",
+		},
+		{
+			desc:  "array enum",
+			value: []*protos.Genre{ptr(protos.Genre_POP), ptr(protos.Genre_FOLK)},
+			want:  "[0, 2]",
+		},
+		{
+			desc:  "null array enum",
+			value: []*protos.Genre(nil),
 			want:  "NULL",
 		},
 	}
