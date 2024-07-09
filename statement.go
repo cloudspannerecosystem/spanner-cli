@@ -191,7 +191,8 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		return &ShowColumnsStatement{Schema: schema, Table: table}, nil
 	case showIndexRe.MatchString(stripped):
 		matched := showIndexRe.FindStringSubmatch(stripped)
-		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
+		schema, table := splitQualifiedName(unquoteIdentifier(matched[1]))
+		return &ShowIndexStatement{Schema: schema, Table: table}, nil
 	case dmlRe.MatchString(stripped):
 		return &DmlStatement{Dml: raw}, nil
 	case pdmlRe.MatchString(stripped):
@@ -698,7 +699,8 @@ func splitQualifiedName(s string) (string, string) {
 }
 
 type ShowIndexStatement struct {
-	Table string
+	Schema string
+	Table  string
 }
 
 func (s *ShowIndexStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
@@ -720,8 +722,8 @@ func (s *ShowIndexStatement) Execute(ctx context.Context, session *Session) (*Re
 FROM
   INFORMATION_SCHEMA.INDEXES I
 WHERE
-  I.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
-		Params: map[string]interface{}{"table_name": s.Table}}
+  LOWER(I.TABLE_SCHEMA) = @table_schema AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
+		Params: map[string]interface{}{"table_name": s.Table, "table_schema": s.Schema}}
 
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
@@ -731,7 +733,7 @@ WHERE
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		return nil, fmt.Errorf("table %q doesn't exist in schema %q", s.Table, s.Schema)
 	}
 
 	return &Result{
