@@ -193,9 +193,9 @@ and `{}` for a mutually exclusive keyword.
 | Create database | `CREATE DATABSE <database>;` | |
 | Drop database | `DROP DATABASE <database>;` | |
 | List tables | `SHOW TABLES [<schema>];` | If schema is not provided, default schema is used |
-| Show table schema | `SHOW CREATE TABLE <table>;` | |
-| Show columns | `SHOW COLUMNS FROM <table>;` | |
-| Show indexes | `SHOW INDEX FROM <table>;` | |
+| Show table schema | `SHOW CREATE TABLE <table>;` | The table can be a FQN.|
+| Show columns | `SHOW COLUMNS FROM <table>;` | The table can be a FQN.|
+| Show indexes | `SHOW INDEX FROM <table>;` | The table can be a FQN.|
 | Create table | `CREATE TABLE ...;` | |
 | Change table schema | `ALTER TABLE ...;` | |
 | Delete table | `DROP TABLE ...;` | |
