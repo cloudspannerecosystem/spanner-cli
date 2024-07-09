@@ -90,6 +90,11 @@ func TestDecodeColumn(t *testing.T) {
 			want:  "YWJjZA==", // base64 encoded 'abc'
 		},
 		{
+			desc:  "float32",
+			value: float32(1.23),
+			want:  "1.230000",
+		},
+		{
 			desc:  "float64",
 			value: 1.23,
 			want:  "1.230000",
@@ -139,6 +144,11 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null bytes",
 			value: []byte(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null float32",
+			value: spanner.NullFloat32{Float32: 0, Valid: false},
 			want:  "NULL",
 		},
 		{
@@ -192,6 +202,11 @@ func TestDecodeColumn(t *testing.T) {
 			desc:  "array bytes",
 			value: [][]byte{{'a', 'b', 'c', 'd'}, {'e', 'f', 'g', 'h'}},
 			want:  "[YWJjZA==, ZWZnaA==]",
+		},
+		{
+			desc:  "array float32",
+			value: []float32{1.23, 2.45},
+			want:  "[1.230000, 2.450000]",
 		},
 		{
 			desc:  "array float64",
@@ -261,7 +276,12 @@ func TestDecodeColumn(t *testing.T) {
 			want:  "NULL",
 		},
 		{
-			desc:  "nul array float64",
+			desc:  "null array float32",
+			value: []float32(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "null array float64",
 			value: []float64(nil),
 			want:  "NULL",
 		},
