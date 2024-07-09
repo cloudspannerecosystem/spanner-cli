@@ -166,7 +166,8 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(stripped):
 		matched := showCreateTableRe.FindStringSubmatch(stripped)
-		return &ShowCreateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
+		schema, table := splitQualifiedName(unquoteIdentifier(matched[1]))
+		return &ShowCreateTableStatement{Schema: schema, Table: table}, nil
 	case showTablesRe.MatchString(stripped):
 		matched := showTablesRe.FindStringSubmatch(stripped)
 		return &ShowTablesStatement{Schema: unquoteIdentifier(matched[1])}, nil
@@ -432,7 +433,8 @@ func (s *ShowDatabasesStatement) Execute(ctx context.Context, session *Session) 
 }
 
 type ShowCreateTableStatement struct {
-	Table string
+	Schema string
+	Table  string
 }
 
 func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
@@ -445,16 +447,23 @@ func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session
 		return nil, err
 	}
 	for _, stmt := range ddlResponse.Statements {
-		if isCreateTableDDL(stmt, s.Table) {
+		if isCreateTableDDL(stmt, s.Schema, s.Table) {
+			var fqn string
+			if s.Schema == "" {
+				fqn = s.Table
+			} else {
+				fqn = fmt.Sprintf("%s.%s", s.Schema, s.Table)
+			}
+
 			resultRow := Row{
-				Columns: []string{s.Table, stmt},
+				Columns: []string{fqn, stmt},
 			}
 			result.Rows = append(result.Rows, resultRow)
 			break
 		}
 	}
 	if len(result.Rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		return nil, fmt.Errorf("table %q doesn't exist in schema %q", s.Table, s.Schema)
 	}
 
 	result.AffectedRows = len(result.Rows)
@@ -462,9 +471,14 @@ func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session
 	return result, nil
 }
 
-func isCreateTableDDL(ddl string, table string) bool {
+func isCreateTableDDL(ddl string, schema string, table string) bool {
 	table = regexp.QuoteMeta(table)
-	re := fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\s*\\(", table, table)
+	var re string
+	if schema == "" {
+		re = fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\s*\\(", table, table)
+	} else {
+		re = fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\.(%s|`%s`)\\s*\\(", schema, schema, table, table)
+	}
 	return regexp.MustCompile(re).MatchString(ddl)
 }
 
