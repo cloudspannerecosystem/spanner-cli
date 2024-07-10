@@ -166,7 +166,7 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(stripped):
 		matched := showCreateTableRe.FindStringSubmatch(stripped)
-		schema, table := splitQualifiedName(unquoteIdentifier(matched[1]))
+		schema, table := extractQualifiedName(unquoteIdentifier(matched[1]))
 		return &ShowCreateTableStatement{Schema: schema, Table: table}, nil
 	case showTablesRe.MatchString(stripped):
 		matched := showTablesRe.FindStringSubmatch(stripped)
@@ -187,11 +187,11 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		}
 	case showColumnsRe.MatchString(stripped):
 		matched := showColumnsRe.FindStringSubmatch(stripped)
-		schema, table := splitQualifiedName(unquoteIdentifier(matched[1]))
+		schema, table := extractQualifiedName(unquoteIdentifier(matched[1]))
 		return &ShowColumnsStatement{Schema: schema, Table: table}, nil
 	case showIndexRe.MatchString(stripped):
 		matched := showIndexRe.FindStringSubmatch(stripped)
-		schema, table := splitQualifiedName(unquoteIdentifier(matched[1]))
+		schema, table := extractQualifiedName(unquoteIdentifier(matched[1]))
 		return &ShowIndexStatement{Schema: schema, Table: table}, nil
 	case dmlRe.MatchString(stripped):
 		return &DmlStatement{Dml: raw}, nil
@@ -686,16 +686,35 @@ ORDER BY
 	}, nil
 }
 
-func splitQualifiedName(s string) (string, string) {
-	var schema, table string
-	// currently, we assume one period at most.
-	if before, after, found := strings.Cut(s, "."); found {
-		schema = before
-		table = after
+// qualifiedNameRe matches all patterns with whitespaces using submatches.
+// 1. table (unquotedTable)
+// 2. `table` (quotedFqn)
+// 3. `schema.table` (quotedFqn)
+// 4. schema.table (schema + table)
+// 5. schema.`table` (schema + table)
+// 6. `schema`.table (schema + table)
+// 7. `schema`.`table` (schema + table)
+var qualifiedNameRe = regexp.MustCompile("^\\s*(?:`(?P<quotedFqn>[^`]+)`|(?P<unquotedTable>[^.`\\s]+)|(?P<schema>[^.`\\s]+|`[^`]+`)\\s*\\.\\s*(?P<table>[^.`\\s]+|`[^`]+`))\\s*$")
+var (
+	qualifiedNameReQuotedFqnIndex     = qualifiedNameRe.SubexpIndex("quotedFqn")
+	qualifiedNameReUnquotedTableIndex = qualifiedNameRe.SubexpIndex("unquotedTable")
+	qualifiedNameReSchemaIndex        = qualifiedNameRe.SubexpIndex("schema")
+	qualifiedNameReTableIndex         = qualifiedNameRe.SubexpIndex("table")
+)
+
+func extractQualifiedName(s string) (string, string) {
+	matched := qualifiedNameRe.FindStringSubmatch(s)
+	if quotedFqn := matched[qualifiedNameReQuotedFqnIndex]; quotedFqn != "" {
+		if before, after, found := strings.Cut(quotedFqn, "."); found {
+			return before, after
+		} else {
+			return "", before
+		}
+	} else if unquotedTable := matched[qualifiedNameReUnquotedTableIndex]; unquotedTable != "" {
+		return "", unquotedTable
 	} else {
-		table = before
+		return unquoteIdentifier(matched[qualifiedNameReSchemaIndex]), unquoteIdentifier(matched[qualifiedNameReTableIndex])
 	}
-	return schema, table
 }
 
 type ShowIndexStatement struct {
