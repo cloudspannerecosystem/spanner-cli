@@ -19,12 +19,12 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
 
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -78,7 +78,7 @@ func main() {
 		}
 	}
 
-	var priority pb.RequestOptions_Priority
+	var priority sppb.RequestOptions_Priority
 	if opts.Priority != "" {
 		var err error
 		priority, err = parsePriority(opts.Priority)
@@ -87,7 +87,7 @@ func main() {
 		}
 	}
 
-	var directedRead *pb.DirectedReadOptions
+	var directedRead *sppb.DirectedReadOptions
 	if opts.DirectedRead != "" {
 		var err error
 		directedRead, err = parseDirectedReadOption(opts.DirectedRead)
@@ -105,13 +105,13 @@ func main() {
 	if opts.Execute != "" {
 		input = opts.Execute
 	} else if opts.File == "-" {
-		b, err := ioutil.ReadAll(os.Stdin)
+		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			exitf("Read from stdin failed: %v", err)
 		}
 		input = string(b)
 	} else if opts.File != "" {
-		b, err := ioutil.ReadFile(opts.File)
+		b, err := os.ReadFile(opts.File)
 		if err != nil {
 			exitf("Read from file %v failed: %v", opts.File, err)
 		}
@@ -168,13 +168,13 @@ func readCredentialFile(filepath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }
 
 func readStdin() (string, error) {
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
-		b, err := ioutil.ReadAll(os.Stdin)
+		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return "", err
 		}
