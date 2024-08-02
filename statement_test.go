@@ -508,6 +508,21 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ExplainStatement{Explain: "WITH t1 AS (SELECT 1) SELECT * FROM t1"},
 		},
 		{
+			desc:  "GRAPH statement",
+			input: "GRAPH FinGraph MATCH (n) RETURN LABELS(n) AS label, n.id",
+			want:  &SelectStatement{Query: "GRAPH FinGraph MATCH (n) RETURN LABELS(n) AS label, n.id"},
+		},
+		{
+			desc:  "EXPLAIN GRAPH statement",
+			input: "EXPLAIN GRAPH FinGraph MATCH (n) RETURN LABELS(n) AS label, n.id",
+			want:  &ExplainStatement{Explain: "GRAPH FinGraph MATCH (n) RETURN LABELS(n) AS label, n.id"},
+		},
+		{
+			desc:  "EXPLAIN ANALYZE GRAPH statement",
+			input: "EXPLAIN ANALYZE GRAPH FinGraph MATCH (n) RETURN LABELS(n) AS label, n.id",
+			want:  &ExplainAnalyzeStatement{Query: "GRAPH FinGraph MATCH (n) RETURN LABELS(n) AS label, n.id"},
+		},
+		{
 			desc:  "DESCRIBE SELECT statement",
 			input: "DESCRIBE SELECT * FROM t1",
 			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
