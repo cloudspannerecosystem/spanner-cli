@@ -43,10 +43,6 @@ func createRow(t *testing.T, values []interface{}) *spanner.Row {
 	return row
 }
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 func createColumnValue(t *testing.T, value interface{}) spanner.GenericColumnValue {
 	t.Helper()
 
@@ -76,6 +72,10 @@ func equalStringSlice(a []string, b []string) bool {
 
 type jsonMessage struct {
 	Msg string `json:"msg"`
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
 
 func TestDecodeColumn(t *testing.T) {
