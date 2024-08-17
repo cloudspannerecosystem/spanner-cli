@@ -735,7 +735,7 @@ func TestExtractSchemaAndTable(t *testing.T) {
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			if schema, table := extractSchemaAndTable(tt.input); schema != tt.schema || table != tt.table {
-				t.Errorf("isCreateTableDDL(%q) = (%v, %v), but want (%v, %v)", tt.input, schema, table, tt.schema, tt.table)
+				t.Errorf("extractSchemaAndTable(%q) = (%v, %v), but want (%v, %v)", tt.input, schema, table, tt.schema, tt.table)
 			}
 		})
 	}
