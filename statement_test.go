@@ -659,7 +659,7 @@ func TestIsCreateTableDDL(t *testing.T) {
 	}
 }
 
-func TestSplitQualifiedName(t *testing.T) {
+func TestExtractSchemaAndTable(t *testing.T) {
 	for _, tt := range []struct {
 		desc   string
 		input  string
@@ -685,8 +685,20 @@ func TestSplitQualifiedName(t *testing.T) {
 			table:  "table",
 		},
 		{
+			desc:   "FQN with spaces",
+			input:  "schema . table",
+			schema: "schema",
+			table:  "table",
+		},
+		{
 			desc:   "FQN, both schema and table are quoted",
 			input:  "`schema`.`table`",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN with spaces, both schema and table are quoted",
+			input:  "`schema` . `table`",
 			schema: "schema",
 			table:  "table",
 		},
@@ -697,8 +709,20 @@ func TestSplitQualifiedName(t *testing.T) {
 			table:  "table",
 		},
 		{
+			desc:   "FQN with spaces, only schema is quoted",
+			input:  "`schema` . table",
+			schema: "schema",
+			table:  "table",
+		},
+		{
 			desc:   "FQN, only table is quoted",
 			input:  "schema.`table`",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN with spaces, only table is quoted",
+			input:  "schema . `table`",
 			schema: "schema",
 			table:  "table",
 		},
@@ -710,7 +734,7 @@ func TestSplitQualifiedName(t *testing.T) {
 		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
-			if schema, table := extractQualifiedName(tt.input); schema != tt.schema || table != tt.table {
+			if schema, table := extractSchemaAndTable(tt.input); schema != tt.schema || table != tt.table {
 				t.Errorf("isCreateTableDDL(%q) = (%v, %v), but want (%v, %v)", tt.input, schema, table, tt.schema, tt.table)
 			}
 		})
