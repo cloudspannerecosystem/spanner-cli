@@ -353,6 +353,7 @@ func TestDecodeColumn(t *testing.T) {
 			want:  "NULL",
 		},
 
+		// ENUM
 		{
 			desc:  "enum",
 			value: ptr(protos.Genre_ROCK),
