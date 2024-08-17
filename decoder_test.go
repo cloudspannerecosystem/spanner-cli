@@ -17,7 +17,7 @@
 package main
 
 import (
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"math/big"
 	"testing"
 	"time"
