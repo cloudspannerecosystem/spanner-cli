@@ -82,7 +82,7 @@ type QueryStats struct {
 
 var (
 	// SQL
-	selectRe = regexp.MustCompile(`(?is)^(?:WITH|CALL|@{.+|SELECT)\s.+$`)
+	selectRe = regexp.MustCompile(`(?is)^(?:WITH|CALL|@{.+|SELECT|GRAPH)\s.+$`)
 
 	// DDL
 	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
