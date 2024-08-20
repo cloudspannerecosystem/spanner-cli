@@ -17,8 +17,12 @@
 package main
 
 import (
+	"encoding/base64"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -319,29 +323,12 @@ func TestDecodeColumn(t *testing.T) {
 		},
 
 		// PROTO
-		{
-			desc: "proto",
-			value: &protos.SingerInfo{
-				SingerId:    proto.Int64(1),
-				BirthDate:   proto.String("1970-01-01"),
-				Nationality: proto.String("Japanese"),
-				Genre:       protos.Genre_JAZZ.Enum(),
-			},
-			want: "CAESCjE5NzAtMDEtMDEaCEphcGFuZXNlIAE=",
-		},
+		// This table tests only have null proto cases because of non-stability
+		// See also TestDecodeColumnProtoArray and TestDecodeColumnProto
 		{
 			desc:  "null proto",
 			value: (*protos.SingerInfo)(nil),
 			want:  "NULL",
-		},
-		{
-			desc: "array proto",
-			value: []*protos.SingerInfo{
-				{SingerId: proto.Int64(0)},
-				{SingerId: proto.Int64(1)},
-				{SingerId: proto.Int64(2)},
-			},
-			want: "[CAA=, CAE=, CAI=]",
 		},
 		{
 			desc:  "null array proto",
@@ -382,6 +369,64 @@ func TestDecodeColumn(t *testing.T) {
 				t.Errorf("DecodeColumn(%v) = %v, want = %v", test.value, got, test.want)
 			}
 		})
+	}
+}
+
+func TestDecodeColumnProto(t *testing.T) {
+	singerInfo := &protos.SingerInfo{
+		SingerId:    proto.Int64(1),
+		BirthDate:   proto.String("1970-01-01"),
+		Nationality: proto.String("Japanese"),
+		Genre:       protos.Genre_JAZZ.Enum(),
+	}
+
+	decoded, err := DecodeColumn(createColumnValue(t, singerInfo))
+	if err != nil {
+		t.Error(err)
+	}
+
+	b, err := base64.StdEncoding.DecodeString(decoded)
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotSingerInfo := &protos.SingerInfo{}
+	if err := proto.Unmarshal(b, gotSingerInfo); err != nil {
+		t.Error(err)
+	}
+
+	if !cmp.Equal(gotSingerInfo, singerInfo, protocmp.Transform()) {
+		t.Errorf("differ: %v", cmp.Diff(gotSingerInfo, singerInfo, protocmp.Transform()))
+	}
+}
+
+func TestDecodeColumnProtoArray(t *testing.T) {
+	singerInfos := []*protos.SingerInfo{
+		{SingerId: proto.Int64(1)},
+		{SingerId: proto.Int64(2)},
+		{SingerId: proto.Int64(3)},
+	}
+
+	decoded, err := DecodeColumn(createColumnValue(t, singerInfos))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotSingerInfos []*protos.SingerInfo
+	for _, s := range strings.Split(strings.Trim(decoded, "[]"), ",") {
+		b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(s))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gotSingerInfo := &protos.SingerInfo{}
+		if err := proto.Unmarshal(b, gotSingerInfo); err != nil {
+			t.Fatal(err)
+		}
+		gotSingerInfos = append(gotSingerInfos, gotSingerInfo)
+	}
+
+	if !cmp.Equal(gotSingerInfos, singerInfos, protocmp.Transform()) {
+		t.Fatalf("differ: %v", cmp.Diff(gotSingerInfos, singerInfos, protocmp.Transform()))
 	}
 }
 
