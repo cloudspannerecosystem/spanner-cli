@@ -74,10 +74,6 @@ type jsonMessage struct {
 	Msg string `json:"msg"`
 }
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 func TestDecodeColumn(t *testing.T) {
 	tests := []struct {
 		desc  string
@@ -329,7 +325,7 @@ func TestDecodeColumn(t *testing.T) {
 				SingerId:    proto.Int64(1),
 				BirthDate:   proto.String("1970-01-01"),
 				Nationality: proto.String("Japanese"),
-				Genre:       ptr(protos.Genre_JAZZ),
+				Genre:       protos.Genre_JAZZ.Enum(),
 			},
 			want: "CAESCjE5NzAtMDEtMDEaCEphcGFuZXNlIAE=",
 		},
@@ -356,7 +352,7 @@ func TestDecodeColumn(t *testing.T) {
 		// ENUM
 		{
 			desc:  "enum",
-			value: ptr(protos.Genre_ROCK),
+			value: protos.Genre_ROCK.Enum(),
 			want:  "3",
 		},
 		{
@@ -366,7 +362,7 @@ func TestDecodeColumn(t *testing.T) {
 		},
 		{
 			desc:  "array enum",
-			value: []*protos.Genre{ptr(protos.Genre_POP), ptr(protos.Genre_FOLK)},
+			value: []*protos.Genre{protos.Genre_POP.Enum(), protos.Genre_FOLK.Enum()},
 			want:  "[0, 2]",
 		},
 		{
