@@ -30,14 +30,15 @@ type inputStatement struct {
 	delim                    string
 }
 
-func separateInput(input string) []inputStatement {
+func separateInput(input string) ([]inputStatement, string) {
 	var result []inputStatement
-	for _, stmt := range gsqlsep.SeparateInputPreserveComments(input, delimiterVertical) {
+	stmts, status := gsqlsep.SeparateInputPreserveCommentsWithStatus(input, delimiterVertical)
+	for _, stmt := range stmts {
 		result = append(result, inputStatement{
 			statement:                stmt.Statement,
 			statementWithoutComments: stmt.StripComments().Statement,
 			delim:                    stmt.Terminator,
 		})
 	}
-	return result
+	return result, status.WaitingString
 }
