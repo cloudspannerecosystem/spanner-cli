@@ -172,7 +172,7 @@ func TestReadInteractiveInput(t *testing.T) {
 				t.Fatalf("unexpected readline.NewEx() error: %v", err)
 			}
 
-			got, err := readInteractiveInput(rl, "")
+			got, err := readInteractiveInput(rl, "", "")
 			if err != nil && !tt.wantError {
 				t.Errorf("readInteractiveInput(%q) got error: %v", tt.input, err)
 			}

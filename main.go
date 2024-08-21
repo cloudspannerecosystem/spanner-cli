@@ -42,6 +42,8 @@ type spannerOptions struct {
 	Verbose      bool   `short:"v" long:"verbose" description:"Display verbose output."`
 	Credential   string `long:"credential" description:"Use the specific credential file"`
 	Prompt       string `long:"prompt" description:"Set the prompt to the specified format"`
+	Prompt2      string `long:"prompt2" description:"Set the prompt2 to the specified format"`
+	NoPrompt2    bool   `long:"no-prompt2" description:"Set the prompt2 to empty"`
 	HistoryFile  string `long:"history" description:"Set the history file to the specified path"`
 	Priority     string `long:"priority" description:"Set default request priority (HIGH|MEDIUM|LOW)"`
 	Role         string `long:"role" description:"Use the specific database role"`
@@ -96,7 +98,7 @@ func main() {
 		}
 	}
 
-	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.HistoryFile, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority, opts.Role, opts.Endpoint, directedRead)
+	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.Prompt2, opts.HistoryFile, cred, os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority, opts.Role, opts.Endpoint, directedRead, opts.NoPrompt2)
 	if err != nil {
 		exitf("Failed to connect to Spanner: %v", err)
 	}

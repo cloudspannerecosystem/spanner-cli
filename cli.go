@@ -44,6 +44,7 @@ const (
 	DisplayModeTab
 
 	defaultPrompt      = `spanner\t> `
+	defaultPrompt2     = `-> `
 	defaultHistoryFile = `/tmp/spanner_cli_readline.tmp`
 
 	exitCodeSuccess = 0
@@ -60,6 +61,7 @@ var (
 type Cli struct {
 	Session     *Session
 	Prompt      string
+	Prompt2     string
 	HistoryFile string
 	Credential  []byte
 	InStream    io.ReadCloser
@@ -75,7 +77,7 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId, prompt, prompt2, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions, noPrompt2 bool) (*Cli, error) {
 	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead)
 	if err != nil {
 		return nil, err
@@ -85,6 +87,12 @@ func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, crede
 		prompt = defaultPrompt
 	}
 
+	if noPrompt2 {
+		prompt2 = ""
+	} else if prompt2 == "" {
+		prompt2 = defaultPrompt2
+	}
+
 	if historyFile == "" {
 		historyFile = defaultHistoryFile
 	}
@@ -92,6 +100,7 @@ func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, crede
 	return &Cli{
 		Session:     session,
 		Prompt:      prompt,
+		Prompt2:     prompt2,
 		HistoryFile: historyFile,
 		Credential:  credential,
 		InStream:    inStream,
@@ -125,7 +134,7 @@ func (c *Cli) RunInteractive() int {
 		prompt := c.getInterpolatedPrompt()
 		rl.SetPrompt(prompt)
 
-		input, err := readInteractiveInput(rl, prompt)
+		input, err := readInteractiveInput(rl, prompt, c.Prompt2)
 		if err == io.EOF {
 			return c.Exit()
 		}
@@ -321,7 +330,7 @@ func createSession(projectId string, instanceId string, databaseId string, crede
 	return NewSession(projectId, instanceId, databaseId, priority, role, directedRead, opts...)
 }
 
-func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {
+func readInteractiveInput(rl *readline.Instance, prompt string, prompt2 string) (*inputStatement, error) {
 	defer rl.SetPrompt(prompt)
 
 	var input string
@@ -347,10 +356,11 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 
 		// show prompt to urge next input
 		var margin string
-		if l := len(prompt); l >= 3 {
-			margin = strings.Repeat(" ", l-3)
+		if l := len(prompt); l >= len(prompt2) {
+			margin = strings.Repeat(" ", l-len(prompt2))
 		}
-		rl.SetPrompt(margin + "-> ")
+		// rl.SetPrompt(margin + "-> ")
+		rl.SetPrompt(margin + prompt2)
 	}
 }
 
