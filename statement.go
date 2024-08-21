@@ -166,7 +166,8 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		return &ShowDatabasesStatement{}, nil
 	case showCreateTableRe.MatchString(stripped):
 		matched := showCreateTableRe.FindStringSubmatch(stripped)
-		return &ShowCreateTableStatement{Table: unquoteIdentifier(matched[1])}, nil
+		schema, table := extractSchemaAndTable(unquoteIdentifier(matched[1]))
+		return &ShowCreateTableStatement{Schema: schema, Table: table}, nil
 	case showTablesRe.MatchString(stripped):
 		matched := showTablesRe.FindStringSubmatch(stripped)
 		return &ShowTablesStatement{Schema: unquoteIdentifier(matched[1])}, nil
@@ -186,10 +187,12 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		}
 	case showColumnsRe.MatchString(stripped):
 		matched := showColumnsRe.FindStringSubmatch(stripped)
-		return &ShowColumnsStatement{Table: unquoteIdentifier(matched[1])}, nil
+		schema, table := extractSchemaAndTable(unquoteIdentifier(matched[1]))
+		return &ShowColumnsStatement{Schema: schema, Table: table}, nil
 	case showIndexRe.MatchString(stripped):
 		matched := showIndexRe.FindStringSubmatch(stripped)
-		return &ShowIndexStatement{Table: unquoteIdentifier(matched[1])}, nil
+		schema, table := extractSchemaAndTable(unquoteIdentifier(matched[1]))
+		return &ShowIndexStatement{Schema: schema, Table: table}, nil
 	case dmlRe.MatchString(stripped):
 		return &DmlStatement{Dml: raw}, nil
 	case pdmlRe.MatchString(stripped):
@@ -211,7 +214,7 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 }
 
 func unquoteIdentifier(input string) string {
-	return strings.Trim(input, "`")
+	return strings.Trim(strings.TrimSpace(input), "`")
 }
 
 type SelectStatement struct {
@@ -431,7 +434,8 @@ func (s *ShowDatabasesStatement) Execute(ctx context.Context, session *Session) 
 }
 
 type ShowCreateTableStatement struct {
-	Table string
+	Schema string
+	Table  string
 }
 
 func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
@@ -444,16 +448,23 @@ func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session
 		return nil, err
 	}
 	for _, stmt := range ddlResponse.Statements {
-		if isCreateTableDDL(stmt, s.Table) {
+		if isCreateTableDDL(stmt, s.Schema, s.Table) {
+			var fqn string
+			if s.Schema == "" {
+				fqn = s.Table
+			} else {
+				fqn = fmt.Sprintf("%s.%s", s.Schema, s.Table)
+			}
+
 			resultRow := Row{
-				Columns: []string{s.Table, stmt},
+				Columns: []string{fqn, stmt},
 			}
 			result.Rows = append(result.Rows, resultRow)
 			break
 		}
 	}
 	if len(result.Rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		return nil, fmt.Errorf("table %q doesn't exist in schema %q", s.Table, s.Schema)
 	}
 
 	result.AffectedRows = len(result.Rows)
@@ -461,9 +472,14 @@ func (s *ShowCreateTableStatement) Execute(ctx context.Context, session *Session
 	return result, nil
 }
 
-func isCreateTableDDL(ddl string, table string) bool {
+func isCreateTableDDL(ddl string, schema string, table string) bool {
 	table = regexp.QuoteMeta(table)
-	re := fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\s*\\(", table, table)
+	var re string
+	if schema == "" {
+		re = fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\s*\\(", table, table)
+	} else {
+		re = fmt.Sprintf("(?i)^CREATE TABLE (%s|`%s`)\\.(%s|`%s`)\\s*\\(", schema, schema, table, table)
+	}
 	return regexp.MustCompile(re).MatchString(ddl)
 }
 
@@ -620,7 +636,8 @@ func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates
 }
 
 type ShowColumnsStatement struct {
-	Table string
+	Schema string
+	Table  string
 }
 
 func (s *ShowColumnsStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
@@ -646,10 +663,10 @@ LEFT JOIN
 LEFT JOIN
   INFORMATION_SCHEMA.COLUMN_OPTIONS CO USING(TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE
-  C.TABLE_SCHEMA = '' AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
+  LOWER(C.TABLE_SCHEMA) = LOWER(@table_schema) AND LOWER(C.TABLE_NAME) = LOWER(@table_name)
 ORDER BY
   C.ORDINAL_POSITION ASC`,
-		Params: map[string]interface{}{"table_name": s.Table}}
+		Params: map[string]interface{}{"table_name": s.Table, "table_schema": s.Schema}}
 
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
@@ -659,7 +676,7 @@ ORDER BY
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		return nil, fmt.Errorf("table %q doesn't exist in schema %q", s.Table, s.Schema)
 	}
 
 	return &Result{
@@ -669,8 +686,17 @@ ORDER BY
 	}, nil
 }
 
+func extractSchemaAndTable(s string) (string, string) {
+	schema, table, found := strings.Cut(s, ".")
+	if !found {
+		return "", unquoteIdentifier(s)
+	}
+	return unquoteIdentifier(schema), unquoteIdentifier(table)
+}
+
 type ShowIndexStatement struct {
-	Table string
+	Schema string
+	Table  string
 }
 
 func (s *ShowIndexStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
@@ -692,8 +718,8 @@ func (s *ShowIndexStatement) Execute(ctx context.Context, session *Session) (*Re
 FROM
   INFORMATION_SCHEMA.INDEXES I
 WHERE
-  I.TABLE_SCHEMA = '' AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
-		Params: map[string]interface{}{"table_name": s.Table}}
+  LOWER(I.TABLE_SCHEMA) = @table_schema AND LOWER(TABLE_NAME) = LOWER(@table_name)`,
+		Params: map[string]interface{}{"table_name": s.Table, "table_schema": s.Schema}}
 
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
@@ -703,7 +729,7 @@ WHERE
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("table %q doesn't exist", s.Table)
+		return nil, fmt.Errorf("table %q doesn't exist in schema %q", s.Table, s.Schema)
 	}
 
 	return &Result{

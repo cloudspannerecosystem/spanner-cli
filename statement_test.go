@@ -443,6 +443,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowCreateTableStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW CREATE TABLE statement with a named schema",
+			input: "SHOW CREATE TABLE sch1.t1",
+			want:  &ShowCreateTableStatement{Schema: "sch1", Table: "t1"},
+		},
+		{
 			desc:  "SHOW CREATE TABLE statement with quoted identifier",
 			input: "SHOW CREATE TABLE `TABLE`",
 			want:  &ShowCreateTableStatement{Table: "TABLE"},
@@ -468,6 +473,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ShowIndexStatement{Table: "t1"},
 		},
 		{
+			desc:  "SHOW INDEX statement with a named schema",
+			input: "SHOW INDEX FROM sch1.t1",
+			want:  &ShowIndexStatement{Schema: "sch1", Table: "t1"},
+		},
+		{
 			desc:  "SHOW INDEXES statement",
 			input: "SHOW INDEXES FROM t1",
 			want:  &ShowIndexStatement{Table: "t1"},
@@ -486,6 +496,11 @@ func TestBuildStatement(t *testing.T) {
 			desc:  "SHOW COLUMNS statement",
 			input: "SHOW COLUMNS FROM t1",
 			want:  &ShowColumnsStatement{Table: "t1"},
+		},
+		{
+			desc:  "SHOW COLUMNS statement with a named schema",
+			input: "SHOW COLUMNS FROM sch1.t1",
+			want:  &ShowColumnsStatement{Schema: "sch1", Table: "t1"},
 		},
 		{
 			desc:  "SHOW COLUMNS statement with quoted identifier",
@@ -593,10 +608,11 @@ func TestBuildStatement(t *testing.T) {
 
 func TestIsCreateTableDDL(t *testing.T) {
 	for _, tt := range []struct {
-		desc  string
-		ddl   string
-		table string
-		want  bool
+		desc   string
+		ddl    string
+		schema string
+		table  string
+		want   bool
 	}{
 		{
 			desc:  "exact match",
@@ -636,8 +652,90 @@ func TestIsCreateTableDDL(t *testing.T) {
 		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
-			if got := isCreateTableDDL(tt.ddl, tt.table); got != tt.want {
+			if got := isCreateTableDDL(tt.ddl, tt.schema, tt.table); got != tt.want {
 				t.Errorf("isCreateTableDDL(%q, %q) = %v, but want %v", tt.ddl, tt.table, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractSchemaAndTable(t *testing.T) {
+	for _, tt := range []struct {
+		desc   string
+		input  string
+		schema string
+		table  string
+	}{
+		{
+			desc:   "raw table",
+			input:  "table",
+			schema: "",
+			table:  "table",
+		},
+		{
+			desc:   "quoted table",
+			input:  "`table`",
+			schema: "",
+			table:  "table",
+		},
+		{
+			desc:   "FQN",
+			input:  "schema.table",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN with spaces",
+			input:  "schema . table",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN, both schema and table are quoted",
+			input:  "`schema`.`table`",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN with spaces, both schema and table are quoted",
+			input:  "`schema` . `table`",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN, only schema is quoted",
+			input:  "`schema`.table",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN with spaces, only schema is quoted",
+			input:  "`schema` . table",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN, only table is quoted",
+			input:  "schema.`table`",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "FQN with spaces, only table is quoted",
+			input:  "schema . `table`",
+			schema: "schema",
+			table:  "table",
+		},
+		{
+			desc:   "whole quoted FQN",
+			input:  "`schema.table`",
+			schema: "schema",
+			table:  "table",
+		},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			if schema, table := extractSchemaAndTable(tt.input); schema != tt.schema || table != tt.table {
+				t.Errorf("extractSchemaAndTable(%q) = (%v, %v), but want (%v, %v)", tt.input, schema, table, tt.schema, tt.table)
 			}
 		})
 	}
