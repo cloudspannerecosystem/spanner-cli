@@ -370,6 +370,7 @@ func TestDecodeColumn(t *testing.T) {
 	}
 }
 
+// It should only contain test cases which can't be tested in TestDecodeColumn
 func TestDecodeColumnGCV(t *testing.T) {
 	tests := []struct {
 		desc  string
