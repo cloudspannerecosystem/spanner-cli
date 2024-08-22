@@ -17,10 +17,10 @@
 package main
 
 import (
+	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"encoding/base64"
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 	"math/big"
 	"strings"
 	"testing"
@@ -373,60 +373,52 @@ func TestDecodeColumn(t *testing.T) {
 }
 
 func TestDecodeColumnProto(t *testing.T) {
-	singerInfo := &protos.SingerInfo{
-		SingerId:    proto.Int64(1),
-		BirthDate:   proto.String("1970-01-01"),
-		Nationality: proto.String("Japanese"),
-		Genre:       protos.Genre_JAZZ.Enum(),
-	}
-
-	decoded, err := DecodeColumn(createColumnValue(t, singerInfo))
+	want := base64.StdEncoding.EncodeToString([]byte("hoge"))
+	got, err := DecodeColumn(spanner.GenericColumnValue{
+		Type: &pb.Type{
+			Code:           pb.TypeCode_PROTO,
+			TypeAnnotation: 0,
+			ProtoTypeFqn:   "examples.spanner.music.SingerInfo",
+		},
+		Value: structpb.NewStringValue(want),
+	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	b, err := base64.StdEncoding.DecodeString(decoded)
-	if err != nil {
-		t.Error(err)
+	if got != want {
+		t.Errorf("got = %v, want = %v", got, want)
 	}
 
-	gotSingerInfo := &protos.SingerInfo{}
-	if err := proto.Unmarshal(b, gotSingerInfo); err != nil {
-		t.Error(err)
-	}
-
-	if !cmp.Equal(gotSingerInfo, singerInfo, protocmp.Transform()) {
-		t.Errorf("differ: %v", cmp.Diff(gotSingerInfo, singerInfo, protocmp.Transform()))
-	}
 }
 
 func TestDecodeColumnProtoArray(t *testing.T) {
-	singerInfos := []*protos.SingerInfo{
-		{SingerId: proto.Int64(1)},
-		{SingerId: proto.Int64(2)},
-		{SingerId: proto.Int64(3)},
+	input := []string{
+		base64.StdEncoding.EncodeToString([]byte("one")),
+		base64.StdEncoding.EncodeToString([]byte("two")),
+	}
+	var inputpb []*structpb.Value
+	for _, s := range input {
+		inputpb = append(inputpb, structpb.NewStringValue(s))
 	}
 
-	decoded, err := DecodeColumn(createColumnValue(t, singerInfos))
+	got, err := DecodeColumn(spanner.GenericColumnValue{
+		Type: &pb.Type{
+			Code: pb.TypeCode_ARRAY,
+			ArrayElementType: &pb.Type{
+				Code:         pb.TypeCode_PROTO,
+				ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+			},
+		},
+		Value: structpb.NewListValue(&structpb.ListValue{Values: inputpb}),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var gotSingerInfos []*protos.SingerInfo
-	for _, s := range strings.Split(strings.Trim(decoded, "[]"), ",") {
-		b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(s))
-		if err != nil {
-			t.Fatal(err)
-		}
 
-		gotSingerInfo := &protos.SingerInfo{}
-		if err := proto.Unmarshal(b, gotSingerInfo); err != nil {
-			t.Fatal(err)
-		}
-		gotSingerInfos = append(gotSingerInfos, gotSingerInfo)
-	}
-
-	if !cmp.Equal(gotSingerInfos, singerInfos, protocmp.Transform()) {
-		t.Fatalf("differ: %v", cmp.Diff(gotSingerInfos, singerInfos, protocmp.Transform()))
+	want := "[" + strings.Join(input, ", ") + "]"
+	if !cmp.Equal(got, want) {
+		t.Errorf("got = %v, want = %v", got, want)
 	}
 }
 
