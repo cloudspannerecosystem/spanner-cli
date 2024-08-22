@@ -17,9 +17,7 @@
 package main
 
 import (
-	"encoding/base64"
 	"math/big"
-	"strings"
 	"testing"
 	"time"
 
@@ -324,7 +322,7 @@ func TestDecodeColumn(t *testing.T) {
 
 		// PROTO
 		// This table tests only have null proto cases because of non-stability
-		// See also TestDecodeColumnProtoArray and TestDecodeColumnProto
+		// See also TestDecodeColumnGCV
 		{
 			desc:  "null proto",
 			value: (*protos.SingerInfo)(nil),
@@ -372,52 +370,52 @@ func TestDecodeColumn(t *testing.T) {
 	}
 }
 
-func TestDecodeColumnProto(t *testing.T) {
-	want := base64.StdEncoding.EncodeToString([]byte("hoge"))
-	got, err := DecodeColumn(spanner.GenericColumnValue{
-		Type: &sppb.Type{
-			Code:         sppb.TypeCode_PROTO,
-			ProtoTypeFqn: "examples.spanner.music.SingerInfo",
-		},
-		Value: structpb.NewStringValue(want),
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	if got != want {
-		t.Errorf("got = %v, want = %v", got, want)
-	}
-
-}
-
-func TestDecodeColumnProtoArray(t *testing.T) {
-	input := []string{
-		base64.StdEncoding.EncodeToString([]byte("one")),
-		base64.StdEncoding.EncodeToString([]byte("two")),
-	}
-	var inputpb []*structpb.Value
-	for _, s := range input {
-		inputpb = append(inputpb, structpb.NewStringValue(s))
-	}
-
-	got, err := DecodeColumn(spanner.GenericColumnValue{
-		Type: &sppb.Type{
-			Code: sppb.TypeCode_ARRAY,
-			ArrayElementType: &sppb.Type{
-				Code:         sppb.TypeCode_PROTO,
-				ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+func TestDecodeColumnGCV(t *testing.T) {
+	tests := []struct {
+		desc  string
+		value spanner.GenericColumnValue
+		want  string
+	}{
+		{
+			desc: "proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code:         sppb.TypeCode_PROTO,
+					ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+				},
+				Value: structpb.NewStringValue("YWJjZA=="),
 			},
+			want: "YWJjZA==",
 		},
-		Value: structpb.NewListValue(&structpb.ListValue{Values: inputpb}),
-	})
-	if err != nil {
-		t.Fatal(err)
+		{
+			desc: "array proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code: sppb.TypeCode_ARRAY,
+					ArrayElementType: &sppb.Type{
+						Code:         sppb.TypeCode_PROTO,
+						ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+					},
+				},
+				Value: structpb.NewListValue(&structpb.ListValue{Values: []*structpb.Value{
+					structpb.NewStringValue("YWJjZA=="),
+					structpb.NewStringValue("ZWZnaA=="),
+				}}),
+			},
+			want: "[YWJjZA==, ZWZnaA==]",
+		},
 	}
 
-	want := "[" + strings.Join(input, ", ") + "]"
-	if got != want {
-		t.Errorf("got = %v, want = %v", got, want)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			got, err := DecodeColumn(test.value)
+			if err != nil {
+				t.Error(err)
+			}
+			if got != test.want {
+				t.Errorf("DecodeColumn(%v) = %v, want = %v", test.value, got, test.want)
+			}
+		})
 	}
 }
 
