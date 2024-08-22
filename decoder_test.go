@@ -17,13 +17,14 @@
 package main
 
 import (
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"encoding/base64"
-	"google.golang.org/protobuf/types/known/structpb"
 	"math/big"
 	"strings"
 	"testing"
 	"time"
+
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
@@ -374,8 +375,8 @@ func TestDecodeColumn(t *testing.T) {
 func TestDecodeColumnProto(t *testing.T) {
 	want := base64.StdEncoding.EncodeToString([]byte("hoge"))
 	got, err := DecodeColumn(spanner.GenericColumnValue{
-		Type: &pb.Type{
-			Code:         pb.TypeCode_PROTO,
+		Type: &sppb.Type{
+			Code:         sppb.TypeCode_PROTO,
 			ProtoTypeFqn: "examples.spanner.music.SingerInfo",
 		},
 		Value: structpb.NewStringValue(want),
@@ -401,10 +402,10 @@ func TestDecodeColumnProtoArray(t *testing.T) {
 	}
 
 	got, err := DecodeColumn(spanner.GenericColumnValue{
-		Type: &pb.Type{
-			Code: pb.TypeCode_ARRAY,
-			ArrayElementType: &pb.Type{
-				Code:         pb.TypeCode_PROTO,
+		Type: &sppb.Type{
+			Code: sppb.TypeCode_ARRAY,
+			ArrayElementType: &sppb.Type{
+				Code:         sppb.TypeCode_PROTO,
 				ProtoTypeFqn: "examples.spanner.music.SingerInfo",
 			},
 		},
