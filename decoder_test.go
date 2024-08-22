@@ -19,7 +19,6 @@ package main
 import (
 	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"encoding/base64"
-	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
 	"math/big"
 	"strings"
@@ -376,9 +375,8 @@ func TestDecodeColumnProto(t *testing.T) {
 	want := base64.StdEncoding.EncodeToString([]byte("hoge"))
 	got, err := DecodeColumn(spanner.GenericColumnValue{
 		Type: &pb.Type{
-			Code:           pb.TypeCode_PROTO,
-			TypeAnnotation: 0,
-			ProtoTypeFqn:   "examples.spanner.music.SingerInfo",
+			Code:         pb.TypeCode_PROTO,
+			ProtoTypeFqn: "examples.spanner.music.SingerInfo",
 		},
 		Value: structpb.NewStringValue(want),
 	})
@@ -417,7 +415,7 @@ func TestDecodeColumnProtoArray(t *testing.T) {
 	}
 
 	want := "[" + strings.Join(input, ", ") + "]"
-	if !cmp.Equal(got, want) {
+	if got != want {
 		t.Errorf("got = %v, want = %v", got, want)
 	}
 }
