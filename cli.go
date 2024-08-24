@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"os"
 	"os/signal"
@@ -44,6 +45,7 @@ const (
 	DisplayModeTab
 
 	defaultPrompt      = `spanner\t> `
+	defaultPrompt2     = `\R> `
 	defaultHistoryFile = `/tmp/spanner_cli_readline.tmp`
 
 	exitCodeSuccess = 0
@@ -55,11 +57,13 @@ var (
 	promptReProjectId     = regexp.MustCompile(`\\p`)
 	promptReInstanceId    = regexp.MustCompile(`\\i`)
 	promptReDatabaseId    = regexp.MustCompile(`\\d`)
+	promptReParserStatus  = regexp.MustCompile(`\\R`)
 )
 
 type Cli struct {
 	Session     *Session
 	Prompt      string
+	Prompt2     string
 	HistoryFile string
 	Credential  []byte
 	InStream    io.ReadCloser
@@ -75,7 +79,7 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions) (*Cli, error) {
+func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions, prompt2 *string) (*Cli, error) {
 	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead)
 	if err != nil {
 		return nil, err
@@ -85,6 +89,10 @@ func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, crede
 		prompt = defaultPrompt
 	}
 
+	if prompt2 == nil {
+		prompt2 = proto.String(defaultPrompt2)
+	}
+
 	if historyFile == "" {
 		historyFile = defaultHistoryFile
 	}
@@ -92,6 +100,7 @@ func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, crede
 	return &Cli{
 		Session:     session,
 		Prompt:      prompt,
+		Prompt2:     *prompt2,
 		HistoryFile: historyFile,
 		Credential:  credential,
 		InStream:    inStream,
@@ -125,7 +134,7 @@ func (c *Cli) RunInteractive() int {
 		prompt := c.getInterpolatedPrompt()
 		rl.SetPrompt(prompt)
 
-		input, err := readInteractiveInput(rl, prompt)
+		input, err := readInteractiveInput(rl, prompt, c.Prompt2)
 		if err == io.EOF {
 			return c.Exit()
 		}
@@ -310,6 +319,15 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
+func getInterpolatedPrompt2(prompt2, waiting string) string {
+	if waiting == "" {
+		waiting = "-"
+	}
+	prompt2 = promptReParserStatus.ReplaceAllString(prompt2, fmt.Sprintf("%3s", waiting))
+
+	return prompt2
+}
+
 func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions) (*Session, error) {
 	var opts []option.ClientOption
 	if credential != nil {
@@ -321,7 +339,7 @@ func createSession(projectId string, instanceId string, databaseId string, crede
 	return NewSession(projectId, instanceId, databaseId, priority, role, directedRead, opts...)
 }
 
-func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {
+func readInteractiveInput(rl *readline.Instance, prompt string, prompt2 string) (*inputStatement, error) {
 	defer rl.SetPrompt(prompt)
 
 	var input string
@@ -332,7 +350,7 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 		}
 		input += line + "\n"
 
-		statements := separateInput(input)
+		statements, waitingString := separateInput(input)
 		switch len(statements) {
 		case 0:
 			// read next input
@@ -344,13 +362,15 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 		default:
 			return nil, errors.New("sql queries are limited to single statements")
 		}
+		interpolatedPrompt2 := getInterpolatedPrompt2(prompt2, waitingString)
 
 		// show prompt to urge next input
 		var margin string
-		if l := len(prompt); l >= 3 {
-			margin = strings.Repeat(" ", l-3)
+		if l := len(prompt); l >= len(interpolatedPrompt2) {
+			margin = strings.Repeat(" ", l-len(interpolatedPrompt2))
 		}
-		rl.SetPrompt(margin + "-> ")
+		// rl.SetPrompt(margin + "-> ")
+		rl.SetPrompt(margin + interpolatedPrompt2)
 	}
 }
 
@@ -470,7 +490,8 @@ func resultLine(result *Result, verbose bool) string {
 func buildCommands(input string) ([]*command, error) {
 	var cmds []*command
 	var pendingDdls []string
-	for _, separated := range separateInput(input) {
+	stmts, _ := separateInput(input)
+	for _, separated := range stmts {
 		// Ignore the last empty statement
 		if separated.delim == delimiterUndefined && separated.statementWithoutComments == "" {
 			continue

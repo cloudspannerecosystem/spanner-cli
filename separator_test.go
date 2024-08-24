@@ -24,9 +24,10 @@ import (
 
 func TestSeparateInput(t *testing.T) {
 	for _, tt := range []struct {
-		desc  string
-		input string
-		want  []inputStatement
+		desc              string
+		input             string
+		want              []inputStatement
+		wantWaitingString string
 	}{
 		{
 			desc:  "single query",
@@ -269,6 +270,7 @@ func TestSeparateInput(t *testing.T) {
 					delim:                    delimiterUndefined,
 				},
 			},
+			wantWaitingString: `"`,
 		},
 		{
 			desc:  `totally incorrect query`,
@@ -280,6 +282,7 @@ func TestSeparateInput(t *testing.T) {
 					delim:                    delimiterUndefined,
 				},
 			},
+			wantWaitingString: `"""`,
 		},
 		{
 			desc:  `statement with multiple comments`,
@@ -304,8 +307,12 @@ func TestSeparateInput(t *testing.T) {
 		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
-			got := separateInput(tt.input)
+			got, gotWaitingString := separateInput(tt.input)
 			if diff := cmp.Diff(tt.want, got, cmp.AllowUnexported(inputStatement{})); diff != "" {
+				t.Errorf("difference in statements: (-want +got):\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.wantWaitingString, gotWaitingString, cmp.AllowUnexported(inputStatement{})); diff != "" {
 				t.Errorf("difference in statements: (-want +got):\n%s", diff)
 			}
 		})
