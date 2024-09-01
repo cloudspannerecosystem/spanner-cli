@@ -27,7 +27,6 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
-	// "github.com/cloudspannerecosystem/spanner-cli/testdata/protos"
 )
 
 func createRow(t *testing.T, values []interface{}) *spanner.Row {
@@ -322,8 +321,7 @@ func TestDecodeColumn(t *testing.T) {
 		},
 
 		// PROTO
-		// This table tests only have null proto cases because of non-stability
-		// See also TestDecodeColumnGCV
+		// This table tests uses spanner.GenericColumnValue because of non-stability
 		{
 			desc: "null proto",
 			value: spanner.GenericColumnValue{
