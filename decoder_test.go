@@ -23,10 +23,11 @@ import (
 
 	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/typepb"
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
-	"github.com/cloudspannerecosystem/spanner-cli/testdata/protos"
+	// "github.com/cloudspannerecosystem/spanner-cli/testdata/protos"
 )
 
 func createRow(t *testing.T, values []interface{}) *spanner.Row {
@@ -324,59 +325,16 @@ func TestDecodeColumn(t *testing.T) {
 		// This table tests only have null proto cases because of non-stability
 		// See also TestDecodeColumnGCV
 		{
-			desc:  "null proto",
-			value: (*protos.SingerInfo)(nil),
-			want:  "NULL",
+			desc: "null proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code:         sppb.TypeCode_PROTO,
+					ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+				},
+				Value: structpb.NewNullValue(),
+			},
+			want: "NULL",
 		},
-		{
-			desc:  "null array proto",
-			value: []*protos.SingerInfo(nil),
-			want:  "NULL",
-		},
-
-		// ENUM
-		{
-			desc:  "enum",
-			value: protos.Genre_ROCK.Enum(),
-			want:  "3",
-		},
-		{
-			desc:  "null enum",
-			value: spanner.NullProtoEnum{ProtoEnumVal: (*protos.Genre)(nil), Valid: true}, // must use typed nil and Valid=true, see godoc of spanner.NullProtoEnum
-			want:  "NULL",
-		},
-		{
-			desc:  "array enum",
-			value: []*protos.Genre{protos.Genre_POP.Enum(), protos.Genre_FOLK.Enum()},
-			want:  "[0, 2]",
-		},
-		{
-			desc:  "null array enum",
-			value: []*protos.Genre(nil),
-			want:  "NULL",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			got, err := DecodeColumn(createColumnValue(t, test.value))
-			if err != nil {
-				t.Error(err)
-			}
-			if got != test.want {
-				t.Errorf("DecodeColumn(%v) = %v, want = %v", test.value, got, test.want)
-			}
-		})
-	}
-}
-
-// It should only contain test cases which can't be tested in TestDecodeColumn
-func TestDecodeColumnGCV(t *testing.T) {
-	tests := []struct {
-		desc  string
-		value spanner.GenericColumnValue
-		want  string
-	}{
 		{
 			desc: "proto",
 			value: spanner.GenericColumnValue{
@@ -405,11 +363,47 @@ func TestDecodeColumnGCV(t *testing.T) {
 			},
 			want: "[YWJjZA==, ZWZnaA==]",
 		},
+		{
+			desc: "null array proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code: sppb.TypeCode_ARRAY,
+					ArrayElementType: &sppb.Type{
+						Code:         sppb.TypeCode_PROTO,
+						ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+					},
+				},
+				Value: structpb.NewNullValue(),
+			},
+			want: "NULL",
+		},
+
+		// ENUM
+		{
+			desc:  "enum",
+			value: typepb.Syntax_SYNTAX_PROTO3,
+			want:  "1",
+		},
+		{
+			desc:  "null enum",
+			value: spanner.NullProtoEnum{ProtoEnumVal: (*typepb.Syntax)(nil), Valid: true}, // must use typed nil and Valid=true, see godoc of spanner.NullProtoEnum
+			want:  "NULL",
+		},
+		{
+			desc:  "array enum",
+			value: []*typepb.Syntax{typepb.Syntax_SYNTAX_PROTO2.Enum(), typepb.Syntax_SYNTAX_PROTO3.Enum()},
+			want:  "[0, 1]",
+		},
+		{
+			desc:  "null array enum",
+			value: []*typepb.Syntax(nil),
+			want:  "NULL",
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			got, err := DecodeColumn(test.value)
+			got, err := DecodeColumn(createColumnValue(t, test.value))
 			if err != nil {
 				t.Error(err)
 			}
