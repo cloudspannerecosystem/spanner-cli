@@ -384,7 +384,7 @@ func TestDecodeColumn(t *testing.T) {
 		},
 		{
 			desc:  "null enum",
-			value: spanner.NullProtoEnum{ProtoEnumVal: (*typepb.Syntax)(nil), Valid: true}, // must use typed nil and Valid=true, see godoc of spanner.NullProtoEnum
+			value: (*typepb.Syntax)(nil),
 			want:  "NULL",
 		},
 		{
