@@ -323,17 +323,6 @@ func TestDecodeColumn(t *testing.T) {
 		// PROTO
 		// This table tests uses spanner.GenericColumnValue because of non-stability
 		{
-			desc: "null proto",
-			value: spanner.GenericColumnValue{
-				Type: &sppb.Type{
-					Code:         sppb.TypeCode_PROTO,
-					ProtoTypeFqn: "examples.spanner.music.SingerInfo",
-				},
-				Value: structpb.NewNullValue(),
-			},
-			want: "NULL",
-		},
-		{
 			desc: "proto",
 			value: spanner.GenericColumnValue{
 				Type: &sppb.Type{
@@ -343,6 +332,17 @@ func TestDecodeColumn(t *testing.T) {
 				Value: structpb.NewStringValue("YWJjZA=="),
 			},
 			want: "YWJjZA==",
+		},
+		{
+			desc: "null proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code:         sppb.TypeCode_PROTO,
+					ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+				},
+				Value: structpb.NewNullValue(),
+			},
+			want: "NULL",
 		},
 		{
 			desc: "array proto",
