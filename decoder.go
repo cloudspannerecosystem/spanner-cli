@@ -59,7 +59,7 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			for _, v := range vs {
 				decoded = append(decoded, nullBoolToString(v))
 			}
-		case sppb.TypeCode_BYTES:
+		case sppb.TypeCode_BYTES, sppb.TypeCode_PROTO:
 			var vs [][]byte
 			if err := column.Decode(&vs); err != nil {
 				return "", err
@@ -92,7 +92,7 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			for _, v := range vs {
 				decoded = append(decoded, nullFloat64ToString(v))
 			}
-		case sppb.TypeCode_INT64:
+		case sppb.TypeCode_INT64, sppb.TypeCode_ENUM:
 			var vs []spanner.NullInt64
 			if err := column.Decode(&vs); err != nil {
 				return "", err
@@ -183,7 +183,7 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			return "", err
 		}
 		return nullBoolToString(v), nil
-	case sppb.TypeCode_BYTES:
+	case sppb.TypeCode_BYTES, sppb.TypeCode_PROTO:
 		var v []byte
 		if err := column.Decode(&v); err != nil {
 			return "", err
@@ -201,7 +201,7 @@ func DecodeColumn(column spanner.GenericColumnValue) (string, error) {
 			return "", err
 		}
 		return nullFloat64ToString(v), nil
-	case sppb.TypeCode_INT64:
+	case sppb.TypeCode_INT64, sppb.TypeCode_ENUM:
 		var v spanner.NullInt64
 		if err := column.Decode(&v); err != nil {
 			return "", err

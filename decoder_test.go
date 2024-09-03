@@ -21,6 +21,10 @@ import (
 	"testing"
 	"time"
 
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/typepb"
+
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 )
@@ -313,6 +317,84 @@ func TestDecodeColumn(t *testing.T) {
 		{
 			desc:  "null array json",
 			value: []spanner.NullJSON(nil),
+			want:  "NULL",
+		},
+
+		// PROTO
+		// This table tests uses spanner.GenericColumnValue because of non-stability
+		{
+			desc: "proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code:         sppb.TypeCode_PROTO,
+					ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+				},
+				Value: structpb.NewStringValue("YWJjZA=="),
+			},
+			want: "YWJjZA==",
+		},
+		{
+			desc: "null proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code:         sppb.TypeCode_PROTO,
+					ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+				},
+				Value: structpb.NewNullValue(),
+			},
+			want: "NULL",
+		},
+		{
+			desc: "array proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code: sppb.TypeCode_ARRAY,
+					ArrayElementType: &sppb.Type{
+						Code:         sppb.TypeCode_PROTO,
+						ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+					},
+				},
+				Value: structpb.NewListValue(&structpb.ListValue{Values: []*structpb.Value{
+					structpb.NewStringValue("YWJjZA=="),
+					structpb.NewStringValue("ZWZnaA=="),
+				}}),
+			},
+			want: "[YWJjZA==, ZWZnaA==]",
+		},
+		{
+			desc: "null array proto",
+			value: spanner.GenericColumnValue{
+				Type: &sppb.Type{
+					Code: sppb.TypeCode_ARRAY,
+					ArrayElementType: &sppb.Type{
+						Code:         sppb.TypeCode_PROTO,
+						ProtoTypeFqn: "examples.spanner.music.SingerInfo",
+					},
+				},
+				Value: structpb.NewNullValue(),
+			},
+			want: "NULL",
+		},
+
+		// ENUM
+		{
+			desc:  "enum",
+			value: typepb.Syntax_SYNTAX_PROTO3,
+			want:  "1",
+		},
+		{
+			desc:  "null enum",
+			value: (*typepb.Syntax)(nil),
+			want:  "NULL",
+		},
+		{
+			desc:  "array enum",
+			value: []*typepb.Syntax{typepb.Syntax_SYNTAX_PROTO2.Enum(), typepb.Syntax_SYNTAX_PROTO3.Enum()},
+			want:  "[0, 1]",
+		},
+		{
+			desc:  "null array enum",
+			value: []*typepb.Syntax(nil),
 			want:  "NULL",
 		},
 	}
