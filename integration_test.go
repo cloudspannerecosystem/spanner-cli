@@ -32,7 +32,7 @@ import (
 	"google.golang.org/api/option"
 
 	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 const (
@@ -85,7 +85,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	if testCredential != "" {
 		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
 	}
-	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, "", nil, options...)
+	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, sppb.RequestOptions_PRIORITY_UNSPECIFIED, "", nil, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}

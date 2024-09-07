@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -164,9 +163,9 @@ func TestReadInteractiveInput(t *testing.T) {
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			rl, err := readline.NewEx(&readline.Config{
-				Stdin:  ioutil.NopCloser(strings.NewReader(tt.input)),
-				Stdout: ioutil.Discard,
-				Stderr: ioutil.Discard,
+				Stdin:  io.NopCloser(strings.NewReader(tt.input)),
+				Stdout: io.Discard,
+				Stderr: io.Discard,
 			})
 			if err != nil {
 				t.Fatalf("unexpected readline.NewEx() error: %v", err)
