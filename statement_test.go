@@ -227,6 +227,11 @@ func TestBuildStatement(t *testing.T) {
 			want:  &ExplainDmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"},
 		},
 		{
+			desc:  "DESCRIBE DELETE statement",
+			input: "DESCRIBE DELETE FROM t1 WHERE id = 1",
+			want:  &ExplainDmlStatement{Dml: "DELETE FROM t1 WHERE id = 1", Describe: true},
+		},
+		{
 			desc:  "EXPLAIN ANALYZE INSERT statement",
 			input: "EXPLAIN ANALYZE INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
 			want:  &ExplainAnalyzeDmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
@@ -540,12 +545,7 @@ func TestBuildStatement(t *testing.T) {
 		{
 			desc:  "DESCRIBE SELECT statement",
 			input: "DESCRIBE SELECT * FROM t1",
-			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
-		},
-		{
-			desc:  "DESC SELECT statement",
-			input: "DESC SELECT * FROM t1",
-			want:  &ExplainStatement{Explain: "SELECT * FROM t1"},
+			want:  &ExplainStatement{Explain: "SELECT * FROM t1", Describe: true},
 		},
 		{
 			desc:  "Stored system procedures",
