@@ -549,7 +549,7 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 			rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
 		}
 		result := &Result{
-			ColumnNames:  explainColumnNames,
+			ColumnNames:  describeColumnNames,
 			AffectedRows: 1,
 			Rows:         rows,
 		}
