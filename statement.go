@@ -549,6 +549,11 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		return nil, err
 	}
 
+	var rowCount int
+	if !s.IsDML {
+		rowCount = 1
+	}
+
 	if s.Describe {
 		var rows []Row
 		for _, field := range metadata.GetRowType().GetFields() {
@@ -557,7 +562,7 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		result := &Result{
 			IsMutation:   s.IsDML,
 			ColumnNames:  describeColumnNames,
-			AffectedRows: 1,
+			AffectedRows: rowCount,
 			Timestamp:    timestamp,
 			Rows:         rows,
 		}
@@ -573,7 +578,7 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 	result := &Result{
 		IsMutation:   s.IsDML,
 		ColumnNames:  explainColumnNames,
-		AffectedRows: 1,
+		AffectedRows: rowCount,
 		Rows:         rows,
 		Timestamp:    timestamp,
 		Predicates:   predicates,
@@ -928,7 +933,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Sessi
 	return result, nil
 }
 
-// runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
+// runInNewOrExistRwTxForExplain is a helper function for ExplainStatement and ExplainAnalyzeDmlStatement.
 // It execute a function in the current RW transaction or an implicit RW transaction.
 func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func() (affected int64, plan *pb.QueryPlan, metadata *pb.ResultSetMetadata, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, metadata *pb.ResultSetMetadata, err error) {
 	if session.InReadWriteTransaction() {
