@@ -359,7 +359,7 @@ func formatTypeVerbose(typ *pb.Type) string {
 	case pb.TypeCode_ARRAY:
 		return fmt.Sprintf("ARRAY<%v>", formatTypeVerbose(typ.GetArrayElementType()))
 	case pb.TypeCode_ENUM, pb.TypeCode_PROTO:
-		return fmt.Sprintf("%v %v", pb.TypeCode_name[int32(code)], typ.GetProtoTypeFqn())
+		return typ.GetProtoTypeFqn()
 	case pb.TypeCode_STRUCT:
 		var structTypeStrs []string
 		for _, v := range typ.GetStructType().GetFields() {
