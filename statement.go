@@ -530,6 +530,7 @@ type ExplainStatement struct {
 	IsDML    bool
 }
 
+// Execute processes `EXPLAIN` and `DESCRIBE` statement for queries and DMLs.
 func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	var queryPlan *pb.QueryPlan
 	var timestamp time.Time
