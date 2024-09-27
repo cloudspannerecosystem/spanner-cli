@@ -179,9 +179,9 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		isDML := dmlRe.MatchString(matched[1])
 		switch {
 		case isDML:
-			return &ExplainStatement{Explain: matched[1], IsDML: true, Describe: true}, nil
+			return &ExplainStatement{Explain: matched[1], IsDML: true, IsDescribe: true}, nil
 		default:
-			return &ExplainStatement{Explain: matched[1], Describe: true}, nil
+			return &ExplainStatement{Explain: matched[1], IsDescribe: true}, nil
 		}
 	case explainRe.MatchString(stripped):
 		matched := explainRe.FindStringSubmatch(stripped)
@@ -525,9 +525,9 @@ func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*R
 }
 
 type ExplainStatement struct {
-	Explain  string
-	Describe bool
-	IsDML    bool
+	Explain    string
+	IsDescribe bool
+	IsDML      bool
 }
 
 // Execute processes `EXPLAIN` and `DESCRIBE` statement for queries and DMLs.
@@ -555,7 +555,7 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		rowCount = 1
 	}
 
-	if s.Describe {
+	if s.IsDescribe {
 		var rows []Row
 		for _, field := range metadata.GetRowType().GetFields() {
 			rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
