@@ -61,6 +61,7 @@ type Result struct {
 	Timestamp        time.Time
 	ForceVerbose     bool
 	CommitStats      *pb.CommitResponse_CommitStats
+	RowType          *pb.StructType
 }
 
 type Row struct {
@@ -240,6 +241,7 @@ func (s *SelectStatement) Execute(ctx context.Context, session *Session) (*Resul
 		ColumnNames: columnNames,
 		Rows:        rows,
 	}
+	result.RowType = iter.Metadata.GetRowType()
 
 	queryStats := parseQueryStats(iter.QueryStats)
 	rowsReturned, err := strconv.Atoi(queryStats.RowsReturned)
