@@ -570,6 +570,9 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		return result, nil
 	}
 
+	if queryPlan == nil {
+		return nil, errors.New("EXPLAIN statement is not supported for Cloud Spanner Emulator.")
+	}
 	rows, predicates, err := processPlanWithoutStats(queryPlan)
 	if err != nil {
 		return nil, err

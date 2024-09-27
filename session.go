@@ -257,9 +257,6 @@ func (s *Session) RunAnalyzeQuery(ctx context.Context, stmt spanner.Statement) (
 	if err != nil {
 		return nil, nil, err
 	}
-	if iter.QueryPlan == nil {
-		return nil, nil, errors.New("query plan unavailable")
-	}
 	return iter.QueryPlan, iter.Metadata, nil
 }
 
