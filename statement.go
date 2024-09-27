@@ -120,12 +120,14 @@ var (
 	showTablesRe      = regexp.MustCompile(`(?is)^SHOW\s+TABLES(?:\s+(.+))?$`)
 	showColumnsRe     = regexp.MustCompile(`(?is)^(?:SHOW\s+COLUMNS\s+FROM)\s+(.+)$`)
 	showIndexRe       = regexp.MustCompile(`(?is)^SHOW\s+(?:INDEX|INDEXES|KEYS)\s+FROM\s+(.+)$`)
-	explainRe         = regexp.MustCompile(`(?is)^(?:EXPLAIN|DESC(?:RIBE)?)\s+(ANALYZE\s+)?(.+)$`)
+	explainRe         = regexp.MustCompile(`(?is)^EXPLAIN\s+(ANALYZE\s+)?(.+)$`)
+	describeRe        = regexp.MustCompile(`(?is)^DESCRIBE\s+(.+)$`)
 )
 
 var (
 	explainColumnNames        = []string{"ID", "Query_Execution_Plan"}
 	explainAnalyzeColumnNames = []string{"ID", "Query_Execution_Plan", "Rows_Returned", "Executions", "Total_Latency"}
+	describeColumnNames       = []string{"Column_Name", "Column_Type"}
 )
 
 func BuildStatement(input string) (Statement, error) {
@@ -172,6 +174,15 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 	case showTablesRe.MatchString(stripped):
 		matched := showTablesRe.FindStringSubmatch(stripped)
 		return &ShowTablesStatement{Schema: unquoteIdentifier(matched[1])}, nil
+	case describeRe.MatchString(stripped):
+		matched := describeRe.FindStringSubmatch(stripped)
+		isDML := dmlRe.MatchString(matched[1])
+		switch {
+		case isDML:
+			return &ExplainDmlStatement{Dml: matched[1], Describe: true}, nil
+		default:
+			return &ExplainStatement{Explain: matched[1], Describe: true}, nil
+		}
 	case explainRe.MatchString(stripped):
 		matched := explainRe.FindStringSubmatch(stripped)
 		isAnalyze := matched[1] != ""
@@ -516,12 +527,13 @@ func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*R
 }
 
 type ExplainStatement struct {
-	Explain string
+	Explain  string
+	Describe bool
 }
 
 func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Explain)
-	queryPlan, err := session.client.Single().AnalyzeQuery(ctx, stmt)
+	queryPlan, metadata, err := session.RunAnalyzeQuery(ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -531,6 +543,19 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		return nil, err
 	}
 
+	if s.Describe {
+		var rows []Row
+		for _, field := range metadata.GetRowType().GetFields() {
+			rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
+		}
+		result := &Result{
+			ColumnNames:  explainColumnNames,
+			AffectedRows: 1,
+			Rows:         rows,
+		}
+
+		return result, nil
+	}
 	result := &Result{
 		ColumnNames:  explainColumnNames,
 		AffectedRows: 1,
@@ -851,32 +876,49 @@ func (s *PartitionedDmlStatement) Execute(ctx context.Context, session *Session)
 }
 
 type ExplainDmlStatement struct {
-	Dml string
+	Dml      string
+	Describe bool
 }
 
 func (s *ExplainDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
-	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, error) {
-		plan, err := session.RunAnalyzeQuery(ctx, spanner.NewStatement(s.Dml))
-		return 0, plan, err
+	_, timestamp, queryPlan, metadata, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, *pb.ResultSetMetadata, error) {
+		plan, metadata, err := session.RunAnalyzeQuery(ctx, spanner.NewStatement(s.Dml))
+		return 0, plan, metadata, err
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	rows, predicates, err := processPlanWithoutStats(queryPlan)
-	if err != nil {
-		return nil, err
-	}
-	result := &Result{
-		IsMutation:   true,
-		ColumnNames:  explainColumnNames,
-		AffectedRows: 0,
-		Rows:         rows,
-		Predicates:   predicates,
-		Timestamp:    timestamp,
-	}
+	if s.Describe {
+		var rows []Row
+		for _, field := range metadata.GetRowType().GetFields() {
+			rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
+		}
+		result := &Result{
+			IsMutation:   true,
+			ColumnNames:  describeColumnNames,
+			AffectedRows: 0,
+			Rows:         rows,
+			Timestamp:    timestamp,
+		}
 
-	return result, nil
+		return result, nil
+	} else {
+		rows, predicates, err := processPlanWithoutStats(queryPlan)
+		if err != nil {
+			return nil, err
+		}
+		result := &Result{
+			IsMutation:   true,
+			ColumnNames:  explainColumnNames,
+			AffectedRows: 0,
+			Rows:         rows,
+			Predicates:   predicates,
+			Timestamp:    timestamp,
+		}
+
+		return result, nil
+	}
 }
 
 type ExplainAnalyzeDmlStatement struct {
@@ -886,14 +928,14 @@ type ExplainAnalyzeDmlStatement struct {
 func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Dml)
 
-	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, error) {
+	affectedRows, timestamp, queryPlan, _, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, *pb.ResultSetMetadata, error) {
 		iter, _ := session.RunQueryWithStats(ctx, stmt)
 		defer iter.Stop()
 		err := iter.Do(func(r *spanner.Row) error { return nil })
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
-		return iter.RowCount, iter.QueryPlan, nil
+		return iter.RowCount, iter.QueryPlan, iter.Metadata, nil
 	})
 	if err != nil {
 		return nil, err
@@ -918,37 +960,39 @@ func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Sessi
 
 // runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
 // It execute a function in the current RW transaction or an implicit RW transaction.
-func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
+func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session,
+	f func() (affected int64, plan *pb.QueryPlan, metadata *pb.ResultSetMetadata, err error)) (
+	affected int64, ts time.Time, plan *pb.QueryPlan, metadata *pb.ResultSetMetadata, err error) {
 	if session.InReadWriteTransaction() {
-		affected, plan, err := f()
+		affected, plan, metadata, err := f()
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
 			rollback.Execute(ctx, session)
-			return 0, time.Time{}, nil, fmt.Errorf("transaction was aborted: %v", err)
+			return 0, time.Time{}, nil, nil, fmt.Errorf("transaction was aborted: %v", err)
 		}
-		return affected, time.Time{}, plan, nil
+		return affected, time.Time{}, plan, metadata, nil
 	} else {
 		// Start implicit transaction.
 		begin := BeginRwStatement{}
 		if _, err := begin.Execute(ctx, session); err != nil {
-			return 0, time.Time{}, nil, err
+			return 0, time.Time{}, nil, nil, err
 		}
 
-		affected, plan, err := f()
+		affected, plan, metadata, err := f()
 		if err != nil {
 			// once error has happened, escape from implicit transaction
 			rollback := &RollbackStatement{}
 			rollback.Execute(ctx, session)
-			return 0, time.Time{}, nil, err
+			return 0, time.Time{}, nil, nil, err
 		}
 
 		commit := CommitStatement{}
 		txnResult, err := commit.Execute(ctx, session)
 		if err != nil {
-			return 0, time.Time{}, nil, err
+			return 0, time.Time{}, nil, nil, err
 		}
-		return affected, txnResult.Timestamp, plan, nil
+		return affected, txnResult.Timestamp, plan, metadata, nil
 	}
 }
 
