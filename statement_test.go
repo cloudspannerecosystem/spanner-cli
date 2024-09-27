@@ -214,22 +214,22 @@ func TestBuildStatement(t *testing.T) {
 		{
 			desc:  "EXPLAIN INSERT statement",
 			input: "EXPLAIN INSERT INTO t1 (id, name) VALUES (1, 'yuki')",
-			want:  &ExplainDmlStatement{Dml: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')"},
+			want:  &ExplainStatement{Explain: "INSERT INTO t1 (id, name) VALUES (1, 'yuki')", IsDML: true},
 		},
 		{
 			desc:  "EXPLAIN UPDATE statement",
 			input: "EXPLAIN UPDATE t1 SET name = hello WHERE id = 1",
-			want:  &ExplainDmlStatement{Dml: "UPDATE t1 SET name = hello WHERE id = 1"},
+			want:  &ExplainStatement{Explain: "UPDATE t1 SET name = hello WHERE id = 1", IsDML: true},
 		},
 		{
 			desc:  "EXPLAIN DELETE statement",
 			input: "EXPLAIN DELETE FROM t1 WHERE id = 1",
-			want:  &ExplainDmlStatement{Dml: "DELETE FROM t1 WHERE id = 1"},
+			want:  &ExplainStatement{Explain: "DELETE FROM t1 WHERE id = 1", IsDML: true},
 		},
 		{
 			desc:  "DESCRIBE DELETE statement",
 			input: "DESCRIBE DELETE FROM t1 WHERE id = 1",
-			want:  &ExplainDmlStatement{Dml: "DELETE FROM t1 WHERE id = 1", Describe: true},
+			want:  &ExplainStatement{Explain: "DELETE FROM t1 WHERE id = 1", IsDML: true, Describe: true},
 		},
 		{
 			desc:  "EXPLAIN ANALYZE INSERT statement",

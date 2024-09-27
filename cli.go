@@ -387,19 +387,16 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetAutoWrapText(false)
 
-		var name []string
 		if len(result.RowType.GetFields()) > 0 {
+			var headers []string
 			for _, field := range result.RowType.GetFields() {
 				typename := formatTypeVerbose(field.GetType())
-				name = append(name, field.GetName()+"\n"+typename)
+				headers = append(headers, field.GetName()+"\n"+typename)
 			}
+			table.SetHeader(headers)
 		} else {
-			for _, field := range result.ColumnNames {
-				name = append(name, field)
-			}
+			table.SetHeader(result.ColumnNames)
 		}
-
-		table.SetHeader(name)
 
 		for _, row := range result.Rows {
 			table.Append(row.Columns)
