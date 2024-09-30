@@ -22,13 +22,12 @@ go install github.com/cloudspannerecosystem/spanner-cli@latest
 go get -u github.com/cloudspannerecosystem/spanner-cli
 ```
 
-Or you can build a docker image and use it.
+Or you can build a docker image.
 
 ```
 git clone https://github.com/cloudspannerecosystem/spanner-cli.git
 cd spanner-cli
 docker build -t spanner-cli .
-docker run spanner-cli --help
 ```
 
 ## Usage
@@ -57,8 +56,20 @@ Help Options:
   -h, --help        Show this help message
 ```
 
+### Authentication
+
 Unless you specify a credential file with `--credential`, this tool uses [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#providing_credentials_to_your_application) as credential source to connect to Spanner databases.  
+
 Please make sure to prepare your credential by `gcloud auth application-default login`.
+
+If you're running spanner-cli in docker container on your local machine, you have to pass local credentials to the container with the following command.
+
+```
+docker run -it \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/credentials.json \
+  -v $HOME/.config/gcloud/application_default_credentials.json:/tmp/credentials.json:ro \
+  spanner-cli --help
+```
 
 ## Example
 
