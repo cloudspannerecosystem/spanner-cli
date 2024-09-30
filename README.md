@@ -22,7 +22,14 @@ go install github.com/cloudspannerecosystem/spanner-cli@latest
 go get -u github.com/cloudspannerecosystem/spanner-cli
 ```
 
-Or you can download the old binary from the [releases](https://github.com/cloudspannerecosystem/spanner-cli/releases).
+Or you can build a docker image and use it.
+
+```
+git clone https://github.com/cloudspannerecosystem/spanner-cli.git
+cd spanner-cli
+docker build -t spanner-cli .
+docker run spanner-cli --help
+```
 
 ## Usage
 
