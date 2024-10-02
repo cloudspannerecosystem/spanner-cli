@@ -179,9 +179,9 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 		isDML := dmlRe.MatchString(matched[1])
 		switch {
 		case isDML:
-			return &ExplainStatement{Explain: matched[1], IsDML: true, IsDescribe: true}, nil
+			return &DescribeStatement{Statement: matched[1], IsDML: true}, nil
 		default:
-			return &ExplainStatement{Explain: matched[1], IsDescribe: true}, nil
+			return &DescribeStatement{Statement: matched[1]}, nil
 		}
 	case explainRe.MatchString(stripped):
 		matched := explainRe.FindStringSubmatch(stripped)
@@ -525,29 +525,19 @@ func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*R
 }
 
 type ExplainStatement struct {
-	Explain    string
-	IsDescribe bool
-	IsDML      bool
+	Explain string
+	IsDML   bool
 }
 
-// Execute processes `EXPLAIN` and `DESCRIBE` statement for queries and DMLs.
+// Execute processes `EXPLAIN` statement for queries and DMLs.
 func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
-	var queryPlan *pb.QueryPlan
-	var timestamp time.Time
-	var metadata *pb.ResultSetMetadata
-	var err error
-
-	stmt := spanner.NewStatement(s.Explain)
-	if s.IsDML {
-		_, timestamp, queryPlan, metadata, err = runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, *pb.ResultSetMetadata, error) {
-			plan, metadata, err := session.RunAnalyzeQuery(ctx, stmt)
-			return 0, plan, metadata, err
-		})
-	} else {
-		queryPlan, metadata, err = session.RunAnalyzeQuery(ctx, stmt)
-	}
+	queryPlan, timestamp, _, err := runAnalyzeQuery(ctx, session, spanner.NewStatement(s.Explain), s.IsDML)
 	if err != nil {
 		return nil, err
+	}
+
+	if queryPlan == nil {
+		return nil, errors.New("EXPLAIN statement is not supported for Cloud Spanner Emulator.")
 	}
 
 	var rowCount int
@@ -555,25 +545,6 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		rowCount = 1
 	}
 
-	if s.IsDescribe {
-		var rows []Row
-		for _, field := range metadata.GetRowType().GetFields() {
-			rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
-		}
-		result := &Result{
-			IsMutation:   s.IsDML,
-			ColumnNames:  describeColumnNames,
-			AffectedRows: rowCount,
-			Timestamp:    timestamp,
-			Rows:         rows,
-		}
-
-		return result, nil
-	}
-
-	if queryPlan == nil {
-		return nil, errors.New("EXPLAIN statement is not supported for Cloud Spanner Emulator.")
-	}
 	rows, predicates, err := processPlanWithoutStats(queryPlan)
 	if err != nil {
 		return nil, err
@@ -589,6 +560,52 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 	}
 
 	return result, nil
+}
+
+type DescribeStatement struct {
+	Statement string
+	IsDML     bool
+}
+
+// Execute processes `DESCRIBE` statement for queries and DMLs.
+func (s *DescribeStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
+	_, timestamp, metadata, err := runAnalyzeQuery(ctx, session, spanner.NewStatement(s.Statement), s.IsDML)
+	if err != nil {
+		return nil, err
+	}
+
+	var rowCount int
+	if !s.IsDML {
+		rowCount = 1
+	}
+
+	var rows []Row
+	for _, field := range metadata.GetRowType().GetFields() {
+		rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
+	}
+
+	result := &Result{
+		IsMutation:   s.IsDML,
+		ColumnNames:  describeColumnNames,
+		AffectedRows: rowCount,
+		Timestamp:    timestamp,
+		Rows:         rows,
+	}
+
+	return result, nil
+}
+
+func runAnalyzeQuery(ctx context.Context, session *Session, stmt spanner.Statement, isDML bool) (queryPlan *pb.QueryPlan, commitTimestamp time.Time, metadata *pb.ResultSetMetadata, err error) {
+	if !isDML {
+		queryPlan, metadata, err := session.RunAnalyzeQuery(ctx, stmt)
+		return queryPlan, time.Time{}, metadata, err
+	}
+
+	_, timestamp, queryPlan, metadata, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, *pb.ResultSetMetadata, error) {
+		plan, metadata, err := session.RunAnalyzeQuery(ctx, stmt)
+		return 0, plan, metadata, err
+	})
+	return queryPlan, timestamp, metadata, err
 }
 
 type ExplainAnalyzeStatement struct {
@@ -937,7 +954,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Sessi
 	return result, nil
 }
 
-// runInNewOrExistRwTxForExplain is a helper function for ExplainStatement and ExplainAnalyzeDmlStatement.
+// runInNewOrExistRwTxForExplain is a helper function for runAnalyzeQuery and ExplainAnalyzeDmlStatement.
 // It execute a function in the current RW transaction or an implicit RW transaction.
 func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func() (affected int64, plan *pb.QueryPlan, metadata *pb.ResultSetMetadata, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, metadata *pb.ResultSetMetadata, err error) {
 	if session.InReadWriteTransaction() {
