@@ -282,9 +282,9 @@ func (s *Session) runQueryWithOptions(ctx context.Context, stmt spanner.Statemen
 // RunUpdate executes a DML statement on the running read-write transaction.
 // It returns error if there is no running read-write transaction.
 // useUpdate flag enforce to use Update function internally and disable `THEN RETURN` result printing.
-func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement, useUpdate bool) ([]Row, []string, int64, error) {
+func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement, useUpdate bool) ([]Row, []string, int64, *pb.ResultSetMetadata, error) {
 	if !s.InReadWriteTransaction() {
-		return nil, nil, 0, errors.New("read-write transaction is not running")
+		return nil, nil, 0, nil, errors.New("read-write transaction is not running")
 	}
 
 	opts := spanner.QueryOptions{
@@ -298,14 +298,14 @@ func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement, useUpda
 	if useUpdate {
 		rowCount, err := s.tc.rwTxn.UpdateWithOptions(ctx, stmt, opts)
 		s.tc.sendHeartbeat = true
-		return nil, nil, rowCount, err
+		return nil, nil, rowCount, nil, err
 	}
 
 	rowIter := s.tc.rwTxn.QueryWithOptions(ctx, stmt, opts)
 	defer rowIter.Stop()
 	result, columnNames, err := parseQueryResult(rowIter)
 	s.tc.sendHeartbeat = true
-	return result, columnNames, rowIter.RowCount, err
+	return result, columnNames, rowIter.RowCount, rowIter.Metadata, err
 }
 
 func (s *Session) Close() {

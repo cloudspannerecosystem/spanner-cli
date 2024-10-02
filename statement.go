@@ -848,9 +848,10 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 	var rows []Row
 	var columnNames []string
 	var numRows int64
+	var metadata *pb.ResultSetMetadata
 	var err error
 	if session.InReadWriteTransaction() {
-		rows, columnNames, numRows, err = session.RunUpdate(ctx, stmt, false)
+		rows, columnNames, numRows, metadata, err = session.RunUpdate(ctx, stmt, false)
 		if err != nil {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
 			rollback := &RollbackStatement{}
@@ -864,7 +865,7 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 			return nil, err
 		}
 
-		rows, columnNames, numRows, err = session.RunUpdate(ctx, stmt, false)
+		rows, columnNames, numRows, metadata, err = session.RunUpdate(ctx, stmt, false)
 		if err != nil {
 			// once error has happened, escape from implicit transaction
 			rollback := &RollbackStatement{}
@@ -879,6 +880,7 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 		}
 		result.Timestamp = txnResult.Timestamp
 		result.CommitStats = txnResult.CommitStats
+		result.RowType = metadata.GetRowType()
 	}
 
 	result.Rows = rows
