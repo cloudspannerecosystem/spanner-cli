@@ -354,31 +354,6 @@ func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement
 	}
 }
 
-func formatTypeVerbose(typ *pb.Type) string {
-	switch code := typ.GetCode(); code {
-	case pb.TypeCode_ARRAY:
-		return fmt.Sprintf("ARRAY<%v>", formatTypeVerbose(typ.GetArrayElementType()))
-	case pb.TypeCode_ENUM, pb.TypeCode_PROTO:
-		return typ.GetProtoTypeFqn()
-	case pb.TypeCode_STRUCT:
-		var structTypeStrs []string
-		for _, v := range typ.GetStructType().GetFields() {
-			if v.GetName() != "" {
-				structTypeStrs = append(structTypeStrs, fmt.Sprintf("%v %v", v.GetName(), formatTypeVerbose(v.GetType())))
-			} else {
-				structTypeStrs = append(structTypeStrs, fmt.Sprintf("%v", formatTypeVerbose(v.GetType())))
-			}
-		}
-		return fmt.Sprintf("STRUCT<%v>", strings.Join(structTypeStrs, ", "))
-	default:
-		if name, ok := pb.TypeCode_name[int32(code)]; ok {
-			return name
-		} else {
-			return "UNKNOWN"
-		}
-	}
-}
-
 func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, verbose bool) {
 	if mode == DisplayModeTable {
 		table := tablewriter.NewWriter(out)
@@ -387,10 +362,10 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetAutoWrapText(false)
 
-		if len(result.RowType.GetFields()) > 0 {
+		if verbose && len(result.RowType.GetFields()) > 0 {
 			var headers []string
 			for _, field := range result.RowType.GetFields() {
-				typename := formatTypeVerbose(field.GetType())
+				typename := formatTypeSimple(field.GetType())
 				headers = append(headers, field.GetName()+"\n"+typename)
 			}
 			table.SetHeader(headers)
@@ -404,7 +379,7 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 
 		if len(result.Rows) > 0 {
 			table.Render()
-		} else if len(result.RowType.GetFields()) > 0 {
+		} else if verbose && len(result.RowType.GetFields()) > 0 { // always print header if verbose and len(RowType.Fields) > 0
 			table.Render()
 		}
 	} else if mode == DisplayModeVertical {

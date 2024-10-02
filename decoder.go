@@ -323,3 +323,41 @@ func nullJSONToString(v spanner.NullJSON) string {
 		return "NULL"
 	}
 }
+
+func formatTypeSimple(typ *sppb.Type) string {
+	switch code := typ.GetCode(); code {
+	case sppb.TypeCode_ARRAY:
+		return fmt.Sprintf("ARRAY<%v>", formatTypeSimple(typ.GetArrayElementType()))
+	default:
+		if name, ok := sppb.TypeCode_name[int32(code)]; ok {
+			return name
+		} else {
+			return "UNKNOWN"
+		}
+	}
+}
+
+func formatTypeVerbose(typ *sppb.Type) string {
+	switch code := typ.GetCode(); code {
+	case sppb.TypeCode_ARRAY:
+		return fmt.Sprintf("ARRAY<%v>", formatTypeVerbose(typ.GetArrayElementType()))
+	case sppb.TypeCode_ENUM, sppb.TypeCode_PROTO:
+		return typ.GetProtoTypeFqn()
+	case sppb.TypeCode_STRUCT:
+		var structTypeStrs []string
+		for _, v := range typ.GetStructType().GetFields() {
+			if v.GetName() != "" {
+				structTypeStrs = append(structTypeStrs, fmt.Sprintf("%v %v", v.GetName(), formatTypeVerbose(v.GetType())))
+			} else {
+				structTypeStrs = append(structTypeStrs, fmt.Sprintf("%v", formatTypeVerbose(v.GetType())))
+			}
+		}
+		return fmt.Sprintf("STRUCT<%v>", strings.Join(structTypeStrs, ", "))
+	default:
+		if name, ok := sppb.TypeCode_name[int32(code)]; ok {
+			return name
+		} else {
+			return "UNKNOWN"
+		}
+	}
+}
