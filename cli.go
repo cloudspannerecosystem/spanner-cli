@@ -364,10 +364,10 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 
 		var forceTableRender bool
 		// This condition is true if statement is SelectStatement or DmlStatement
-		if verbose && len(result.RowType.GetFields()) > 0 {
+		if verbose && len(result.ColumnTypes) > 0 {
 			forceTableRender = true
 			var headers []string
-			for _, field := range result.RowType.GetFields() {
+			for _, field := range result.ColumnTypes {
 				typename := formatTypeSimple(field.GetType())
 				headers = append(headers, field.GetName()+"\n"+typename)
 			}

@@ -61,7 +61,9 @@ type Result struct {
 	Timestamp        time.Time
 	ForceVerbose     bool
 	CommitStats      *pb.CommitResponse_CommitStats
-	RowType          *pb.StructType
+
+	// ColumnTypes will be printed in `--verbose` mode if it is not empty
+	ColumnTypes []*pb.StructType_Field
 }
 
 type Row struct {
@@ -250,7 +252,7 @@ func (s *SelectStatement) Execute(ctx context.Context, session *Session) (*Resul
 		ColumnNames: columnNames,
 		Rows:        rows,
 	}
-	result.RowType = iter.Metadata.GetRowType()
+	result.ColumnTypes = iter.Metadata.GetRowType().GetFields()
 
 	queryStats := parseQueryStats(iter.QueryStats)
 	rowsReturned, err := strconv.Atoi(queryStats.RowsReturned)
@@ -880,9 +882,9 @@ func (s *DmlStatement) Execute(ctx context.Context, session *Session) (*Result, 
 		}
 		result.Timestamp = txnResult.Timestamp
 		result.CommitStats = txnResult.CommitStats
-		result.RowType = metadata.GetRowType()
 	}
 
+	result.ColumnTypes = metadata.GetRowType().GetFields()
 	result.Rows = rows
 	result.ColumnNames = columnNames
 	result.AffectedRows = int(numRows)

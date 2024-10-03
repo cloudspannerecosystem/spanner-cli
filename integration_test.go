@@ -186,10 +186,10 @@ func TestSelect(t *testing.T) {
 			Row{[]string{"2", "false"}},
 		},
 		AffectedRows: 2,
-		RowType: &pb.StructType{Fields: []*pb.StructType_Field{
+		ColumnTypes: []*pb.StructType_Field{
 			{Name: "id", Type: &pb.Type{Code: pb.TypeCode_INT64}},
 			{Name: "active", Type: &pb.Type{Code: pb.TypeCode_BOOL}},
-		}},
+		},
 		IsMutation: false,
 	})
 }
@@ -489,10 +489,10 @@ func TestReadOnlyTransaction(t *testing.T) {
 				Row{[]string{"2", "false"}},
 			},
 
-			RowType: &pb.StructType{Fields: []*pb.StructType_Field{
+			ColumnTypes: []*pb.StructType_Field{
 				{Name: "id", Type: &pb.Type{Code: pb.TypeCode_INT64}},
 				{Name: "active", Type: &pb.Type{Code: pb.TypeCode_BOOL}},
-			}},
+			},
 			AffectedRows: 2,
 			IsMutation:   false,
 		})
@@ -564,10 +564,10 @@ func TestReadOnlyTransaction(t *testing.T) {
 				Row{[]string{"1", "true"}},
 				Row{[]string{"2", "false"}},
 			},
-			RowType: &pb.StructType{Fields: []*pb.StructType_Field{
+			ColumnTypes: []*pb.StructType_Field{
 				{Name: "id", Type: &pb.Type{Code: pb.TypeCode_INT64}},
 				{Name: "active", Type: &pb.Type{Code: pb.TypeCode_BOOL}},
-			}},
+			},
 			AffectedRows: 2,
 			IsMutation:   false,
 		})
