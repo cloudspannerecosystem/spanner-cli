@@ -239,7 +239,7 @@ func (s *SelectStatement) Execute(ctx context.Context, session *Session) (*Resul
 	iter, roTxn := session.RunQueryWithStats(ctx, stmt)
 	defer iter.Stop()
 
-	rows, err := parseQueryResult(iter)
+	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
 		if session.InReadWriteTransaction() && spanner.ErrCode(err) == codes.Aborted {
 			// Need to call rollback to free the acquired session in underlying google-cloud-go/spanner.
@@ -249,7 +249,7 @@ func (s *SelectStatement) Execute(ctx context.Context, session *Session) (*Resul
 		return nil, err
 	}
 	result := &Result{
-		ColumnNames: extractColumnNames(iter.Metadata.GetRowType().GetFields()),
+		ColumnNames: columnNames,
 		Rows:        rows,
 	}
 	result.ColumnTypes = iter.Metadata.GetRowType().GetFields()
@@ -282,7 +282,7 @@ func extractColumnNames(fields []*pb.StructType_Field) []string {
 
 // parseQueryResult parses rows and columnNames from spanner.RowIterator.
 // A caller is responsible for calling iterator.Stop().
-func parseQueryResult(iter *spanner.RowIterator) ([]Row, error) {
+func parseQueryResult(iter *spanner.RowIterator) ([]Row, []string, error) {
 	var rows []Row
 	for {
 		row, err := iter.Next()
@@ -290,18 +290,18 @@ func parseQueryResult(iter *spanner.RowIterator) ([]Row, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		columns, err := DecodeRow(row)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		rows = append(rows, Row{
 			Columns: columns,
 		})
 	}
-	return rows, nil
+	return rows, extractColumnNames(iter.Metadata.GetRowType().GetFields()), nil
 }
 
 // parseQueryStats parses spanner.RowIterator.QueryStats.
@@ -518,13 +518,13 @@ func (s *ShowTablesStatement) Execute(ctx context.Context, session *Session) (*R
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
 
-	rows, err := parseQueryResult(iter)
+	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Result{
-		ColumnNames:  extractColumnNames(iter.Metadata.GetRowType().GetFields()),
+		ColumnNames:  columnNames,
 		Rows:         rows,
 		AffectedRows: len(rows),
 	}, nil
@@ -746,7 +746,7 @@ ORDER BY
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
 
-	rows, err := parseQueryResult(iter)
+	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
 		return nil, err
 	}
@@ -755,7 +755,7 @@ ORDER BY
 	}
 
 	return &Result{
-		ColumnNames:  extractColumnNames(iter.Metadata.GetRowType().GetFields()),
+		ColumnNames:  columnNames,
 		Rows:         rows,
 		AffectedRows: len(rows),
 	}, nil
@@ -799,7 +799,7 @@ WHERE
 	iter, _ := session.RunQuery(ctx, stmt)
 	defer iter.Stop()
 
-	rows, err := parseQueryResult(iter)
+	rows, columnNames, err := parseQueryResult(iter)
 	if err != nil {
 		return nil, err
 	}
@@ -808,7 +808,7 @@ WHERE
 	}
 
 	return &Result{
-		ColumnNames:  extractColumnNames(iter.Metadata.GetRowType().GetFields()),
+		ColumnNames:  columnNames,
 		Rows:         rows,
 		AffectedRows: len(rows),
 	}, nil

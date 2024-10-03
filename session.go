@@ -303,9 +303,9 @@ func (s *Session) RunUpdate(ctx context.Context, stmt spanner.Statement, useUpda
 
 	rowIter := s.tc.rwTxn.QueryWithOptions(ctx, stmt, opts)
 	defer rowIter.Stop()
-	result, err := parseQueryResult(rowIter)
+	result, columnNames, err := parseQueryResult(rowIter)
 	s.tc.sendHeartbeat = true
-	return result, extractColumnNames(rowIter.Metadata.GetRowType().GetFields()), rowIter.RowCount, rowIter.Metadata, err
+	return result, columnNames, rowIter.RowCount, rowIter.Metadata, err
 }
 
 func (s *Session) Close() {
