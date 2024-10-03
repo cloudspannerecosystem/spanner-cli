@@ -362,11 +362,25 @@ func printResult(out io.Writer, result *Result, mode DisplayMode, interactive, v
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetAutoWrapText(false)
 
+		var forceTableRender bool
+		// This condition is true if statement is SelectStatement or DmlStatement
+		if verbose && len(result.ColumnTypes) > 0 {
+			forceTableRender = true
+			var headers []string
+			for _, field := range result.ColumnTypes {
+				typename := formatTypeSimple(field.GetType())
+				headers = append(headers, field.GetName()+"\n"+typename)
+			}
+			table.SetHeader(headers)
+		} else {
+			table.SetHeader(result.ColumnNames)
+		}
+
 		for _, row := range result.Rows {
 			table.Append(row.Columns)
 		}
-		table.SetHeader(result.ColumnNames)
-		if len(result.Rows) > 0 {
+
+		if forceTableRender || len(result.Rows) > 0 {
 			table.Render()
 		}
 	} else if mode == DisplayModeVertical {

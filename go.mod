@@ -7,9 +7,10 @@ require (
 	cloud.google.com/go/spanner v1.62.0
 	github.com/apstndb/gsqlsep v0.0.0-20230324124551-0e8335710080
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
+	github.com/davecgh/go-spew v1.1.1
 	github.com/google/go-cmp v0.6.0
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/olekukonko/tablewriter v0.0.4
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/xlab/treeprint v1.0.1-0.20200715141336-10e0bc383e01
 	google.golang.org/api v0.180.0
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
@@ -38,7 +39,7 @@ require (
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.4 // indirect
-	github.com/mattn/go-runewidth v0.0.8 // indirect
+	github.com/mattn/go-runewidth v0.0.9 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
