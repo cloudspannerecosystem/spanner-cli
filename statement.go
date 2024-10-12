@@ -27,7 +27,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 )
@@ -60,7 +60,7 @@ type Result struct {
 	IsMutation       bool
 	Timestamp        time.Time
 	ForceVerbose     bool
-	CommitStats      *pb.CommitResponse_CommitStats
+	CommitStats      *sppb.CommitResponse_CommitStats
 }
 
 type Row struct {
@@ -591,15 +591,15 @@ func (s *ExplainAnalyzeStatement) Execute(ctx context.Context, session *Session)
 	return result, nil
 }
 
-func processPlanWithStats(plan *pb.QueryPlan) (rows []Row, predicates []string, err error) {
+func processPlanWithStats(plan *sppb.QueryPlan) (rows []Row, predicates []string, err error) {
 	return processPlanImpl(plan, true)
 }
 
-func processPlanWithoutStats(plan *pb.QueryPlan) (rows []Row, predicates []string, err error) {
+func processPlanWithoutStats(plan *sppb.QueryPlan) (rows []Row, predicates []string, err error) {
 	return processPlanImpl(plan, false)
 }
 
-func processPlanImpl(plan *pb.QueryPlan, withStats bool) (rows []Row, predicates []string, err error) {
+func processPlanImpl(plan *sppb.QueryPlan, withStats bool) (rows []Row, predicates []string, err error) {
 	planNodes := plan.GetPlanNodes()
 	maxWidthOfNodeID := len(fmt.Sprint(getMaxRelationalNodeID(plan)))
 	widthOfNodeIDWithIndicator := maxWidthOfNodeID + 1
@@ -853,7 +853,7 @@ type ExplainDmlStatement struct {
 }
 
 func (s *ExplainDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
-	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, error) {
+	_, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *sppb.QueryPlan, error) {
 		plan, err := session.RunAnalyzeQuery(ctx, spanner.NewStatement(s.Dml))
 		return 0, plan, err
 	})
@@ -884,7 +884,7 @@ type ExplainAnalyzeDmlStatement struct {
 func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Session) (*Result, error) {
 	stmt := spanner.NewStatement(s.Dml)
 
-	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *pb.QueryPlan, error) {
+	affectedRows, timestamp, queryPlan, err := runInNewOrExistRwTxForExplain(ctx, session, func() (int64, *sppb.QueryPlan, error) {
 		iter, _ := session.RunQueryWithStats(ctx, stmt)
 		defer iter.Stop()
 		err := iter.Do(func(r *spanner.Row) error { return nil })
@@ -916,7 +916,7 @@ func (s *ExplainAnalyzeDmlStatement) Execute(ctx context.Context, session *Sessi
 
 // runInNewOrExistRwTxForExplain is a helper function for ExplainDmlStatement and ExplainAnalyzeDmlStatement.
 // It execute a function in the current RW transaction or an implicit RW transaction.
-func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func() (affected int64, plan *pb.QueryPlan, err error)) (affected int64, ts time.Time, plan *pb.QueryPlan, err error) {
+func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func() (affected int64, plan *sppb.QueryPlan, err error)) (affected int64, ts time.Time, plan *sppb.QueryPlan, err error) {
 	if session.InReadWriteTransaction() {
 		affected, plan, err := f()
 		if err != nil {
@@ -951,7 +951,7 @@ func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func
 }
 
 type BeginRwStatement struct {
-	Priority pb.RequestOptions_Priority
+	Priority sppb.RequestOptions_Priority
 	Tag      string
 }
 
@@ -1040,7 +1040,7 @@ type BeginRoStatement struct {
 	TimestampBoundType timestampBoundType
 	Staleness          time.Duration
 	Timestamp          time.Time
-	Priority           pb.RequestOptions_Priority
+	Priority           sppb.RequestOptions_Priority
 	Tag                string
 }
 
@@ -1138,15 +1138,15 @@ type UseStatement struct {
 	NopStatement
 }
 
-func parsePriority(priority string) (pb.RequestOptions_Priority, error) {
+func parsePriority(priority string) (sppb.RequestOptions_Priority, error) {
 	switch strings.ToUpper(priority) {
 	case "HIGH":
-		return pb.RequestOptions_PRIORITY_HIGH, nil
+		return sppb.RequestOptions_PRIORITY_HIGH, nil
 	case "MEDIUM":
-		return pb.RequestOptions_PRIORITY_MEDIUM, nil
+		return sppb.RequestOptions_PRIORITY_MEDIUM, nil
 	case "LOW":
-		return pb.RequestOptions_PRIORITY_LOW, nil
+		return sppb.RequestOptions_PRIORITY_LOW, nil
 	default:
-		return pb.RequestOptions_PRIORITY_UNSPECIFIED, fmt.Errorf("invalid priority: %q", priority)
+		return sppb.RequestOptions_PRIORITY_UNSPECIFIED, fmt.Errorf("invalid priority: %q", priority)
 	}
 }

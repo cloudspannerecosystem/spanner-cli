@@ -11,9 +11,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/testing/protocmp"
 
-	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 )
 
 func TestRequestPriority(t *testing.T) {
@@ -22,7 +23,7 @@ func TestRequestPriority(t *testing.T) {
 	var recorder requestRecorder
 	unaryInterceptor, streamInterceptor := recordRequestsInterceptors(&recorder)
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(unaryInterceptor),
 		grpc.WithStreamInterceptor(streamInterceptor),
 	}
@@ -34,33 +35,33 @@ func TestRequestPriority(t *testing.T) {
 
 	for _, test := range []struct {
 		desc                string
-		sessionPriority     pb.RequestOptions_Priority
-		transactionPriority pb.RequestOptions_Priority
-		want                pb.RequestOptions_Priority
+		sessionPriority     sppb.RequestOptions_Priority
+		transactionPriority sppb.RequestOptions_Priority
+		want                sppb.RequestOptions_Priority
 	}{
 		{
 			desc:                "use default MEDIUM priority",
-			sessionPriority:     pb.RequestOptions_PRIORITY_UNSPECIFIED,
-			transactionPriority: pb.RequestOptions_PRIORITY_UNSPECIFIED,
-			want:                pb.RequestOptions_PRIORITY_MEDIUM,
+			sessionPriority:     sppb.RequestOptions_PRIORITY_UNSPECIFIED,
+			transactionPriority: sppb.RequestOptions_PRIORITY_UNSPECIFIED,
+			want:                sppb.RequestOptions_PRIORITY_MEDIUM,
 		},
 		{
 			desc:                "use session priority",
-			sessionPriority:     pb.RequestOptions_PRIORITY_LOW,
-			transactionPriority: pb.RequestOptions_PRIORITY_UNSPECIFIED,
-			want:                pb.RequestOptions_PRIORITY_LOW,
+			sessionPriority:     sppb.RequestOptions_PRIORITY_LOW,
+			transactionPriority: sppb.RequestOptions_PRIORITY_UNSPECIFIED,
+			want:                sppb.RequestOptions_PRIORITY_LOW,
 		},
 		{
 			desc:                "use transaction priority",
-			sessionPriority:     pb.RequestOptions_PRIORITY_UNSPECIFIED,
-			transactionPriority: pb.RequestOptions_PRIORITY_HIGH,
-			want:                pb.RequestOptions_PRIORITY_HIGH,
+			sessionPriority:     sppb.RequestOptions_PRIORITY_UNSPECIFIED,
+			transactionPriority: sppb.RequestOptions_PRIORITY_HIGH,
+			want:                sppb.RequestOptions_PRIORITY_HIGH,
 		},
 		{
 			desc:                "transaction priority takes over session priority",
-			sessionPriority:     pb.RequestOptions_PRIORITY_HIGH,
-			transactionPriority: pb.RequestOptions_PRIORITY_LOW,
-			want:                pb.RequestOptions_PRIORITY_LOW,
+			sessionPriority:     sppb.RequestOptions_PRIORITY_HIGH,
+			transactionPriority: sppb.RequestOptions_PRIORITY_LOW,
+			want:                sppb.RequestOptions_PRIORITY_LOW,
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
@@ -105,11 +106,11 @@ func TestRequestPriority(t *testing.T) {
 			// Check request priority.
 			for _, r := range recorder.requests {
 				switch v := r.(type) {
-				case *pb.ExecuteSqlRequest:
+				case *sppb.ExecuteSqlRequest:
 					if got := v.GetRequestOptions().GetPriority(); got != test.want {
 						t.Errorf("priority mismatch: got = %v, want = %v", got, test.want)
 					}
-				case *pb.CommitRequest:
+				case *sppb.CommitRequest:
 					if got := v.GetRequestOptions().GetPriority(); got != test.want {
 						t.Errorf("priority mismatch: got = %v, want = %v", got, test.want)
 					}
@@ -123,15 +124,15 @@ func TestParseDirectedReadOption(t *testing.T) {
 	for _, tt := range []struct {
 		desc   string
 		option string
-		want   *pb.DirectedReadOptions
+		want   *sppb.DirectedReadOptions
 	}{
 		{
 			desc:   "use directed read location option only",
 			option: "us-central1",
-			want: &pb.DirectedReadOptions{
-				Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
-					IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
-						ReplicaSelections: []*pb.DirectedReadOptions_ReplicaSelection{
+			want: &sppb.DirectedReadOptions{
+				Replicas: &sppb.DirectedReadOptions_IncludeReplicas_{
+					IncludeReplicas: &sppb.DirectedReadOptions_IncludeReplicas{
+						ReplicaSelections: []*sppb.DirectedReadOptions_ReplicaSelection{
 							{
 								Location: "us-central1",
 							},
@@ -144,13 +145,13 @@ func TestParseDirectedReadOption(t *testing.T) {
 		{
 			desc:   "use directed read location and type option (READ_ONLY)",
 			option: "us-central1:READ_ONLY",
-			want: &pb.DirectedReadOptions{
-				Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
-					IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
-						ReplicaSelections: []*pb.DirectedReadOptions_ReplicaSelection{
+			want: &sppb.DirectedReadOptions{
+				Replicas: &sppb.DirectedReadOptions_IncludeReplicas_{
+					IncludeReplicas: &sppb.DirectedReadOptions_IncludeReplicas{
+						ReplicaSelections: []*sppb.DirectedReadOptions_ReplicaSelection{
 							{
 								Location: "us-central1",
-								Type:     pb.DirectedReadOptions_ReplicaSelection_READ_ONLY,
+								Type:     sppb.DirectedReadOptions_ReplicaSelection_READ_ONLY,
 							},
 						},
 						AutoFailoverDisabled: true,
@@ -161,13 +162,13 @@ func TestParseDirectedReadOption(t *testing.T) {
 		{
 			desc:   "use directed read location and type option (READ_WRITE)",
 			option: "us-central1:READ_WRITE",
-			want: &pb.DirectedReadOptions{
-				Replicas: &pb.DirectedReadOptions_IncludeReplicas_{
-					IncludeReplicas: &pb.DirectedReadOptions_IncludeReplicas{
-						ReplicaSelections: []*pb.DirectedReadOptions_ReplicaSelection{
+			want: &sppb.DirectedReadOptions{
+				Replicas: &sppb.DirectedReadOptions_IncludeReplicas_{
+					IncludeReplicas: &sppb.DirectedReadOptions_IncludeReplicas{
+						ReplicaSelections: []*sppb.DirectedReadOptions_ReplicaSelection{
 							{
 								Location: "us-central1",
-								Type:     pb.DirectedReadOptions_ReplicaSelection_READ_WRITE,
+								Type:     sppb.DirectedReadOptions_ReplicaSelection_READ_WRITE,
 							},
 						},
 						AutoFailoverDisabled: true,
