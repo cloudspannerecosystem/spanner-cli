@@ -546,20 +546,14 @@ func (s *ExplainStatement) Execute(ctx context.Context, session *Session) (*Resu
 		return nil, errors.New("EXPLAIN statement is not supported for Cloud Spanner Emulator.")
 	}
 
-	var rowCount int
-	if !s.IsDML {
-		rowCount = 1
-	}
-
 	rows, predicates, err := processPlanWithoutStats(queryPlan)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &Result{
-		IsMutation:   s.IsDML,
 		ColumnNames:  explainColumnNames,
-		AffectedRows: rowCount,
+		AffectedRows: len(rows),
 		Rows:         rows,
 		Timestamp:    timestamp,
 		Predicates:   predicates,
@@ -580,20 +574,14 @@ func (s *DescribeStatement) Execute(ctx context.Context, session *Session) (*Res
 		return nil, err
 	}
 
-	var rowCount int
-	if !s.IsDML {
-		rowCount = 1
-	}
-
 	var rows []Row
 	for _, field := range metadata.GetRowType().GetFields() {
 		rows = append(rows, Row{Columns: []string{field.GetName(), formatTypeVerbose(field.GetType())}})
 	}
 
 	result := &Result{
-		IsMutation:   s.IsDML,
+		AffectedRows: len(rows),
 		ColumnNames:  describeColumnNames,
-		AffectedRows: rowCount,
 		Timestamp:    timestamp,
 		Rows:         rows,
 	}
