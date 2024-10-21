@@ -37,23 +37,24 @@ Usage:
   spanner-cli [OPTIONS]
 
 spanner:
-  -p, --project=       (required) GCP Project ID. [$SPANNER_PROJECT_ID]
-  -i, --instance=      (required) Cloud Spanner Instance ID [$SPANNER_INSTANCE_ID]
-  -d, --database=      (required) Cloud Spanner Database ID. [$SPANNER_DATABASE_ID]
-  -e, --execute=       Execute SQL statement and quit.
-  -f, --file=          Execute SQL statement from file and quit.
-  -t, --table          Display output in table format for batch mode.
-  -v, --verbose        Display verbose output.
-      --credential=    Use the specific credential file
-      --prompt=        Set the prompt to the specified format
-      --history=       Set the history file to the specified path
-      --priority=      Set default request priority (HIGH|MEDIUM|LOW)
-      --role=          Use the specific database role
-      --directed-read= Directed read option (replica_location:replica_type).
-                       The replicat_type is optional and either READ_ONLY or READ_WRITE.
+  -p, --project=         (required) GCP Project ID. [$SPANNER_PROJECT_ID]
+  -i, --instance=        (required) Cloud Spanner Instance ID [$SPANNER_INSTANCE_ID]
+  -d, --database=        (required) Cloud Spanner Database ID. [$SPANNER_DATABASE_ID]
+  -e, --execute=         Execute SQL statement and quit.
+  -f, --file=            Execute SQL statement from file and quit.
+  -t, --table            Display output in table format for batch mode.
+  -v, --verbose          Display verbose output.
+      --credential=      Use the specific credential file
+      --prompt=          Set the prompt to the specified format
+      --history=         Set the history file to the specified path
+      --priority=        Set default request priority (HIGH|MEDIUM|LOW)
+      --role=            Use the specific database role
+      --endpoint=        Set the Spanner API endpoint (host:port)
+      --directed-read=   Directed read option (replica_location:replica_type). The replicat_type is optional and either READ_ONLY or READ_WRITE
+      --skip-tls-verify  Insecurely skip TLS verify
 
 Help Options:
-  -h, --help        Show this help message
+  -h, --help             Show this help message
 ```
 
 ### Authentication
