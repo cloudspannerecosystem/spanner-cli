@@ -156,7 +156,8 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
-			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority, s.Role, c.Endpoint, c.Session.directedRead, c.SkipTLSVerify, nil)
+			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority,
+				s.Role, c.Endpoint, c.Session.directedRead, c.SkipTLSVerify, c.Session.protoDescriptorFileContent)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
