@@ -404,8 +404,9 @@ func (s *BulkDdlStatement) Execute(ctx context.Context, session *Session) (*Resu
 
 func executeDdlStatements(ctx context.Context, session *Session, ddls []string) (*Result, error) {
 	op, err := session.adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database:         session.DatabasePath(),
-		Statements:       ddls,
+		Database:   session.DatabasePath(),
+		Statements: ddls,
+		// There is no problem to send ProtoDescriptors to any DDL statements
 		ProtoDescriptors: session.protoDescriptorFileContent,
 	})
 	if err != nil {
