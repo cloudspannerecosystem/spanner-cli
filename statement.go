@@ -406,7 +406,7 @@ func executeDdlStatements(ctx context.Context, session *Session, ddls []string) 
 	op, err := session.adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   session.DatabasePath(),
 		Statements: ddls,
-		// There is no problem to send ProtoDescriptors to any DDL statements
+		// There is no problem to send ProtoDescriptors with any DDL statements
 		ProtoDescriptors: session.protoDescriptorFileContent,
 	})
 	if err != nil {
