@@ -1,8 +1,6 @@
 module github.com/cloudspannerecosystem/spanner-cli
 
-go 1.21
-
-toolchain go1.23.2
+go 1.19
 
 require (
 	cloud.google.com/go v0.113.0
