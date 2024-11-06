@@ -82,8 +82,8 @@ type command struct {
 func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte,
 	inStream io.ReadCloser, outStream, errStream io.Writer, verbose bool,
 	priority pb.RequestOptions_Priority, role, endpoint string, directedRead *pb.DirectedReadOptions,
-	skipTLSVerify bool, protoDescriptorFileContent []byte) (*Cli, error) {
-	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead, skipTLSVerify, protoDescriptorFileContent)
+	skipTLSVerify bool, protoDescriptor []byte) (*Cli, error) {
+	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead, skipTLSVerify, protoDescriptor)
 	if err != nil {
 		return nil, err
 	}
