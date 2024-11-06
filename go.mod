@@ -7,7 +7,6 @@ require (
 	cloud.google.com/go/spanner v1.62.0
 	github.com/apstndb/gsqlsep v0.0.0-20230324124551-0e8335710080
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
-	github.com/davecgh/go-spew v1.1.1
 	github.com/google/go-cmp v0.6.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/olekukonko/tablewriter v0.0.5

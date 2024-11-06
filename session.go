@@ -58,6 +58,7 @@ type Session struct {
 	directedRead    *pb.DirectedReadOptions
 	tc              *transactionContext
 	tcMutex         sync.Mutex // Guard a critical section for transaction.
+	protoDescriptor []byte
 }
 
 type transactionContext struct {
@@ -68,7 +69,8 @@ type transactionContext struct {
 	roTxn         *spanner.ReadOnlyTransaction
 }
 
-func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, role string, directedRead *pb.DirectedReadOptions, opts ...option.ClientOption) (*Session, error) {
+func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, role string, directedRead *pb.DirectedReadOptions,
+	protoDescriptor []byte, opts ...option.ClientOption) (*Session, error) {
 	ctx := context.Background()
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 	clientConfig := defaultClientConfig
@@ -99,6 +101,7 @@ func NewSession(projectId string, instanceId string, databaseId string, priority
 		adminClient:     adminClient,
 		defaultPriority: priority,
 		directedRead:    directedRead,
+		protoDescriptor: protoDescriptor,
 	}
 	go session.startHeartbeat()
 

@@ -79,8 +79,11 @@ type command struct {
 	Vertical bool
 }
 
-func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte, inStream io.ReadCloser, outStream io.Writer, errStream io.Writer, verbose bool, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions, skipTLSVerify bool) (*Cli, error) {
-	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead, skipTLSVerify)
+func NewCli(projectId, instanceId, databaseId, prompt, historyFile string, credential []byte,
+	inStream io.ReadCloser, outStream, errStream io.Writer, verbose bool,
+	priority pb.RequestOptions_Priority, role, endpoint string, directedRead *pb.DirectedReadOptions,
+	skipTLSVerify bool, protoDescriptor []byte) (*Cli, error) {
+	session, err := createSession(projectId, instanceId, databaseId, credential, priority, role, endpoint, directedRead, skipTLSVerify, protoDescriptor)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +156,8 @@ func (c *Cli) RunInteractive() int {
 		}
 
 		if s, ok := stmt.(*UseStatement); ok {
-			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority, s.Role, c.Endpoint, c.Session.directedRead, c.SkipTLSVerify)
+			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority,
+				s.Role, c.Endpoint, c.Session.directedRead, c.SkipTLSVerify, c.Session.protoDescriptor)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -315,7 +319,9 @@ func (c *Cli) getInterpolatedPrompt() string {
 	return prompt
 }
 
-func createSession(projectId string, instanceId string, databaseId string, credential []byte, priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions, skipTLSVerify bool) (*Session, error) {
+func createSession(projectId string, instanceId string, databaseId string, credential []byte,
+	priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions,
+	skipTLSVerify bool, protoDescriptor []byte) (*Session, error) {
 	var opts []option.ClientOption
 	if credential != nil {
 		opts = append(opts, option.WithCredentialsJSON(credential))
@@ -327,7 +333,7 @@ func createSession(projectId string, instanceId string, databaseId string, crede
 		creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		opts = append(opts, option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)))
 	}
-	return NewSession(projectId, instanceId, databaseId, priority, role, directedRead, opts...)
+	return NewSession(projectId, instanceId, databaseId, priority, role, directedRead, protoDescriptor, opts...)
 }
 
 func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {

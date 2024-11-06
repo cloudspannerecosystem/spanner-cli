@@ -86,7 +86,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	if testCredential != "" {
 		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
 	}
-	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, "", nil, options...)
+	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, "", nil, nil, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}
