@@ -157,7 +157,7 @@ func (c *Cli) RunInteractive() int {
 
 		if s, ok := stmt.(*UseStatement); ok {
 			newSession, err := createSession(c.Session.projectId, c.Session.instanceId, s.Database, c.Credential, c.Priority,
-				s.Role, c.Endpoint, c.Session.directedRead, c.SkipTLSVerify, c.Session.protoDescriptorFileContent)
+				s.Role, c.Endpoint, c.Session.directedRead, c.SkipTLSVerify, c.Session.protoDescriptor)
 			if err != nil {
 				c.PrintInteractiveError(err)
 				continue
@@ -321,7 +321,7 @@ func (c *Cli) getInterpolatedPrompt() string {
 
 func createSession(projectId string, instanceId string, databaseId string, credential []byte,
 	priority pb.RequestOptions_Priority, role string, endpoint string, directedRead *pb.DirectedReadOptions,
-	skipTLSVerify bool, protoDescriptorFileContent []byte) (*Session, error) {
+	skipTLSVerify bool, protoDescriptor []byte) (*Session, error) {
 	var opts []option.ClientOption
 	if credential != nil {
 		opts = append(opts, option.WithCredentialsJSON(credential))
@@ -333,7 +333,7 @@ func createSession(projectId string, instanceId string, databaseId string, crede
 		creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		opts = append(opts, option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)))
 	}
-	return NewSession(projectId, instanceId, databaseId, priority, role, directedRead, protoDescriptorFileContent, opts...)
+	return NewSession(projectId, instanceId, databaseId, priority, role, directedRead, protoDescriptor, opts...)
 }
 
 func readInteractiveInput(rl *readline.Instance, prompt string) (*inputStatement, error) {

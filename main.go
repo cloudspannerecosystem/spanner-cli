@@ -99,19 +99,18 @@ func main() {
 	}
 
 	// Don't need to unmarshal into descriptorpb.FileDescriptorSet because the UpdateDDL API just accepts []byte.
-	var protoDescriptorFileContent []byte
+	var protoDescriptor []byte
 	if opts.ProtoDescriptorFile != "" {
 		var err error
-		b, err := os.ReadFile(opts.ProtoDescriptorFile)
+		protoDescriptor, err = os.ReadFile(opts.ProtoDescriptorFile)
 		if err != nil {
 			exitf("Failed to read proto descriptor file: %v\n", err)
 		}
-		protoDescriptorFileContent = b
 	}
 
 	cli, err := NewCli(opts.ProjectId, opts.InstanceId, opts.DatabaseId, opts.Prompt, opts.HistoryFile, cred,
 		os.Stdin, os.Stdout, os.Stderr, opts.Verbose, priority, opts.Role, opts.Endpoint, directedRead,
-		opts.SkipTLSVerify, protoDescriptorFileContent)
+		opts.SkipTLSVerify, protoDescriptor)
 	if err != nil {
 		exitf("Failed to connect to Spanner: %v", err)
 	}

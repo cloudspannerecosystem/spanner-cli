@@ -407,7 +407,7 @@ func executeDdlStatements(ctx context.Context, session *Session, ddls []string) 
 		Database:   session.DatabasePath(),
 		Statements: ddls,
 		// There is no problem to send ProtoDescriptors with any DDL statements
-		ProtoDescriptors: session.protoDescriptorFileContent,
+		ProtoDescriptors: session.protoDescriptor,
 	})
 	if err != nil {
 		return nil, err
