@@ -84,8 +84,10 @@ type QueryStats struct {
 }
 
 var (
-	// SQL
-	selectRe = regexp.MustCompile(`(?is)^(?:WITH|CALL|@{.+|SELECT|GRAPH)\s.+$`)
+	// Query
+	selectRe = regexp.MustCompile(`(?is)^(@{[^}]+}\s*)?(\(\s*)?(?:WITH|SELECT)\s.+$`)
+	graphRe  = regexp.MustCompile(`(?is)^GRAPH\s.+$`)
+	callRe   = regexp.MustCompile(`(?is)^CALL\s.+$`)
 
 	// DDL
 	createDatabaseRe = regexp.MustCompile(`(?is)^CREATE\s+DATABASE\s.+$`)
@@ -143,7 +145,7 @@ func BuildStatementWithComments(stripped, raw string) (Statement, error) {
 	case useRe.MatchString(stripped):
 		matched := useRe.FindStringSubmatch(stripped)
 		return &UseStatement{Database: unquoteIdentifier(matched[1]), Role: unquoteIdentifier(matched[2])}, nil
-	case selectRe.MatchString(stripped):
+	case selectRe.MatchString(stripped), graphRe.MatchString(stripped), callRe.MatchString(stripped):
 		return &SelectStatement{Query: raw}, nil
 	case createDatabaseRe.MatchString(stripped):
 		return &CreateDatabaseStatement{CreateStatement: stripped}, nil
