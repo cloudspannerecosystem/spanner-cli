@@ -67,6 +67,21 @@ func TestBuildStatement(t *testing.T) {
 			want:  &SelectStatement{Query: "@{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT * FROM t1"},
 		},
 		{
+			desc:  "SELECT statement in parenthesis",
+			input: "(SELECT * FROM t1)",
+			want:  &SelectStatement{Query: "(SELECT * FROM t1)"},
+		},
+		{
+			desc:  "WITH statement in parenthesis",
+			input: "(WITH sub AS (SELECT 1) SELECT * FROM sub)",
+			want:  &SelectStatement{Query: "(WITH sub AS (SELECT 1) SELECT * FROM sub)"},
+		},
+		{
+			desc:  "SELECT statement in parenthesis with statement hint",
+			input: "@{USE_ADDITIONAL_PARALLELISM=TRUE} (SELECT * FROM t1)",
+			want:  &SelectStatement{Query: "@{USE_ADDITIONAL_PARALLELISM=TRUE} (SELECT * FROM t1)"},
+		},
+		{
 			desc:  "CREATE DATABASE statement",
 			input: "CREATE DATABASE d1",
 			want:  &CreateDatabaseStatement{CreateStatement: "CREATE DATABASE d1"},
