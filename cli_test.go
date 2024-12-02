@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -46,15 +45,18 @@ func TestBuildCommands(t *testing.T) {
 	}{
 		{Input: `SELECT * FROM t1;`, Expected: []*command{{&SelectStatement{"SELECT * FROM t1"}, false}}},
 		{Input: `CREATE TABLE t1;`, Expected: []*command{{&BulkDdlStatement{[]string{"CREATE TABLE t1"}}, false}}},
-		{Input: `CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
+		{
+			Input: `CREATE TABLE t1(pk INT64) PRIMARY KEY(pk); ALTER TABLE t1 ADD COLUMN col INT64; CREATE INDEX i1 ON t1(col); DROP INDEX i1; DROP TABLE t1;`,
 			Expected: []*command{{&BulkDdlStatement{[]string{
 				"CREATE TABLE t1(pk INT64) PRIMARY KEY(pk)",
 				"ALTER TABLE t1 ADD COLUMN col INT64",
 				"CREATE INDEX i1 ON t1(col)",
 				"DROP INDEX i1",
 				"DROP TABLE t1",
-			}}, false}}},
-		{Input: `CREATE TABLE t1(pk INT64) PRIMARY KEY(pk);
+			}}, false}},
+		},
+		{
+			Input: `CREATE TABLE t1(pk INT64) PRIMARY KEY(pk);
                 CREATE TABLE t2(pk INT64) PRIMARY KEY(pk);
                 SELECT * FROM t1\G
                 DROP TABLE t1;
@@ -65,7 +67,8 @@ func TestBuildCommands(t *testing.T) {
 				{&SelectStatement{"SELECT * FROM t1"}, true},
 				{&BulkDdlStatement{[]string{"DROP TABLE t1", "DROP TABLE t2"}}, false},
 				{&SelectStatement{"SELECT 1"}, false},
-			}},
+			},
+		},
 		{
 			Input: `
 			CREATE TABLE t1(pk INT64 /* NOT NULL*/, col INT64) PRIMARY KEY(pk);
@@ -79,7 +82,8 @@ func TestBuildCommands(t *testing.T) {
 				{&DmlStatement{"UPDATE t1 SET col = /* pk + */ col + 1 WHERE TRUE"}, false},
 				{&DmlStatement{"DELETE t1 WHERE TRUE /* AND pk = 1 */"}, false},
 				{&SelectStatement{"SELECT 0x1/**/A"}, false},
-			}},
+			},
+		},
 		{
 			// spanner-cli don't permit empty statements.
 			Input:       `SELECT 1; /* comment */; SELECT 2`,
@@ -94,7 +98,8 @@ func TestBuildCommands(t *testing.T) {
 			Input: `SELECT 1; /* comment */`,
 			Expected: []*command{
 				{&SelectStatement{"SELECT 1"}, false},
-			}},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -164,9 +169,9 @@ func TestReadInteractiveInput(t *testing.T) {
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			rl, err := readline.NewEx(&readline.Config{
-				Stdin:  ioutil.NopCloser(strings.NewReader(tt.input)),
-				Stdout: ioutil.Discard,
-				Stderr: ioutil.Discard,
+				Stdin:  io.NopCloser(strings.NewReader(tt.input)),
+				Stdout: io.Discard,
+				Stderr: io.Discard,
 			})
 			if err != nil {
 				t.Fatalf("unexpected readline.NewEx() error: %v", err)
@@ -189,8 +194,8 @@ func TestPrintResult(t *testing.T) {
 		result := &Result{
 			ColumnNames: []string{"foo", "bar"},
 			Rows: []Row{
-				Row{[]string{"1", "2"}},
-				Row{[]string{"3", "4"}},
+				{[]string{"1", "2"}},
+				{[]string{"3", "4"}},
 			},
 			IsMutation: false,
 		}
@@ -216,8 +221,8 @@ func TestPrintResult(t *testing.T) {
 		result := &Result{
 			ColumnNames: []string{"foo", "bar"},
 			Rows: []Row{
-				Row{[]string{"1", "2"}},
-				Row{[]string{"3", "4"}},
+				{[]string{"1", "2"}},
+				{[]string{"3", "4"}},
 			},
 			IsMutation: false,
 		}
@@ -243,8 +248,8 @@ bar: 4
 		result := &Result{
 			ColumnNames: []string{"foo", "bar"},
 			Rows: []Row{
-				Row{[]string{"1", "2"}},
-				Row{[]string{"3", "4"}},
+				{[]string{"1", "2"}},
+				{[]string{"3", "4"}},
 			},
 			IsMutation: false,
 		}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -67,7 +67,8 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					ID:   7,
 					Text: "                  +- Index Scan (Index: SingersByFirstLastName)",
 				},
-			}},
+			},
+		},
 		{
 			/*
 				Original Query:
@@ -107,7 +108,8 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					ID:   9,
 					Text: "         +- Index Scan (Full scan: true, Index: SongsBySingerAlbumSongNameDesc)",
 				},
-			}},
+			},
+		},
 		{
 			/*
 				Original Query: https://cloud.google.com/spanner/docs/query-execution-operators?hl=en#array_subqueries
@@ -158,7 +160,8 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					ID:   11,
 					Text: "                  +- Index Scan (Index: ConcertsBySingerId)",
 				},
-			}},
+			},
+		},
 		{
 			/*
 				Original Query: https://cloud.google.com/spanner/docs/query-execution-operators?hl=en#scalar_subqueries
@@ -219,7 +222,8 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 					ID:   16,
 					Text: "                        +- Table Scan (Full scan: true, Table: Songs)",
 				},
-			}},
+			},
+		},
 		{
 			/*
 				Original Query:
@@ -367,7 +371,7 @@ func TestRenderTreeUsingTestdataPlans(t *testing.T) {
 		},
 	} {
 		t.Run(test.title, func(t *testing.T) {
-			b, err := ioutil.ReadFile(test.file)
+			b, err := os.ReadFile(test.file)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -480,7 +484,8 @@ func TestRenderTreeWithStats(t *testing.T) {
 					Execution:    "1",
 					LatencyTotal: "1 msec",
 				},
-			}},
+			},
+		},
 	} {
 		t.Run(test.title, func(t *testing.T) {
 			tree := BuildQueryPlanTree(test.plan, 0)
@@ -494,13 +499,15 @@ func TestRenderTreeWithStats(t *testing.T) {
 		})
 	}
 }
+
 func TestNodeString(t *testing.T) {
 	for _, test := range []struct {
 		title string
 		node  *Node
 		want  string
 	}{
-		{"Distributed Union with call_type=Local",
+		{
+			"Distributed Union with call_type=Local",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Distributed Union",
 				Metadata: mustNewStruct(map[string]interface{}{
@@ -509,7 +516,8 @@ func TestNodeString(t *testing.T) {
 				}),
 			}}, "Local Distributed Union",
 		},
-		{"Scan with scan_type=IndexScan and Full scan=true",
+		{
+			"Scan with scan_type=IndexScan and Full scan=true",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Scan",
 				Metadata: mustNewStruct(map[string]interface{}{
@@ -517,44 +525,55 @@ func TestNodeString(t *testing.T) {
 					"scan_target": "SongsBySongName",
 					"Full scan":   "true",
 				}),
-			}}, "Index Scan (Full scan: true, Index: SongsBySongName)"},
-		{"Scan with scan_type=TableScan",
+			}}, "Index Scan (Full scan: true, Index: SongsBySongName)",
+		},
+		{
+			"Scan with scan_type=TableScan",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Scan",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"scan_type":   "TableScan",
 					"scan_target": "Songs",
 				}),
-			}}, "Table Scan (Table: Songs)"},
-		{"Scan with scan_type=BatchScan",
+			}}, "Table Scan (Table: Songs)",
+		},
+		{
+			"Scan with scan_type=BatchScan",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Scan",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"scan_type":   "BatchScan",
 					"scan_target": "$v2",
 				}),
-			}}, "Batch Scan (Batch: $v2)"},
-		{"Sort Limit with call_type=Local",
+			}}, "Batch Scan (Batch: $v2)",
+		},
+		{
+			"Sort Limit with call_type=Local",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Sort Limit",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"call_type": "Local",
 				}),
-			}}, "Local Sort Limit"},
-		{"Sort Limit with call_type=Global",
+			}}, "Local Sort Limit",
+		},
+		{
+			"Sort Limit with call_type=Global",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Sort Limit",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"call_type": "Global",
 				}),
-			}}, "Global Sort Limit"},
-		{"Aggregate with iterator_type=Stream",
+			}}, "Global Sort Limit",
+		},
+		{
+			"Aggregate with iterator_type=Stream",
 			&Node{PlanNode: &spanner.PlanNode{
 				DisplayName: "Aggregate",
 				Metadata: mustNewStruct(map[string]interface{}{
 					"iterator_type": "Stream",
 				}),
-			}}, "Stream Aggregate"},
+			}}, "Stream Aggregate",
+		},
 	} {
 		if got := test.node.String(); got != test.want {
 			t.Errorf("%s: node.String() = %q but want %q", test.title, got, test.want)
