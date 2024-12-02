@@ -53,6 +53,7 @@ spanner:
       --directed-read=         Directed read option (replica_location:replica_type). The replicat_type is optional and either READ_ONLY or READ_WRITE
       --skip-tls-verify        Insecurely skip TLS verify
       --proto-descriptor-file= Path of a file that contains a protobuf-serialized google.protobuf.FileDescriptorSet message to use in this invocation.
+      --version                Show version of spanner-cli
 
 Help Options:
   -h, --help                   Show this help message

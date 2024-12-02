@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime/debug"
 
 	pb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	flags "github.com/jessevdk/go-flags"
@@ -49,6 +50,7 @@ type spannerOptions struct {
 	DirectedRead        string `long:"directed-read" description:"Directed read option (replica_location:replica_type). The replicat_type is optional and either READ_ONLY or READ_WRITE"`
 	SkipTLSVerify       bool   `long:"skip-tls-verify" description:"Insecurely skip TLS verify"`
 	ProtoDescriptorFile string `long:"proto-descriptor-file" description:"Path of a file that contains a protobuf-serialized google.protobuf.FileDescriptorSet message to use in this invocation."`
+	Version             bool   `long:"version" description:"Show version of spanner-cli"`
 }
 
 func main() {
@@ -62,6 +64,11 @@ func main() {
 	// use another parser to process environment variable
 	if _, err := flags.NewParser(&gopts, flags.Default).Parse(); err != nil {
 		exitf("Invalid options\n")
+	}
+
+	if gopts.Spanner.Version {
+		fmt.Fprintf(os.Stdout, "%s\n", versionInfo())
+		os.Exit(0)
 	}
 
 	opts := gopts.Spanner
@@ -196,4 +203,12 @@ func readStdin() (string, error) {
 	} else {
 		return "", nil
 	}
+}
+
+func versionInfo() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "(devel)"
+	}
+	return info.Main.Version
 }
