@@ -110,7 +110,7 @@ var (
 	pdmlRe = regexp.MustCompile(`(?is)^PARTITIONED\s+((?:INSERT|UPDATE|DELETE)\s+.+$)`)
 
 	// Transaction
-	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
+	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+ISOLATION LEVEL\s+(SERIALIZABLE|REPEATABLE READ))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
 	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
 	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
@@ -991,8 +991,9 @@ func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func
 }
 
 type BeginRwStatement struct {
-	Priority pb.RequestOptions_Priority
-	Tag      string
+	IsolationLevel pb.TransactionOptions_IsolationLevel
+	Priority       pb.RequestOptions_Priority
+	Tag            string
 }
 
 func newBeginRwStatement(input string) (*BeginRwStatement, error) {
@@ -1000,15 +1001,23 @@ func newBeginRwStatement(input string) (*BeginRwStatement, error) {
 	stmt := &BeginRwStatement{}
 
 	if matched[1] != "" {
-		priority, err := parsePriority(matched[1])
+		isolationLevel, err := parseIsolationLevel(matched[1])
+		if err != nil {
+			return nil, err
+		}
+		stmt.IsolationLevel = isolationLevel
+	}
+
+	if matched[2] != "" {
+		priority, err := parsePriority(matched[2])
 		if err != nil {
 			return nil, err
 		}
 		stmt.Priority = priority
 	}
 
-	if matched[2] != "" {
-		stmt.Tag = matched[2]
+	if matched[3] != "" {
+		stmt.Tag = matched[3]
 	}
 
 	return stmt, nil
@@ -1022,7 +1031,7 @@ func (s *BeginRwStatement) Execute(ctx context.Context, session *Session) (*Resu
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	if err := session.BeginReadWriteTransaction(ctx, s.Priority, s.Tag); err != nil {
+	if err := session.BeginReadWriteTransaction(ctx, s.IsolationLevel, s.Priority, s.Tag); err != nil {
 		return nil, err
 	}
 
@@ -1188,5 +1197,16 @@ func parsePriority(priority string) (pb.RequestOptions_Priority, error) {
 		return pb.RequestOptions_PRIORITY_LOW, nil
 	default:
 		return pb.RequestOptions_PRIORITY_UNSPECIFIED, fmt.Errorf("invalid priority: %q", priority)
+	}
+}
+
+func parseIsolationLevel(isolationLevel string) (pb.TransactionOptions_IsolationLevel, error) {
+	switch strings.ToUpper(isolationLevel) {
+	case "SERIALIZABLE":
+		return pb.TransactionOptions_SERIALIZABLE, nil
+	case "REPEATABLE READ":
+		return pb.TransactionOptions_REPEATABLE_READ, nil
+	default:
+		return pb.TransactionOptions_ISOLATION_LEVEL_UNSPECIFIED, fmt.Errorf("invalid isolation level: %q", isolationLevel)
 	}
 }

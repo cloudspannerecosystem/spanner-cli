@@ -322,6 +322,45 @@ func TestBuildStatement(t *testing.T) {
 			},
 		},
 		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL",
+			input: "BEGIN RW ISOLATION LEVEL SERIALIZABLE",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_SERIALIZABLE,
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL",
+			input: "BEGIN RW ISOLATION LEVEL REPEATABLE READ",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_REPEATABLE_READ,
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL and PRIORITY",
+			input: "BEGIN RW ISOLATION LEVEL SERIALIZABLE PRIORITY MEDIUM",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_SERIALIZABLE,
+				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL and TAG",
+			input: "BEGIN RW ISOLATION LEVEL SERIALIZABLE TAG app=spanner-cli",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_SERIALIZABLE,
+				Tag:            "app=spanner-cli",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL, PRIORITY and TAG",
+			input: "BEGIN RW ISOLATION LEVEL REPEATABLE READ PRIORITY MEDIUM TAG app=spanner-cli",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_REPEATABLE_READ,
+				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
+				Tag:            "app=spanner-cli",
+			},
+		},
+		{
 			desc:  "BEGIN PRIORITY statement with TAG whitespace",
 			input: "BEGIN PRIORITY MEDIUM TAG app=spanner-cli env=test",
 			want: &BeginRwStatement{
