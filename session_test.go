@@ -72,7 +72,7 @@ func TestRequestPriority(t *testing.T) {
 			}
 
 			// Read-Write Transaction.
-			if err := session.BeginReadWriteTransaction(ctx, test.transactionPriority, ""); err != nil {
+			if err := session.BeginReadWriteTransaction(ctx, pb.TransactionOptions_ISOLATION_LEVEL_UNSPECIFIED, test.transactionPriority, ""); err != nil {
 				t.Fatalf("failed to begin read write transaction: %v", err)
 			}
 			iter, _ := session.RunQuery(ctx, spanner.NewStatement("SELECT * FROM t1"))
@@ -186,6 +186,81 @@ func TestParseDirectedReadOption(t *testing.T) {
 
 			if !cmp.Equal(got, tt.want, protocmp.Transform()) {
 				t.Errorf("Got = %v, but want = %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsolationLevel(t *testing.T) {
+	server := setupTestServer(t)
+
+	var recorder requestRecorder
+	unaryInterceptor, streamInterceptor := recordRequestsInterceptors(&recorder)
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(unaryInterceptor),
+		grpc.WithStreamInterceptor(streamInterceptor),
+	}
+	ctx := context.Background()
+	conn, err := grpc.DialContext(ctx, server.Addr, opts...)
+	if err != nil {
+		t.Fatalf("failed to dial: %v", err)
+	}
+
+	for _, test := range []struct {
+		desc           string
+		isolationLevel pb.TransactionOptions_IsolationLevel
+		want           pb.TransactionOptions_IsolationLevel
+	}{
+		{
+			desc:           "use default unspecified isolation level",
+			isolationLevel: pb.TransactionOptions_ISOLATION_LEVEL_UNSPECIFIED,
+			want:           pb.TransactionOptions_ISOLATION_LEVEL_UNSPECIFIED,
+		},
+		{
+			desc:           "use SERIALIZABLE isolation level",
+			isolationLevel: pb.TransactionOptions_SERIALIZABLE,
+			want:           pb.TransactionOptions_SERIALIZABLE,
+		},
+		{
+			desc:           "use REPEATABLE READ isolation level",
+			isolationLevel: pb.TransactionOptions_REPEATABLE_READ,
+			want:           pb.TransactionOptions_REPEATABLE_READ,
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			defer recorder.flush()
+
+			session, err := NewSession("project", "instance", "database", pb.RequestOptions_PRIORITY_UNSPECIFIED, "role", nil, nil, option.WithGRPCConn(conn))
+			if err != nil {
+				t.Fatalf("failed to create spanner-cli session: %v", err)
+			}
+
+			// Read-Write Transaction.
+			if err := session.BeginReadWriteTransaction(ctx, test.isolationLevel, pb.RequestOptions_PRIORITY_UNSPECIFIED, ""); err != nil {
+				t.Fatalf("failed to begin read write transaction: %v", err)
+			}
+			iter, _ := session.RunQuery(ctx, spanner.NewStatement("SELECT * FROM t1"))
+			if err := iter.Do(func(r *spanner.Row) error {
+				return nil
+			}); err != nil {
+				t.Fatalf("failed to run query: %v", err)
+			}
+			if _, _, _, _, err := session.RunUpdate(ctx, spanner.NewStatement("DELETE FROM t1 WHERE Id = 1"), true); err != nil {
+				t.Fatalf("failed to run update: %v", err)
+			}
+			if _, err := session.CommitReadWriteTransaction(ctx); err != nil {
+				t.Fatalf("failed to commit: %v", err)
+			}
+
+			// Check request priority.
+			for _, r := range recorder.requests {
+				switch v := r.(type) {
+				case *pb.BeginTransactionRequest:
+					if got := v.GetOptions().GetIsolationLevel(); got != test.want {
+						t.Errorf("isolation level mismatch: got = %v, want = %v", got, test.want)
+					}
+				}
 			}
 		})
 	}

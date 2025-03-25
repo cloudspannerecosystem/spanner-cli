@@ -237,7 +237,7 @@ and `{}` for a mutually exclusive keyword.
 | Show Query Result Shape | `DESCRIBE SELECT ...;` | |
 | Show DML Result Shape | `DESCRIBE {INSERT\|UPDATE\|DELETE} ... THEN RETURN ...;` | |
 | Start a new query optimizer statistics package construction | `ANALYZE;` | |
-| Start Read-Write Transaction | `BEGIN [RW] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | See [Request Priority](#request-priority) for details on the priority. The tag you set is used as both transaction tag and request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
+| Start Read-Write Transaction | `BEGIN [RW] [ISOLATION LEVEL {SERIALIZABLE\|REPEATABLE READ}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | See [Isolation Level](#isolation-level) for details on the isolation level. See [Request Priority](#request-priority) for details on the priority. The tag you set is used as both transaction tag and request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
 | Commit Read-Write Transaction | `COMMIT;` | |
 | Rollback Read-Write Transaction | `ROLLBACK;` | |
 | Start Read-Only Transaction | `BEGIN RO [{<seconds>\|<RFC3339-formatted time>}] [PRIORITY {HIGH\|MEDIUM\|LOW}] [TAG <tag>];` | `<seconds>` and `<RFC3339-formatted time>` is used for stale read. See [Request Priority](#request-priority) for details on the priority. The tag you set is used as request tag. See also [Transaction Tags and Request Tags](#transaction-tags-and-request-tags).|
@@ -300,6 +300,24 @@ prompt = "[\\p:\\i:\\d]\\t> "
 3. `.spanner_cli.cnf` in current directory
 4. `.spanner_cli.cnf` in home directory(lowest)
 
+## Isolation Level
+
+You can set the isolation level at a transaction level in read-write transactions. By default `SERIALIZABLE` isolation is used for every request.
+
+To set the isolation level for a transaction, you can use the `ISOLATION LEVEL {SERIALIZABLE|REPEATABLE READ}` keyword.
+
+Here are some examples for transaction-level isolation.
+
+```
+# Read-write transaction with serializable isolation
+BEGIN RW ISOLATION LEVEL SERIALIZABLE
+
+# Read-write transaction with repeatable read isolation
+BEGIN RW ISOLATION LEVEL REPEATABLE READ
+```
+
+Note that the transaction-level isolation level cannot be set on read-only transactions.
+
 ## Request Priority
 
 You can set [request priority](https://cloud.google.com/spanner/docs/reference/rest/v1/RequestOptions#Priority) for command level or transaction level.
@@ -307,7 +325,7 @@ By default `MEDIUM` priority is used for every request.
 
 To set a priority for command line level, you can use `--priority={HIGH|MEDIUM|LOW}` command line option.
 
-To set a priority for transaction level, you can use `PRIORITY {HIGH|MEDIUM|LOW}` keyword.
+To set a priority for transaction level, you can use the `PRIORITY {HIGH|MEDIUM|LOW}` keyword.
 
 Here are some examples for transaction-level priority.
 
