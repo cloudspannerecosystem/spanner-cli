@@ -19,13 +19,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/protobuf/testing/protocmp"
 	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"google.golang.org/protobuf/testing/protocmp"
 
 	"cloud.google.com/go/spanner"
 	"github.com/google/go-cmp/cmp"
@@ -87,7 +86,7 @@ func setup(t *testing.T, ctx context.Context, dmls []string) (*Session, string, 
 	if testCredential != "" {
 		options = append(options, option.WithCredentialsJSON([]byte(testCredential)))
 	}
-	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, "", nil, nil, true, options...)
+	session, err := NewSession(testProjectId, testInstanceId, testDatabaseId, pb.RequestOptions_PRIORITY_UNSPECIFIED, "", nil, nil, options...)
 	if err != nil {
 		t.Fatalf("failed to create test session: err=%s", err)
 	}
