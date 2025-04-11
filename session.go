@@ -47,18 +47,19 @@ var defaultClientOpts = []option.ClientOption{
 const defaultPriority = pb.RequestOptions_PRIORITY_MEDIUM
 
 type Session struct {
-	projectId       string
-	instanceId      string
-	databaseId      string
-	client          *spanner.Client
-	adminClient     *adminapi.DatabaseAdminClient
-	clientConfig    spanner.ClientConfig
-	clientOpts      []option.ClientOption
-	defaultPriority pb.RequestOptions_Priority
-	directedRead    *pb.DirectedReadOptions
-	tc              *transactionContext
-	tcMutex         sync.Mutex // Guard a critical section for transaction.
-	protoDescriptor []byte
+	projectId            string
+	instanceId           string
+	databaseId           string
+	client               *spanner.Client
+	adminClient          *adminapi.DatabaseAdminClient
+	clientConfig         spanner.ClientConfig
+	clientOpts           []option.ClientOption
+	defaultPriority      pb.RequestOptions_Priority
+	directedRead         *pb.DirectedReadOptions
+	tc                   *transactionContext
+	tcMutex              sync.Mutex // Guard a critical section for transaction.
+	protoDescriptor      []byte
+	disableNativeMetrics bool
 }
 
 type transactionContext struct {
@@ -70,12 +71,12 @@ type transactionContext struct {
 }
 
 func NewSession(projectId string, instanceId string, databaseId string, priority pb.RequestOptions_Priority, role string, directedRead *pb.DirectedReadOptions,
-	protoDescriptor []byte, opts ...option.ClientOption) (*Session, error) {
+	protoDescriptor []byte, disableNativeMetrics bool, opts ...option.ClientOption) (*Session, error) {
 	ctx := context.Background()
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseId)
 	clientConfig := defaultClientConfig
 	clientConfig.DatabaseRole = role
-	clientConfig.DirectedReadOptions = directedRead
+	clientConfig.DisableNativeMetrics = disableNativeMetrics
 	opts = append(opts, defaultClientOpts...)
 	client, err := spanner.NewClientWithConfig(ctx, dbPath, clientConfig, opts...)
 	if err != nil {
@@ -92,16 +93,17 @@ func NewSession(projectId string, instanceId string, databaseId string, priority
 	}
 
 	session := &Session{
-		projectId:       projectId,
-		instanceId:      instanceId,
-		databaseId:      databaseId,
-		client:          client,
-		clientConfig:    clientConfig,
-		clientOpts:      opts,
-		adminClient:     adminClient,
-		defaultPriority: priority,
-		directedRead:    directedRead,
-		protoDescriptor: protoDescriptor,
+		projectId:            projectId,
+		instanceId:           instanceId,
+		databaseId:           databaseId,
+		client:               client,
+		clientConfig:         clientConfig,
+		clientOpts:           opts,
+		adminClient:          adminClient,
+		defaultPriority:      priority,
+		directedRead:         directedRead,
+		protoDescriptor:      protoDescriptor,
+		disableNativeMetrics: disableNativeMetrics,
 	}
 	go session.startHeartbeat()
 
