@@ -17,9 +17,6 @@ You can control your Spanner databases with idiomatic SQL commands.
 ```
 # For Go 1.16+
 go install github.com/cloudspannerecosystem/spanner-cli@latest
-
-# For Go <1.16
-go get -u github.com/cloudspannerecosystem/spanner-cli
 ```
 
 Or you can build a docker image.
