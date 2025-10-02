@@ -1,6 +1,9 @@
 spanner-cli [![run-tests](https://github.com/cloudspannerecosystem/spanner-cli/actions/workflows/run-tests.yaml/badge.svg)](https://github.com/cloudspannerecosystem/spanner-cli/actions/workflows/run-tests.yaml)
 ===
 
+> [!NOTE]
+> This repository has been archived. Please use [Spanner CLI](https://cloud.google.com/spanner/docs/spanner-cli), an official command-line tool that offers similar functionality for interacting with your Spanner database.
+
 Interactive command line tool for Cloud Spanner.
 
 ![gif](https://github.com/cloudspannerecosystem/spanner-cli/blob/master/image/spanner_cli.gif)
