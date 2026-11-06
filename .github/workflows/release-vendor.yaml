@@ -1,0 +1,56 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Attaches a tarball with the vendored Go modules to each release, so distributions
+# can build spanner-cli without network access during the build.
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to attach the vendor tarball to
+        required: true
+name: Release vendor tarball
+permissions: {}
+jobs:
+  vendor:
+    name: Vendor tarball
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the tarball to the release
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Create the vendor tarball
+        run: |
+          name="spanner-cli-${TAG#v}"
+          go mod vendor
+          tar --sort=name --owner=0 --group=0 --numeric-owner \
+            --mtime="@$(git log -1 --format=%ct)" \
+            --transform="s,^,${name}/," \
+            -cJf "${name}-vendor.tar.xz" vendor
+      - name: Upload the vendor tarball to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${TAG}" "spanner-cli-${TAG#v}-vendor.tar.xz" --clobber --repo "${GITHUB_REPOSITORY}"
